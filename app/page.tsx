@@ -2,93 +2,126 @@
 
 import { useMemo, useState } from "react";
 
-type Product = { id: number; name: string; category: string; price: number; image: string; description: string };
+type Product = { id: number; name: string; category: string; price: number; image: string };
 type CartLine = { product: Product; quantity: number };
 
 const products: Product[] = [
-  { id: 1, name: "Orange Sunrise", category: "Fresh Juices", price: 5.5, image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=900&q=85", description: "Freshly squeezed orange" },
-  { id: 2, name: "Green Glow", category: "Fresh Juices", price: 6.5, image: "https://images.unsplash.com/photo-1654084982335-d404ccf9c6f5?auto=format&fit=crop&w=900&q=85", description: "Apple, spinach, cucumber" },
-  { id: 3, name: "Berry Blast", category: "Smoothies", price: 7, image: "https://baci-a-tutti.al/image/gallery/Mixed%20Berry%20Tropical%20Smoothie.jpg", description: "Strawberry, blueberry, banana" },
-  { id: 4, name: "Mango Dream", category: "Smoothies", price: 7.5, image: "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?auto=format&fit=crop&w=900&q=85", description: "Mango, banana, yoghurt" },
-  { id: 5, name: "Lemon Mint", category: "Fresh Juices", price: 4.5, image: "https://images.unsplash.com/photo-1513558161293-c9629dbd3c6a?auto=format&fit=crop&w=900&q=85", description: "Lemon, mint, sparkling water" },
-  { id: 6, name: "Tropical Mix", category: "Smoothies", price: 7, image: "https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=900&q=85", description: "Pineapple, mango, passion fruit" },
-  { id: 7, name: "Watermelon Cooler", category: "Cold Drinks", price: 4, image: "https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=900&q=85", description: "Fresh watermelon, lime" },
-  { id: 8, name: "Iced Matcha", category: "Cold Drinks", price: 5, image: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?auto=format&fit=crop&w=900&q=85", description: "Matcha, milk, light sweetness" }
+  { id: 1, name: "Orange Juice", category: "Juices", price: 80, image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=700&q=85" },
+  { id: 2, name: "Mango Juice", category: "Juices", price: 90, image: "https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=700&q=85" },
+  { id: 3, name: "Pomegranate Juice", category: "Juices", price: 100, image: "https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=700&q=85" },
+  { id: 4, name: "Berry Blast", category: "Smoothies", price: 100, image: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?auto=format&fit=crop&w=700&q=85" },
+  { id: 5, name: "Strawberry Smoothie", category: "Smoothies", price: 110, image: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=700&q=85" },
+  { id: 6, name: "Banana Smoothie", category: "Smoothies", price: 110, image: "https://images.unsplash.com/photo-1570696516188-ade861b84a49?auto=format&fit=crop&w=700&q=85" },
+  { id: 7, name: "Kiwi Fresh", category: "Juices", price: 90, image: "https://images.unsplash.com/photo-1610970881699-44a5587auto=format&fit=crop&w=700&q=85" },
+  { id: 8, name: "Watermelon Juice", category: "Juices", price: 85, image: "https://images.unsplash.com/photo-1525385133512-2f3auto=format&fit=crop&w=700&q=85" },
+  { id: 9, name: "Classic Milkshake", category: "Milkshakes", price: 100, image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=700&q=85" },
+  { id: 10, name: "Chocolate Milkshake", category: "Milkshakes", price: 120, image: "https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=700&q=85" },
+  { id: 11, name: "Chocolate Cake", category: "Desserts", price: 130, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=700&q=85" },
+  { id: 12, name: "Fruit Dessert", category: "Desserts", price: 100, image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=700&q=85" },
 ];
 
-const categories = ["All items", "Fresh Juices", "Smoothies", "Cold Drinks"];
-const money = (amount: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(amount);
+const categories = [
+  { name: "All", icon: "⌂" },
+  { name: "Juices", icon: "🍹" },
+  { name: "Smoothies", icon: "🥤" },
+  { name: "Milkshakes", icon: "🍦" },
+  { name: "Desserts", icon: "🍰" },
+  { name: "Special Offers", icon: "⭐" },
+  { name: "Membership", icon: "♛" },
+];
+const money = (amount: number) => `AFN ${amount.toLocaleString("en-US")}`;
 
 export default function Home() {
-  const [category, setCategory] = useState("All items");
+  const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [notice, setNotice] = useState("");
+  const [customer, setCustomer] = useState("Walk-in customer");
+  const [discount, setDiscount] = useState(0);
 
-  const visibleProducts = useMemo(() => products.filter((product) =>
-    (category === "All items" || product.category === category) &&
-    (product.name.toLowerCase().includes(search.toLowerCase()) || product.description.toLowerCase().includes(search.toLowerCase()))
+  const visibleProducts = useMemo(() => products.filter((p) =>
+    (category === "All" || p.category === category || (category === "Special Offers" && p.id <= 4) || (category === "Membership" && p.id === 12)) &&
+    p.name.toLowerCase().includes(search.toLowerCase())
   ), [category, search]);
 
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+  const tax = Math.round((subtotal - discount) * 0.1);
+  const total = Math.max(0, subtotal - discount) + tax;
 
   function addToCart(product: Product) {
     setNotice("");
     setCart((current) => {
       const existing = current.find((line) => line.product.id === product.id);
-      return existing
-        ? current.map((line) => line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line)
-        : [...current, { product, quantity: 1 }];
+      return existing ? current.map((line) => line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line) : [...current, { product, quantity: 1 }];
     });
   }
-
-  function changeQuantity(productId: number, delta: number) {
-    setCart((current) => current
-      .map((line) => line.product.id === productId ? { ...line, quantity: line.quantity + delta } : line)
-      .filter((line) => line.quantity > 0));
+  function changeQuantity(id: number, delta: number) {
+    setCart((current) => current.map((line) => line.product.id === id ? { ...line, quantity: line.quantity + delta } : line).filter((line) => line.quantity > 0));
+  }
+  function action(label: string) {
+    setNotice(`${label} is a design preview control. This workflow will be connected when the POS operations are implemented.`);
   }
 
   return (
-    <main className="pos-shell">
-      <header className="topbar">
-        <a className="brand" href="#" aria-label="Juice Shop home">
-          <span className="brand-symbol"><img src="/juice-shop-logo.svg" alt="Juice Shop" /></span>
-          <span className="brand-name">JUICE <span>SHOP</span><small>POINT OF SALE</small></span>
+    <main className="pos-screen">
+      <header className="pos-header">
+        <a className="brand-lockup" href="#" aria-label="Juice Shop home">
+          <img src="/juice-shop-logo.svg" alt="Juice Shop" />
+          <span>Fresh · Healthy · Happy</span>
         </a>
-        <div className="topbar-right"><span className="register-indicator"><i /> Register open</span><span className="staff-avatar">S</span><span className="staff-name">Staff</span></div>
+        <label className="top-search"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." /></label>
+        <div className="header-date"><span>Tue, Nov 25, 2025</span><strong>10:24 AM</strong></div>
+        <div className="online-state"><span className="wifi">⌁</span><i/>Online</div>
+        <button className="cashier"><span className="cashier-photo">A</span><span><b>Ahmed Khan</b><small>Cashier</small></span><span className="chevron">⌄</span></button>
       </header>
 
-      <div className="workspace">
-        <section className="catalog">
-          <div className="page-heading"><div><p className="eyebrow">YOUR COUNTER</p><h1>Good morning <span>☀</span></h1><p className="muted">A fresh start. What are we making today?</p></div><div className="register-chip">REGISTER 01 <span>•</span> LIVE</div></div>
-          <label className="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a drink..." /></label>
-          <nav className="categories" aria-label="Product categories">{categories.map((item) => <button key={item} className={category === item ? "category active" : "category"} onClick={() => setCategory(item)}>{item}</button>)}</nav>
-          <div className="menu-caption"><span>THE MENU</span><span>{visibleProducts.length} DRINKS</span></div>
+      <div className="pos-layout">
+        <aside className="sidebar">
+          <button className="side-home" onClick={() => { setCategory("All"); setSearch(""); }}><span>⌂</span>Home</button>
+          <nav className="side-nav" aria-label="Categories">
+            {categories.slice(1).map((item) => <button key={item.name} className={category === item.name ? "side-link selected" : "side-link"} onClick={() => setCategory(item.name)}><span>{item.icon}</span>{item.name}</button>)}
+          </nav>
+          <button className="side-settings" onClick={() => action("Settings")}><span>⚙</span>Settings</button>
+        </aside>
+
+        <section className="menu-area">
+          <div className="category-tabs">{categories.slice(0,5).map((item) => <button key={item.name} className={category === item.name ? "tab active" : "tab"} onClick={() => setCategory(item.name)}>{item.name}</button>)}<button className="tab more-tab" onClick={() => setCategory("Special Offers")}>More⌄</button></div>
           <div className="product-grid">
-            {visibleProducts.map((product) => <button className="product-card" key={product.id} onClick={() => addToCart(product)}>
-              <span className="product-photo"><img src={product.image} alt={product.name} loading="lazy" /><span className="add-badge" aria-hidden="true">+</span></span>
-              <span className="product-info"><span className="product-category">{product.category}</span><strong>{product.name}</strong><span className="product-description">{product.description}</span><b>{money(product.price)}</b></span>
+            {visibleProducts.map((product) => <button className="product-tile" key={product.id} onClick={() => addToCart(product)}>
+              <span className="tile-photo"><img src={product.image} alt={product.name} loading="lazy"/></span>
+              <span className="tile-bottom"><span><b>{product.name}</b><strong>{money(product.price)}</strong></span><i>+</i></span>
             </button>)}
-            {visibleProducts.length === 0 && <p className="empty-products">No drinks found. Try another search.</p>}
+            {visibleProducts.length === 0 && <div className="no-products">No products found in this category.</div>}
+          </div>
+          <div className="quick-actions">
+            <button onClick={() => action("Table selection")}><span>♟</span>Table #5</button>
+            <button onClick={() => { setCustomer(customer === "Walk-in customer" ? "Ahmed Khan" : "Walk-in customer"); action("Customer selection"); }}><span>♟</span>Customer</button>
+            <button onClick={() => { setDiscount(discount ? 0 : 10); setNotice("A sample AFN 10 discount has been applied locally. Authorization and discount rules are not connected."); }}><span>%</span>Discount</button>
+            <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
+            <button onClick={() => action("Receipt printing")}><span>▣</span>Print Receipt</button>
           </div>
         </section>
 
-        <aside className="order-panel">
-          <div className="order-heading"><div><p className="eyebrow">YOUR ORDER</p><h2>Current sale</h2></div><span className="order-number">DRAFT</span></div>
-          <div className="order-meta"><span>Walk-in customer</span><span>{itemCount} {itemCount === 1 ? "item" : "items"}</span></div>
-          <div className="cart-lines">
-            {cart.length === 0 ? <div className="empty-cart"><span className="basket-icon"><svg viewBox="0 0 24 24"><path d="M4 9h16l-1.5 11h-13L4 9Z"/><path d="m8 9 4-6 4 6"/></svg></span><strong>Nothing here yet</strong><p>Tap a drink to add it to the order.</p></div> : cart.map((line) => <div className="cart-line" key={line.product.id}>
-              <img className="mini-art" src={line.product.image} alt="" /><div className="line-details"><strong>{line.product.name}</strong><span>{money(line.product.price)} each</span><div className="quantity-control"><button onClick={() => changeQuantity(line.product.id, -1)} aria-label={`Remove one ${line.product.name}`}>−</button><span>{line.quantity}</span><button onClick={() => changeQuantity(line.product.id, 1)} aria-label={`Add one ${line.product.name}`}>+</button></div></div><b className="line-total">{money(line.product.price * line.quantity)}</b>
+        <aside className="order-card">
+          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
+          <div className="order-items">
+            {cart.length === 0 ? <div className="cart-empty"><span>🛍</span><b>Your order is empty</b><small>Add a drink to get started</small></div> : cart.map((line) => <div className="order-item" key={line.product.id}>
+              <img src={line.product.image} alt=""/><div className="order-item-info"><b>{line.product.name}</b><span>{money(line.product.price)}</span><div className="stepper"><button onClick={() => changeQuantity(line.product.id,-1)}>−</button><b>{line.quantity}</b><button onClick={() => changeQuantity(line.product.id,1)}>+</button></div></div><strong>{money(line.product.price * line.quantity)}</strong><button className="remove-line" aria-label="Remove item" onClick={() => changeQuantity(line.product.id,-line.quantity)}>×</button>
             </div>)}
           </div>
-          <div className="totals"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><div><span>Tax</span><strong>Not configured</strong></div><div className="grand-total"><span>Total</span><strong>{money(subtotal)}</strong></div></div>
-          <button className="checkout-button" disabled={cart.length === 0} onClick={() => setNotice("Checkout is not enabled yet. Payment and order-saving services must be implemented before taking real sales.")}>Continue <span>→</span></button>
-          {notice && <p className="notice" role="status">{notice}</p>}
-          <p className="safety-note">Preview mode · Orders and payments are not saved.</p>
+          <div className="order-summary">
+            <div><span>Subtotal:</span><b>{money(subtotal)}</b></div>
+            <div><span>Discount:</span><b>− {money(discount)}</b></div>
+            <div><span>Tax (10%):</span><b>{money(tax)}</b></div>
+          </div>
+          <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
+          <div className="payment-actions"><button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button><button className="pay-button" onClick={() => action("Payment")} disabled={cart.length === 0}>▣ <span>Pay Now</span></button></div>
+          <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
+          {notice && <p className="pos-notice" role="status">{notice}</p>}
+          <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
-      <footer className="footer"><span>JUICE SHOP POS</span><span>MADE FOR THE COUNTER</span></footer>
     </main>
   );
 }
