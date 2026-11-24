@@ -12,7 +12,7 @@ const products: Product[] = [
   { id: 4, name: "Mango Dream", category: "Smoothies", price: 7.5, image: "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?auto=format&fit=crop&w=900&q=85", description: "Mango, banana, yoghurt" },
   { id: 5, name: "Lemon Mint", category: "Fresh Juices", price: 4.5, image: "https://images.unsplash.com/photo-1513558161293-c9629dbd3c6a?auto=format&fit=crop&w=900&q=85", description: "Lemon, mint, sparkling water" },
   { id: 6, name: "Tropical Mix", category: "Smoothies", price: 7, image: "https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=900&q=85", description: "Pineapple, mango, passion fruit" },
-  { id: 7, name: "Watermelon Cooler", category: "Cold Drinks", price: 4, image: "https://images.unsplash.com/photo-1525385133512-2f3 too?auto=format&fit=crop&w=900&q=85", description: "Fresh watermelon, lime" },
+  { id: 7, name: "Watermelon Cooler", category: "Cold Drinks", price: 4, image: "https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=900&q=85", description: "Fresh watermelon, lime" },
   { id: 8, name: "Iced Matcha", category: "Cold Drinks", price: 5, image: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?auto=format&fit=crop&w=900&q=85", description: "Matcha, milk, light sweetness" }
 ];
 
