@@ -53,7 +53,7 @@ export default function Home() {
     <main className="pos-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Juice Shop home">
-          <span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M20 33C9 28 7 17 13 10c7 0 13 4 14 11 1 5-2 9-7 12Z" /><path d="M13 27c5-7 10-11 17-16" /><path d="M23 9c3-5 8-6 12-5-1 5-4 9-10 10" /></svg></span>
+          <span className="brand-symbol"><img src="/juice-shop-logo.svg" alt="Juice Shop" /></span>
           <span className="brand-name">JUICE <span>SHOP</span><small>POINT OF SALE</small></span>
         </a>
         <div className="topbar-right"><span className="register-indicator"><i /> Register open</span><span className="staff-avatar">S</span><span className="staff-name">Staff</span></div>
