@@ -56,3 +56,22 @@ button,input{font:inherit}button{cursor:pointer}
 @media(max-width:1150px){.pos-header{grid-template-columns:170px minmax(180px,1fr) 130px 90px 175px;gap:10px}.pos-layout{grid-template-columns:165px minmax(0,1fr) 320px;gap:10px}.product-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:210px}.tab{padding:0 12px}.side-link{font-size:12px}}
 @media(max-width:850px){.pos-screen{padding:12px}.pos-header{height:auto;grid-template-columns:150px 1fr 170px;gap:10px;padding-bottom:12px}.brand-lockup img{width:145px}.header-date,.online-state{display:none}.pos-layout{grid-template-columns:150px minmax(0,1fr);min-height:0}.sidebar{grid-row:1 / span 2}.order-card{grid-column:2;min-height:450px}.menu-area{min-height:580px}.product-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:190px}.quick-actions button{height:65px;font-size:10px}}
 @media(max-width:580px){.pos-screen{padding:8px;gap:10px}.pos-header{grid-template-columns:110px 1fr;gap:8px}.brand-lockup{width:110px}.brand-lockup img{width:110px;height:62px}.brand-lockup span{font-size:8px;margin-left:3px;margin-top:-6px}.top-search{height:44px;padding:0 10px;gap:7px;border-radius:12px}.top-search input{font-size:11px}.top-search svg{width:18px}.cashier{grid-column:1/-1;justify-self:end;padding:5px 9px}.cashier-photo{width:28px;height:28px}.pos-layout{display:flex;flex-direction:column;gap:10px}.sidebar{order:0;min-height:0;display:flex;flex-direction:row;overflow-x:auto;padding:7px;gap:5px}.side-home,.side-link,.side-settings{height:43px;min-width:max-content;padding:0 10px;border:0;font-size:11px;gap:6px}.side-home span,.side-link span,.side-settings span{font-size:17px;width:auto}.side-settings{margin:0}.menu-area{order:1;min-height:0}.category-tabs{height:42px;gap:6px}.tab{font-size:10px;padding:0 11px;border-radius:10px}.more-tab{margin-left:0}.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:190px;gap:8px}.tile-bottom{min-height:52px;padding:6px}.tile-bottom b,.tile-bottom strong{font-size:10px}.tile-bottom i{width:25px;height:25px;flex-basis:25px;line-height:24px}.quick-actions{gap:5px}.quick-actions button{height:58px;font-size:8px;border-radius:8px}.quick-actions button span{font-size:18px}.order-card{order:2;min-height:460px}.order-title{height:52px;flex-basis:52px}.order-items{max-height:240px}.order-total{height:48px}.place-order{height:56px}.preview-note{margin-top:0}}
+
+/* Juice Shop pomegranate brand theme */
+:root{--bg:#260711;--panel:#390d1d;--panel2:#50152b;--line:#68263f;--green:#20c51d;--green2:#159b18;--orange:#ffae25}
+html,body{background:#210610;color:var(--white)}
+body{background:radial-gradient(ellipse at 50% -30%,#641b37 0,#310b1b 52%,#1b050d 100%)}
+.pos-screen{background:transparent}
+.pos-header{border-bottom-color:#69283f}
+.top-search{background:#4a172b;border-color:#77334d}
+.cashier{background:#481629;border-color:#713047}
+.sidebar{background:linear-gradient(180deg,#57182f,#350d1e);border-color:#6c2942}
+.side-link,.side-settings{border-bottom-color:#6a2941}
+.side-settings{border-top-color:#6a2941}
+.side-link:hover,.side-settings:hover{background:#70203d}
+.tab{background:#50172d;border-color:#77344d}
+.tab:hover{background:#68203b}
+.quick-actions button{background:linear-gradient(180deg,#571a32,#390e20);border-color:#713047}
+.quick-actions button:hover{background:#68203b;border-color:#a14b68}
+.order-title{background:#481328;border-bottom-color:#713047}
+@media(max-width:580px){.sidebar{background:linear-gradient(90deg,#57182f,#350d1e);border-color:#6c2942}}
