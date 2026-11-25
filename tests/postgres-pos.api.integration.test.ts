@@ -14,7 +14,11 @@ function passwordHash(password: string) {
   return `scrypt$${salt}$${scryptSync(password, salt, 64).toString("hex")}`;
 }
 
-async function expectStatus(response: Response, expected: number) {\n  if (response.status !== expected) throw new Error(`Expected HTTP ${expected}, received ${response.status}: ${await response.text()}`);\n}\n\nasync function waitForServer(child: ChildProcess) {
+async function expectStatus(response: Response, expected: number) {
+  if (response.status !== expected) throw new Error(`Expected HTTP ${expected}, received ${response.status}: ${await response.text()}`);
+}
+
+async function waitForServer(child: ChildProcess) {
   for (let attempt = 0; attempt < 90; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`Next.js integration server exited with ${child.exitCode}`);
     try {
