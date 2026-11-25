@@ -74,11 +74,42 @@ export async function GET(request: NextRequest) {
     if (refund.cashRefundMinor) tenders.set("CASH", (tenders.get("CASH") || 0) - refund.cashRefundMinor);
     if (refund.otherRefundMinor) tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
   }
-  return NextResponse.json({
+  const report = {
     period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor, currencies, totalMinor, taxMinor, discountMinor,
     averageOrderMinor: orders.length ? Math.round(grossTotalMinor / orders.length) : 0,
     tenders: [...tenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })),
     topProducts: [...products.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
     recentOrders: orders.slice(0, 20).map((order) => ({ orderNumber: order.orderNumber, totalMinor: order.totalMinor, currency: order.currency, cashier: order.cashier.name })),
-  }, { headers: { "Cache-Control": "no-store" } });
+  };
+  if (request.nextUrl.searchParams.get("format") === "csv") {
+    const cell = (value: string | number, untrusted = false) => {
+      let text = String(value);
+      if (untrusted && /^[=+@\\-\\t\\r]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const rows: (string | number)[][] = [
+      ["Section", "Name", "Quantity", "Amount minor", "Currency"],
+      ["Summary", "Period", report.period, "", ""],
+      ["Summary", "Start", report.start.toISOString(), "", ""],
+      ["Summary", "End", report.end.toISOString(), "", ""],
+      ["Summary", "Orders", report.orderCount, "", ""],
+      ["Summary", "Refund count", report.refundCount, "", ""],
+      ["Summary", "Net sales", report.totalMinor, "", report.currencies.join("|")],
+      ["Summary", "Tax", report.taxMinor, "", report.currencies.join("|")],
+      ["Summary", "Refund total", report.refundTotalMinor, "", report.currencies.join("|")],
+      ["Summary", "Discounts", report.discountMinor, "", report.currencies.join("|")],
+      ...report.tenders.map((item) => ["Tender", item.method, "", item.amountMinor, report.currencies.join("|")]),
+      ...report.topProducts.map((item) => ["Product", item.name, item.quantity, item.salesMinor, report.currencies.join("|")]),
+      ...report.recentOrders.map((item) => ["Order", `#${item.orderNumber} · ${item.cashier}`, "", item.totalMinor, item.currency]),
+    ];
+    const csv = rows.map((row) => row.map((value, index) => cell(value, index === 1)).join(",")).join("\\r\\n");
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="juice-shop-${period}-${selected}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+  return NextResponse.json(report, { headers: { "Cache-Control": "no-store" } });
 }
