@@ -40,6 +40,21 @@ export default function ShiftPage() {
     } catch (error) { setNotice(error instanceof Error ? error.message : "Shift update failed."); }
     finally { setBusy(false); }
   }
+  async function submitMovement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    const amount = Number(movementAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || movementReason.trim().length < 3) {
+      setNotice("Enter a valid amount and a reason of at least 3 characters."); setBusy(false); return;
+    }
+    try {
+      const response = await fetch("/api/shifts/movements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: movementType, amountMinor: Math.round(amount * 100), reason: movementReason.trim() }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Cash movement failed.");
+      setNotice(`${movementType === "PAID_IN" ? "Paid in" : "Paid out"} recorded. Expected drawer: ${money(data.expectedCashMinor)}.`);
+      setMovementAmount(""); setMovementReason(""); await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Cash movement failed."); }
+    finally { setBusy(false); }
+  }
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · CASH MANAGEMENT</span><h1>Cash shift</h1><p>Open your drawer before sales and reconcile it at close.</p></div></header>
