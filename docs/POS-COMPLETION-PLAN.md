@@ -37,6 +37,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
+- [ ] Apply and verify the item-level-return migration on the isolated Neon development branch; the return API/model are committed, but this migration is not yet recorded as applied.
 
 ## Milestone 2 — Catalogue and checkout
 - [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
@@ -84,7 +85,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
 - [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
-- [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Finished-product inventory is not yet modeled, so sealed returns are recorded as not restockable rather than incorrectly increasing ingredient stock.
+- [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Sealed returns are also forced to NOT_RESTOCKABLE until finished-product inventory exists.
+- [ ] Apply and verify the item-level-return migration on the isolated Neon development branch, then run Prisma validation and build checks.
 - [ ] Preview acceptance test with the owner using realistic sample data.
 - [ ] Production readiness checklist and explicit owner approval before any production release.
 
