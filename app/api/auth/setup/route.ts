@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+import { Prisma } from "@prisma/client";
+import { createSession, hashPassword } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+
+export async function POST(request: NextRequest) {
+  const setupSecret = process.env.POS_SETUP_KEY;
+  if (!setupSecret || setupSecret.length < 32) {
+    return NextResponse.json({ error: "Initial setup is not enabled." }, { status: 503 });
+  }
+
+  let body: { setupKey?: string; name?: string; email?: string; password?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  const supplied = typeof body.setupKey === "string" ? Buffer.from(body.setupKey) : Buffer.alloc(0);
+  const expected = Buffer.from(setupSecret);
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+    return NextResponse.json({ error: "Invalid setup key." }, { status: 401 });
+  }
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  if (name.length < 2 || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      email.length > 254 || password.length < 12 || password.length > 256) {
+    return NextResponse.json({ error: "Enter a valid name, email and password (at least 12 characters)." }, { status: 400 });
+  }
+
+  try {
+    const user = await prisma.$transaction(async (tx) => {
+      if (await tx.user.count() !== 0) throw new Error("SETUP_ALREADY_COMPLETE");
+      const created = await tx.user.create({
+        data: { name, email, passwordHash: hashPassword(password), role: "OWNER", active: true },
+        select: { id: true, name: true, email: true, role: true },
+      });
+      await tx.auditEvent.create({
+        data: { userId: created.id, action: "INITIAL_OWNER_CREATED", entityType: "User", entityId: created.id },
+      });
+      return created;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    await createSession(user);
+    return NextResponse.json({ user }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "SETUP_ALREADY_COMPLETE") {
+      return NextResponse.json({ error: "Initial setup has already been completed." }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "That email address is already registered." }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Initial setup could not be completed." }, { status: 503 });
+  }
+}
