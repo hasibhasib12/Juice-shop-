@@ -1,0 +1,57 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+
+type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string };
+export default function StaffPage() {
+  const [users, setUsers] = useState<Staff[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("CASHIER");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    const response = await fetch("/api/admin/staff", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load staff.");
+    setUsers(data.users);
+  }
+  useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not create staff account.");
+      setName(""); setEmail(""); setPassword(""); setRole("CASHIER"); setNotice("Staff account created."); await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create staff account."); }
+    finally { setBusy(false); }
+  }
+  async function update(user: Staff, patch: { active?: boolean; role?: string }) {
+    const response = await fetch(`/api/admin/staff/${user.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const data = await response.json();
+    if (!response.ok) setNotice(data.error || "Could not update staff.");
+    else { setNotice("Staff account updated."); await load(); }
+  }
+  return (
+    <main className="catalog-admin">
+      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · MANAGEMENT</span><h1>Staff & permissions</h1><p>Create staff logins and control account access.</p></div></header>
+      {notice && <p className="catalog-notice" role="status">{notice}</p>}
+      <section className="staff-grid">
+        <form className="catalog-editor" onSubmit={create}>
+          <div className="catalog-section-head"><div><span>NEW ACCOUNT</span><h2>Add staff member</h2></div></div>
+          <label>Full name<input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label>Email address<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in (password reset is not implemented yet).</small></label>
+          <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option><option value="MANAGER">Manager (owner only)</option></select></label>
+          <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
+        </form>
+        <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
+          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small></div><div className="catalog-product-actions">{user.role !== "OWNER" && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</div></article>)}
+          {!users.length && <p>No staff accounts found.</p>}
+        </section>
+      </section>
+    </main>
+  );
+}
