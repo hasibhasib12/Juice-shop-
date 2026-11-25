@@ -73,7 +73,7 @@ export default function Home() {
       try {
         const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
         const shiftData = await shiftResponse.json();
-        if (active && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") window.location.assign("/shift?welcome=1");
+        if (active && data.user.role === "CASHIER" && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") window.location.assign("/shift?welcome=1");
         else if (active && !shiftResponse.ok) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
       } catch {
         if (active) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
@@ -307,7 +307,7 @@ export default function Home() {
       try {
         const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
         const shiftData = await shiftResponse.json();
-        if (shiftResponse.ok && !shiftData.shift) {
+        if (data.user.role === "CASHIER" && shiftResponse.ok && !shiftData.shift) {
           window.location.assign("/shift?welcome=1");
           return;
         }
