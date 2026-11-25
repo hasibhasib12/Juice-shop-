@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string };
 export default function StaffPage() {
   const [users, setUsers] = useState<Staff[]>([]);
+  const [currentRole, setCurrentRole] = useState("CASHIER");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +17,7 @@ export default function StaffPage() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not load staff.");
     setUsers(data.users);
+    setCurrentRole(data.currentRole);
   }
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -44,7 +46,7 @@ export default function StaffPage() {
           <label>Full name<input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
           <label>Email address<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in (password reset is not implemented yet).</small></label>
-          <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option><option value="MANAGER">Manager (owner only)</option></select></label>
+          <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option>{currentRole === "OWNER" && <option value="MANAGER">Manager</option>}</select></label>
           <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
