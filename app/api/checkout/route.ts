@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A valid checkout idempotency key is required." }, { status: 400 });
   }
   const tenders = body.paymentTenders ?? (body.paymentMethod === "CASH" ? [{ method: "CASH" as const, amountMinor: 0 }] : null);
-  if (!tenders || !Array.isArray(tenders) || tenders.length < 1 || tenders.length > 2 || !tenders.every((tender) => tender && (tender.method === "CASH" || tender.method === "OTHER") && Number.isSafeInteger(tender.amountMinor) && tender.amountMinor > 0 && tender.amountMinor <= 2_000_000_000) || new Set(tenders.map((tender) => tender.method)).size !== tenders.length) {
+  if (!tenders || !Array.isArray(tenders) || tenders.length < 1 || tenders.length > 2 || !tenders.every((tender) => tender && (tender.method === "CASH" || tender.method === "OTHER") && Number.isSafeInteger(tender.amountMinor) && tender.amountMinor >= (body.paymentTenders ? 1 : 0) && tender.amountMinor <= 2_000_000_000) || new Set(tenders.map((tender) => tender.method)).size !== tenders.length) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
