@@ -37,6 +37,8 @@ export default function Home() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutKey, setCheckoutKey] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
@@ -172,6 +174,7 @@ export default function Home() {
   }
 
   async function completeCheckout() {
+    if (checkoutBusy) return;
     if (!staff) {
       setLoginOpen(true);
       setNotice("Staff sign-in is required before checkout.");
@@ -181,6 +184,9 @@ export default function Home() {
       setNotice("The demo catalogue is preview-only. Apply the database migration and seed the catalogue before live checkout.");
       return;
     }
+    setCheckoutBusy(true);
+    const requestKey = checkoutKey || crypto.randomUUID();
+    setCheckoutKey(requestKey);
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -188,7 +194,7 @@ export default function Home() {
         body: JSON.stringify({
           items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
           paymentMethod: "CASH",
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: requestKey,
         }),
       });
       const data = await response.json();
@@ -196,8 +202,11 @@ export default function Home() {
       setNotice(`Order #${data.order.orderNumber} completed. Cash payment recorded.`);
       setCart([]);
       setDiscount(0);
+      setCheckoutKey("");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Checkout failed.");
+    } finally {
+      setCheckoutBusy(false);
     }
   }
 
@@ -295,7 +304,7 @@ export default function Home() {
           <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
           <div className="payment-actions">
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0}>▣ <span>Pay Now</span></button>
+            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy}>▣ <span>{checkoutBusy ? "Processing…" : "Pay Now"}</span></button>
           </div>
           <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
