@@ -37,6 +37,7 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [cashTender, setCashTender] = useState("");
   const [checkoutKey, setCheckoutKey] = useState("");
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
 
@@ -121,6 +122,12 @@ export default function Home() {
   // Tax stays at zero until the business jurisdiction and tax rules are configured.
   const tax = 0;
   const total = Math.max(0, subtotal - discount) + tax;
+  const tenderMatch = /^(?:\\d+)(?:\\.\\d{1,2})?$/.test(cashTender.trim());
+  const cashReceivedMinor = tenderMatch ? Math.round(Number(cashTender) * 100) : 0;
+  const tenderValid = Number.isSafeInteger(cashReceivedMinor) && cashReceivedMinor >= total && cashReceivedMinor <= 2_000_000_000;
+  const changeDueMinor = tenderValid ? cashReceivedMinor - total : 0;
+
+  useEffect(() => { setCashTender((total / 100).toFixed(2)); }, [total]);
 
   function addToCart(product: Product) {
     setNotice("");
@@ -194,7 +201,7 @@ export default function Home() {
         body: JSON.stringify({
           items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
           paymentMethod: "CASH",
-          cashReceivedMinor: total,
+          cashReceivedMinor,
           idempotencyKey: requestKey,
         }),
       });
@@ -204,6 +211,7 @@ export default function Home() {
       setLastOrderId(data.order.id);
       setCart([]);
       setDiscount(0);
+      setCashTender("0.00");
       setCheckoutKey("");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Checkout failed.");
@@ -304,9 +312,19 @@ export default function Home() {
             <div><span>{storeInfo.taxLabel}:</span><b>{money(tax)}</b></div>
           </div>
           <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
+          <div className="cash-tender-panel">
+            <label htmlFor="cash-tender">Cash received ({storeInfo.currency})</label>
+            <input id="cash-tender" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
+            <div className="cash-tender-presets">
+              <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={cart.length === 0}>Exact</button>
+              {[5000, 10000, 20000].filter((extra) => total > 0 && total + extra <= 2_000_000_000).map((extra) => <button type="button" key={extra} onClick={() => setCashTender(((total + extra) / 100).toFixed(2))}>{money(total + extra, storeInfo.currency)}</button>)}
+            </div>
+            <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>
+            {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">Enter a valid amount equal to or greater than the total.</small>}
+          </div>
           <div className="payment-actions">
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy}>▣ <span>{checkoutBusy ? "Processing…" : "Pay Now"}</span></button>
+            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : "Pay Cash"}</span></button>
           </div>
           <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
