@@ -30,7 +30,7 @@ export default function Home() {
   const [discount, setDiscount] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "demo">("loading");
-  const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN" });
+  const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN", taxRateBps: 0, taxLabel: "Tax" });
   const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -300,7 +300,7 @@ export default function Home() {
           <div className="order-summary">
             <div><span>Subtotal:</span><b>{money(subtotal)}</b></div>
             <div><span>Discount:</span><b>− {money(discount)}</b></div>
-            <div><span>Tax (not configured):</span><b>{money(tax)}</b></div>
+            <div><span>{storeInfo.taxLabel}:</span><b>{money(tax)}</b></div>
           </div>
           <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
           <div className="payment-actions">
