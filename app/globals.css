@@ -291,3 +291,19 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .preview-note{padding:5px}
 @media(max-width:850px){.order-card{max-height:none;min-height:430px}.order-items{max-height:190px;flex:1 1 150px}}
 @media(max-width:580px){.order-card{min-height:0;max-height:none}.order-quick-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:7px}.order-quick-actions button{height:34px;font-size:9px}.order-items{max-height:180px;min-height:65px;flex:1 1 120px}.order-item{min-height:60px}.order-summary{padding:7px 12px 5px}.order-total{height:42px;flex-basis:42px}.cash-tender-panel{padding:7px 10px 6px}.payment-actions button{height:41px}.place-order{height:38px}}
+
+
+/* Keyboard visibility and motion preferences */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #27d52a;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
