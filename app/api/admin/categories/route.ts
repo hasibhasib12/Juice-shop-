@@ -7,6 +7,12 @@ import { isAllowedMutationOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function categoryWriteLimit(userId: string) {
+  const rate = await checkActionRateLimit("catalog-write", userId, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
     return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
@@ -14,8 +20,8 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
-  const rate = await checkActionRateLimit("catalog-write", user.id, 60, 900);
-  if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  const rateResponse = await categoryWriteLimit(user.id);
+  if (rateResponse) return rateResponse;
   let body: { name?: string; sortOrder?: number };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   const name = body.name?.trim();
@@ -37,6 +43,8 @@ export async function PATCH(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
+  const rateResponse = await categoryWriteLimit(user.id);
+  if (rateResponse) return rateResponse;
 
   let parsed: unknown;
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
@@ -76,6 +84,8 @@ export async function DELETE(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
+  const rateResponse = await categoryWriteLimit(user.id);
+  if (rateResponse) return rateResponse;
 
   let parsed: unknown;
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
