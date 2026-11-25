@@ -47,6 +47,11 @@ export async function POST(request: NextRequest) {
   if (new Set(products.map((product) => product.currency)).size !== 1) return NextResponse.json({ error: "All products must use the same currency." }, { status: 409 });
   const subtotalMinor = products.reduce((sum, product) => sum + product.priceMinor * quantities.get(product.id)!, 0);
   if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0 || body.discountMinor! >= subtotalMinor) return NextResponse.json({ error: "Discount cannot exceed the current cart subtotal." }, { status: 400 });
+  const limitSetting = await prisma.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
+  const maxDiscountPercentBps = typeof limitSetting?.value === "number" && Number.isSafeInteger(limitSetting.value) && limitSetting.value >= 1 && limitSetting.value <= 10000 ? limitSetting.value : 10000;
+  if (body.discountMinor! * 10000 > subtotalMinor * maxDiscountPercentBps) {
+    return NextResponse.json({ error: `Discount exceeds the store limit of ${(maxDiscountPercentBps / 100).toFixed(2)}%.` }, { status: 400 });
+  }
 
   try {
     const approval = await prisma.$transaction(async (tx) => {
