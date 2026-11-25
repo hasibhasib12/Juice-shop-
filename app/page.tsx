@@ -387,7 +387,11 @@ export default function Home() {
       setOrderNotes("");
       setCheckoutKey("");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Checkout failed.");
+      if (error instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine)) {
+        setNotice("Connection interrupted. Your order is still on screen. Retry checkout with the same request; the checkout key will check whether the sale already completed and prevent a duplicate.");
+      } else {
+        setNotice(error instanceof Error ? error.message : "Checkout failed. Your order is still on screen; review the result before starting another sale.");
+      }
     } finally {
       setCheckoutBusy(false);
     }
