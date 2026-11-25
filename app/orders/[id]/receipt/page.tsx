@@ -22,7 +22,7 @@ export default function ReceiptPage() {
   if (!order) return <main className="receipt-screen"><p>{notice || "Loading receipt…"}</p><Link href="/">Back to POS</Link></main>;
   return (
     <main className="receipt-screen">
-      <div className="receipt-toolbar"><Link href="/">← Back to POS</Link><button onClick={() => window.print()}>Print receipt</button></div>
+      <div className="receipt-toolbar"><Link href="/">← Back to POS</Link><div className="receipt-actions"><a href={`/api/orders/${order.id}/receipt/pdf`}>Download PDF</a><button onClick={() => window.print()}>Print receipt</button></div></div>
       <article className="receipt-paper">
         <div className="receipt-brand"><img src="/juice-shop-logo.svg" alt="Juice Shop"/><h1>JUICE SHOP</h1><p>Fresh · Healthy · Happy</p></div>
         <div className="receipt-rule"/>
