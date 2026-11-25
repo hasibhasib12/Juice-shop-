@@ -209,3 +209,11 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - The product schema contains variants, modifier groups and variant recipe relations, but the expected nested variants route path was not found at the inspected location. Route discovery and independent authorization review for variant/modifier APIs remain open; do not infer that product-route authorization protects separate endpoints.
 - The source review is recorded in `docs/PRODUCT-RECIPE-SECURITY-REVIEW.md`. Explicit route-level integration assertions for product and recipe permission grant/revoke, denied-write side effects, malformed recipe payloads and audit rollback still need to be verified against the complete test suite.
 - No schema migration, production database operation, environment change, deployment, or `main` branch modification.
+
+
+## Product, recipe and option authorization follow-up — 2026-11-25
+- Corrected two role-only authorization gaps: product variant/modifier GET/PUT and product image upload now both enforce persisted `MANAGE_CATALOG`, matching product and category endpoints. Explicit permission revocation therefore applies consistently across the catalogue APIs.
+- Extended the catalogue PostgreSQL integration test to assert option and image-upload denial for a cashier without permission; successful variant/modifier writes after permission grant; invalid variant recipe ingredient rejection without deleting existing options; and denial with unchanged option/audit state after permission revocation.
+- Extended the inventory PostgreSQL integration test to assert recipe GET/POST/DELETE denial, permission grant, successful recipe upsert, invalid/non-finite/non-positive/over-limit quantities, nonexistent product/ingredient references, and no recipe/audit side effects on denied or rejected requests.
+- Test changes are committed on `feature/pos-foundation`; latest-head CI and isolated PostgreSQL execution are not yet confirmed. Audit-failure rollback injection remains open and is restricted to the isolated integration database.
+- No deployment, production database operation, production environment change, or `main` modification.
