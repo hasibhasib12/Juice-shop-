@@ -256,7 +256,7 @@ export default function Home() {
           <div className="quick-actions">
             <button onClick={() => action("Table selection")}><span>♟</span>Table #5</button>
             <button onClick={() => { setCustomer(customer === "Walk-in customer" ? "Ahmed Khan" : "Walk-in customer"); action("Customer selection"); }}><span>♟</span>Customer</button>
-            <button onClick={() => { setDiscount(discount ? 0 : 1000); setNotice("A sample AFN 10 discount is shown locally only. Manager approval is not connected."); }}><span>%</span>Discount</button>
+            <button onClick={() => { setDiscount(0); setNotice("Discounts are disabled until manager authorization is implemented."); }}><span>%</span>Discount</button>
             <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
             <button onClick={() => action("Receipt printing")}><span>▣</span>Print Receipt</button>
           </div>
