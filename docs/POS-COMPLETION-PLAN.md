@@ -8,7 +8,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Current verified baseline
 - Next.js 15 / React 19 / TypeScript application with the approved pomegranate POS layout.
-- PostgreSQL/Neon uses a dedicated `juice-shop-preview-development` branch for development; the original Neon production branch remains untouched. Initial POS, cash-tender, refund/void, cash-refund-allocation, cash-movement, shift-link, manager-discount and partial-refund migrations are applied and tracked on the development branch.
+- PostgreSQL/Neon uses a dedicated `juice-shop-preview-development` branch for development; the original Neon production branch remains untouched. Initial POS, cash-tender, refund/void, cash-refund-allocation, cash-movement, shift-link, manager-discount, partial-refund and refund-history-index migrations are applied and tracked on the development branch.
 - Prisma schema, initial SQL migration, repeatable catalogue seed, and database health endpoint are committed.
 - Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards only if the live catalogue cannot be loaded.
 - Manager/owner catalogue APIs and a branded `/catalog` management screen now support creating, editing, hiding, and archiving products, adding categories, HTTPS image URLs, SKU, currency and price updates. Writes are audited.
@@ -47,7 +47,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount and partial-refund migrations on the isolated Neon development branch.
+- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount, partial-refund and refund-history-index migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
