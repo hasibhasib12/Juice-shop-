@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       const cashPayments = await tx.payment.aggregate({
         where: {
           method: "CASH",
-          status: "COMPLETED",
+          status: { in: ["COMPLETED", "REFUNDED"] },
           order: { cashierId: user.id, createdAt: { gte: shift.openedAt, lte: closedAt } },
         },
         _sum: { amountMinor: true },
