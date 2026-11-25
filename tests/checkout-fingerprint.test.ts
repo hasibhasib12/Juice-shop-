@@ -19,6 +19,10 @@ test("checkout fingerprint is stable across item and tender ordering", () => {
     { productId: "juice-b", quantity: 1 },
   ], [...splitTender].reverse(), base.cashReceivedMinor, base.discountApprovalId);
   assert.equal(first, second);
+  assert.notEqual(first, checkoutFingerprint([
+    { productId: "juice-a", quantity: 2 },
+    { productId: "juice-b", quantity: 1 },
+  ], [{ method: "CASH", amountMinor: 750 }, { method: "OTHER", amountMinor: 501 }], base.cashReceivedMinor, base.discountApprovalId));
 });
 
 test("checkout fingerprint canonicalizes duplicate lines for the same product", () => {
