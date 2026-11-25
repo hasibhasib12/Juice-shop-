@@ -29,7 +29,7 @@ export default function OrdersPage() {
   async function reverseOrder(order: Order, kind: "REFUND" | "VOID") {
     const reason = window.prompt(`Reason for ${kind.toLowerCase()} of order #${order.orderNumber}:`);
     if (!reason || reason.trim().length < 3) return;
-    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} the full ${money(order.totalMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone.`)) return;
+    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} the full ${money(order.totalMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone. Any non-cash portion must also be returned outside the POS.`)) return;
     setReversalBusy(order.id); setNotice("");
     try {
       const response = await fetch(`/api/orders/${order.id}/refund`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, reason }) });
