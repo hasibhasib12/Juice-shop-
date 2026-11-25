@@ -17,6 +17,7 @@ const catalog = [
 ];
 
 async function main() {
+  const mainBranch = await prisma.branch.upsert({ where: { code: "MAIN" }, update: { active: true }, create: { name: "Main Branch", code: "MAIN", timezone: "Asia/Kabul", currency: "AFN" } });
   const ownerEmail = process.env.POS_OWNER_EMAIL?.trim().toLowerCase();
   const ownerPassword = process.env.POS_OWNER_PASSWORD;
   if (ownerEmail && ownerPassword) {
@@ -31,12 +32,12 @@ async function main() {
         email: ownerEmail,
         passwordHash,
         role: UserRole.OWNER,
+        branchId: mainBranch.id,
       },
     });
     console.log("Initial owner account is available.");
   }
-  // Initial store defaults: Afghanistan and Afghan afghani.
-  // These are defaults only; future multi-location support should store settings per location.
+  // Initial store defaults: Afghanistan and Afghan afghani. Branch records own their timezone and currency defaults.
   const defaultSettings = [
     { key: "store.countryCode", value: "AF" },
     { key: "store.countryName", value: "Afghanistan" },
