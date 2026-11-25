@@ -244,6 +244,7 @@ model Refund {
   taxRefundMinor   Int        @default(0)
   createdAt     DateTime   @default(now())
 
+  @@index([orderId, createdAt])
   @@index([processedById, createdAt])
 }
 
