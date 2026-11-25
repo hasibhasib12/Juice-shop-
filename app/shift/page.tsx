@@ -18,6 +18,8 @@ export default function ShiftPage() {
   const [movementReason, setMovementReason] = useState("");
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [currency, setCurrency] = useState("AFN");
+  const [staffName, setStaffName] = useState("");
+  const [closedJustNow, setClosedJustNow] = useState(false);
   const formatMoney = (minor: number) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
   async function load() {
     const response = await fetch("/api/shifts", { cache: "no-store" });
@@ -27,7 +29,14 @@ export default function ShiftPage() {
     setExpected(data.expectedCashMinor ?? 0);
     setMovements(data.movements ?? []);
   }
-  useEffect(() => { void load().catch((error) => setNotice(error.message)); fetch("/api/settings", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (typeof data.settings?.currency === "string") setCurrency(data.settings.currency); }).catch(() => undefined); }, []);
+  useEffect(() => {
+    void load().catch((error) => setNotice(error.message));
+    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.user?.name) setStaffName(data.user.name); }).catch(() => undefined);
+    fetch("/api/settings", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (typeof data.settings?.currency === "string") setCurrency(data.settings.currency); }).catch(() => undefined);
+    if (new URLSearchParams(window.location.search).get("welcome") === "1") {
+      window.history.replaceState({}, "", "/shift");
+    }
+  }, []);
   async function submit(event: FormEvent<HTMLFormElement>, action: "open" | "close") {
     event.preventDefault(); setBusy(true); setNotice("");
     const amount = Number(action === "open" ? opening : closing);
@@ -36,7 +45,7 @@ export default function ShiftPage() {
       const response = await fetch(action === "open" ? "/api/shifts" : "/api/shifts/close", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "open" ? { openingCashMinor: Math.round(amount * 100) } : { closingCashMinor: Math.round(amount * 100) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Shift update failed.");
-      if (action === "close") setNotice(`Shift closed. Expected cash ${formatMoney(data.shift.expectedCashMinor)} · Variance ${formatMoney(data.shift.varianceMinor)}.`);
+      if (action === "close") { setClosedJustNow(true); setNotice(`Good work, ${staffName || "team member"}. Your shift is closed. Expected cash ${formatMoney(data.shift.expectedCashMinor)} · Difference ${formatMoney(data.shift.varianceMinor)}.`); }
       else setNotice("Cash shift opened. You can now take sales.");
       await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Shift update failed."); }
@@ -79,6 +88,7 @@ export default function ShiftPage() {
           <form className="catalog-editor" onSubmit={(e) => void submit(e, "open")}><div className="catalog-section-head"><div><span>START OF SHIFT</span><h2>Open cash drawer</h2></div></div><label>Opening float ({currency})<input required type="number" min="0" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}/></label><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Open shift"}</button></form>
         </>}
       </section>
+      {!shift && closedJustNow && <section className="catalog-editor shift-logout-panel"><h2>Shift completed</h2><p>Goodbye, {staffName || "team member"}! Your cash shift has been closed successfully.</p><button type="button" className="catalog-primary" onClick={async () => { const response = await fetch("/api/auth/logout", { method: "POST" }); const data = await response.json(); if (!response.ok) { setNotice(data.error || "Could not log out."); return; } window.location.assign("/"); }}>Log out safely</button></section>}
     </main>
   );
 }
