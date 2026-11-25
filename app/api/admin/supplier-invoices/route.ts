@@ -29,7 +29,11 @@ export async function GET() {
     prisma.purchaseOrder.findMany({
       where: { status: { in: ["RECEIVED", "PARTIALLY_RECEIVED"] } },
       orderBy: { createdAt: "desc" }, take: 100,
-      include: { supplier: { select: { id: true, name: true } }, lines: true },
+      include: {
+        supplier: { select: { id: true, name: true } },
+        lines: true,
+        invoices: { where: { status: { not: "VOIDED" } }, select: { lines: { select: { purchaseOrderLineId: true, quantity: true } } } },
+      },
     }),
   ]);
   const ordersWithRemaining = orders.map(({ invoices: linkedInvoices, ...order }) => ({
