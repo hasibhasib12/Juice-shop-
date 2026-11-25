@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const shift = await prisma.$transaction(async (tx) => {
+    const shift = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const active = await tx.shift.findFirst({ where: { userId: user.id, closedAt: null } });
       if (active) throw new Error("SHIFT_ALREADY_OPEN");
       const created = await tx.shift.create({
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         data: { userId: user.id, action: "SHIFT_OPENED", entityType: "Shift", entityId: created.id, details: { openingCashMinor } },
       });
       return created;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ shift }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "SHIFT_ALREADY_OPEN") {
