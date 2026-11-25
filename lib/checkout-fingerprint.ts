@@ -8,6 +8,7 @@ export function checkoutFingerprint(
   tenders: CheckoutFingerprintTender[],
   cashReceivedMinor: number | undefined,
   discountApprovalId: string | undefined,
+  metadata?: { customerName?: string; notes?: string },
 ) {
   const quantities = new Map<string, number>();
   for (const item of items) {
@@ -25,5 +26,7 @@ export function checkoutFingerprint(
     tenders: canonicalTenders,
     cashReceivedMinor: cashReceivedMinor ?? null,
     discountApprovalId: discountApprovalId ?? null,
+    customerName: metadata?.customerName?.trim() || null,
+    notes: metadata?.notes?.trim() || null,
   })).digest("hex");
 }
