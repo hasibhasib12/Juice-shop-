@@ -16,7 +16,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
 - Checkout supports cash and cash plus a manually confirmed external tender (no gateway). It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
 - Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; partial refunds, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Manager-authorized discounts are now implemented.
+- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; item-level return/restock handling, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Partial monetary refunds are now implemented. Manager-authorized discounts are now implemented.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -33,7 +33,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
 - [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
-- [x] Expand schema for full-order refund/void records, payment tender allocation and cash movement ledger.
+- [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
@@ -55,7 +55,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Card payment integration with a selected provider/terminal; intentionally deferred because the owner does not need it now.
 - [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
 - [ ] Card-provider integration (deferred), partial refunds, and cash drawer reconciliation automation beyond shift close.
-- [x] Manager/owner-only full-order refund or void with required reason, atomic payment/order status reversal, unique reversal record, and audit event.
+- [x] Manager/owner-only partial or full monetary refunds and full remaining-balance voids, with required reason, cumulative balance/tax/tender allocation, atomic ledger updates and audit events.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
 
@@ -77,14 +77,14 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Associate each new completed order with the active cashier shift and reconcile cash sales by that exact shift.
 - [ ] Shift report export.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
-- [x] Report net sales and tax by subtracting full refund/void amounts in the refund processing period, including tender-level cash/other reductions.
+- [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
 - [ ] Stock valuation, staff performance reports and CSV/PDF export.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
 - [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
-- [ ] Refund stock-restock workflow with physical return inspection; reversals currently do not automatically increase ingredient stock.
+- [ ] Item-level return quantities, physical return inspection and eligible ingredient restocking; monetary refunds do not automatically increase stock.
 - [ ] Preview acceptance test with the owner using realistic sample data.
 - [ ] Production readiness checklist and explicit owner approval before any production release.
 
