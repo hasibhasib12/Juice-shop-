@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:dev": "prisma migrate dev"
+    "db:dev": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "next": "^15.2.4",
@@ -24,6 +25,10 @@
     "eslint": "^9.22.0",
     "eslint-config-next": "^15.2.4",
     "typescript": "^5.8.2",
-    "prisma": "^6.0.0"
+    "prisma": "^6.0.0",
+    "tsx": "^4.19.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
