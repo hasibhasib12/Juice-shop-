@@ -14,8 +14,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!id || id.length > 64) return NextResponse.json({ error: "Invalid order ID." }, { status: 400 });
   let body: { kind?: string; reason?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   const kind = body.kind;
-  const reason = body.reason?.trim();
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   if ((kind !== "REFUND" && kind !== "VOID") || !reason || reason.length < 3 || reason.length > 240) {
     return NextResponse.json({ error: "Choose refund or void and provide a reason (3–240 characters)." }, { status: 400 });
   }
