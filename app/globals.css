@@ -21,6 +21,7 @@ button,input{font:inherit}button{cursor:pointer}
 .sidebar{background:linear-gradient(180deg,#1c1e24,#17191e);border:1px solid #2b2e36;border-radius:17px;padding:12px 10px;display:flex;flex-direction:column;min-height:0}
 .side-home,.side-link,.side-settings{height:58px;border:0;border-bottom:1px solid #30323a;background:transparent;color:#f2f2f4;display:flex;align-items:center;gap:14px;padding:0 13px;text-align:left;font-size:14px;font-weight:600;border-radius:9px}
 .side-home{background:var(--green);font-size:16px;box-shadow:0 5px 16px #16c51d38;margin-bottom:7px}.side-home span{font-size:26px}
+.side-cash-shift{height:48px;flex:0 0 48px;margin:0 0 8px;border:1px solid #356a37;border-radius:9px;background:#18271b;color:#e9ffe9;display:flex;align-items:center;gap:14px;padding:0 13px;text-align:left;font-size:13px;font-weight:700}.side-cash-shift span{width:27px;text-align:center;font-size:21px;color:#39d447}.side-cash-shift:hover{background:#203a24;border-color:#39d447}
 .side-link span,.side-settings span{font-size:23px;width:27px;text-align:center}.side-link:hover,.side-settings:hover{background:#282b32}.side-settings{margin-top:auto;border-bottom:0;border-top:1px solid #30323a}
 .menu-area{display:flex;flex-direction:column;min-width:0;gap:13px}
 .category-tabs{height:49px;display:flex;align-items:stretch;gap:9px;overflow-x:auto;scrollbar-width:none}.category-tabs::-webkit-scrollbar{display:none}
