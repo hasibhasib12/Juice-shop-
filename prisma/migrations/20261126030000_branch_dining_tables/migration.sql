@@ -44,7 +44,8 @@ END $$;
 
 ALTER TABLE "DiningTable" ALTER COLUMN "branchId" SET NOT NULL;
 ALTER TABLE "DiningTable" ALTER COLUMN "branchId" SET DEFAULT 'main-branch';
-ALTER TABLE "DiningTable" DROP CONSTRAINT "DiningTable_name_key";
+ALTER TABLE "DiningTable" DROP CONSTRAINT IF EXISTS "DiningTable_name_key";
+DROP INDEX IF EXISTS "DiningTable_name_key";
 ALTER TABLE "DiningTable"
   ADD CONSTRAINT "DiningTable_branchId_fkey"
   FOREIGN KEY ("branchId") REFERENCES "Branch"("id")
