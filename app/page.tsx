@@ -96,7 +96,7 @@ export default function Home() {
         ]);
         setCategoryNames(["Juices", "Smoothies", "Milkshakes", "Desserts"]);
         setCatalogSource("demo");
-        setNotice("DEMO CATALOGUE — database tables are not installed yet. Orders are preview-only.");
+        setNotice("DEMO CATALOGUE — the live catalogue could not be loaded. Orders are preview-only.");
       })
       .finally(() => {
         if (active) setLoadingProducts(false);
@@ -240,7 +240,7 @@ export default function Home() {
               </button>
             ))}
           </nav>
-          <button className="side-settings" onClick={() => action("Settings")}><span>⚙</span>Settings</button>
+          {(staff?.role === "OWNER" || staff?.role === "MANAGER") && <button className="side-settings" onClick={() => { window.location.href = "/catalog"; }}><span>⚙</span>Manage menu</button>}
         </aside>
 
         <section className="menu-area">
