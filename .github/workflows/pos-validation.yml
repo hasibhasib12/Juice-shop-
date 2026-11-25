@@ -1,0 +1,28 @@
+name: POS validation
+
+on:
+  push:
+    branches:
+      - feature/pos-foundation
+  pull_request:
+    branches:
+      - feature/pos-foundation
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/juice_shop_ci
+      POS_SESSION_SECRET: ci-only-session-secret-that-is-long-enough-123456
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
