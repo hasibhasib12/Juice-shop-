@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, createSession } from "@/lib/auth";
+import { checkLoginRateLimit, clearLoginRateLimit } from "@/lib/login-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -12,10 +13,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 400 });
     }
 
+    const rateLimit = await checkLoginRateLimit(email);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many sign-in attempts. Please wait before trying again." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds), "Cache-Control": "no-store" } },
+      );
+    }
+
     const user = await authenticate(email, password);
-    if (!user) return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+    if (!user) return NextResponse.json({ error: "Invalid email or password." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+    await clearLoginRateLimit(email);
     await createSession(user);
-    return NextResponse.json({ user });
+    return NextResponse.json({ user }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Sign-in is temporarily unavailable." }, { status: 503 });
   }
