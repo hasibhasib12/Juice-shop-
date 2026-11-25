@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 type Ingredient = { id: string; name: string; unit: string; quantityOnHand: string; reorderLevel: string; averageCostMinor: number; recipeItems: { product: { id: string; name: string } }[] };
 type Supplier = { id: string; name: string; active: boolean; phone?: string | null; email?: string | null };
-type PurchaseOrder = { id: string; orderNumber: number; status: "DRAFT" | "RECEIVED" | "CANCELLED"; currency: string; subtotalMinor: number; supplier: { name: string }; lines: { id: string; ingredientName: string; quantity: string; receivedQuantity: string; unitCostMinor: number; lineTotalMinor: number }[] };
+type PurchaseOrder = { id: string; orderNumber: number; status: "DRAFT" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED"; currency: string; subtotalMinor: number; supplier: { name: string }; lines: { id: string; ingredientName: string; quantity: string; receivedQuantity: string; unitCostMinor: number; lineTotalMinor: number }[] };
 type Product = { id: string; name: string; recipeItems: { id: string; quantity: string; ingredient: { id: string; name: string; unit: string } }[] };
 
 export default function InventoryPage() {
@@ -14,6 +14,7 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
   const [storeCurrency, setStoreCurrency] = useState("AFN");
   const [supplierName, setSupplierName] = useState("");
   const [supplierPhone, setSupplierPhone] = useState("");
@@ -128,10 +129,11 @@ export default function InventoryPage() {
     if (!window.confirm(action === "receive" ? `Receive all items on purchase order #${order.orderNumber} into stock?` : `Cancel purchase order #${order.orderNumber}?`)) return;
     setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/purchase-orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: order.id, action }) });
+      const response = await fetch("/api/admin/purchase-orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: order.id, action, ...(action === "receive" ? { receipts: order.lines.map((line) => ({ lineId: line.id, quantity: receiptQuantities[line.id] ?? (Number(line.quantity) - Number(line.receivedQuantity)).toString() })).filter((line) => Number(line.quantity) > 0) } : {}) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not process purchase order.");
-      setNotice(action === "receive" ? `Purchase order #${order.orderNumber} received and stock updated.` : `Purchase order #${order.orderNumber} cancelled.`);
+      setNotice(action === "receive" ? `Purchase order #${order.orderNumber} receipt recorded and stock updated.` : `Purchase order #${order.orderNumber} cancelled.`);
+      if (action === "receive") setReceiptQuantities((current) => { const next = { ...current }; for (const line of order.lines) delete next[line.id]; return next; });
       await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not process purchase order."); }
     finally { setBusy(false); }
@@ -192,7 +194,7 @@ export default function InventoryPage() {
       </section>
       <section className="catalog-list inventory-list">
         <div className="catalog-section-head"><div><span>SUPPLIER ORDERS</span><h2>Purchase orders <small>{purchaseOrders.length}</small></h2></div></div>
-        {purchaseOrders.map((order) => <article className="catalog-product" key={order.id}><div className="catalog-placeholder">PO</div><div className="catalog-product-info"><b>#{order.orderNumber} · {order.supplier.name}</b><span>{order.lines.map((line) => `${line.ingredientName}: ${line.quantity}`).join(" · ")}</span><small>{order.status} · {order.currency} {(order.subtotalMinor / 100).toFixed(2)}</small></div>{order.status === "DRAFT" && <div className="catalog-product-actions"><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "receive")}>Receive</button><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "cancel")}>Cancel</button></div>}</article>)}
+        {purchaseOrders.map((order) => <article className="catalog-product" key={order.id}><div className="catalog-placeholder">PO</div><div className="catalog-product-info"><b>#{order.orderNumber} · {order.supplier.name}</b><span>{order.lines.map((line) => `${line.ingredientName}: ${line.receivedQuantity} / ${line.quantity} received`).join(" · ")}</span><small>{order.status} · {order.currency} {(order.subtotalMinor / 100).toFixed(2)}</small>{(order.status === "DRAFT" || order.status === "PARTIALLY_RECEIVED") && <div className="catalog-form-row">{order.lines.filter((line) => Number(line.quantity) > Number(line.receivedQuantity)).map((line) => <label key={line.id}>{line.ingredientName} to receive<input type="number" min="0" max={Number(line.quantity) - Number(line.receivedQuantity)} step="0.001" value={receiptQuantities[line.id] ?? (Number(line.quantity) - Number(line.receivedQuantity)).toString()} onChange={(event) => setReceiptQuantities((current) => ({ ...current, [line.id]: event.target.value }))}/></label>)}</div>}</div>{(order.status === "DRAFT" || order.status === "PARTIALLY_RECEIVED") && <div className="catalog-product-actions"><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "receive")}>Receive</button><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "cancel")}>Cancel</button></div>}</article>)}
         {!purchaseOrders.length && <p>No purchase orders yet.</p>}
       </section>
       <section className="catalog-list inventory-list">
