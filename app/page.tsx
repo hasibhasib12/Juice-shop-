@@ -272,18 +272,18 @@ export default function Home() {
   }
 
   function resumeDraft(draft: SavedDraft) {
-    const lines = draft.lines.map((line) => {
+    const lines: CartLine[] = [];
+    for (const line of draft.lines) {
       const product = products.find((item) => item.id === line.productId);
-      if (!product) return null;
+      if (!product) { setNotice("Some products in this draft are no longer in the live catalogue. Review it in Orders."); return; }
       const variant = line.variantName ? product.variants.find((item) => item.name === line.variantName) : undefined;
-      if (line.variantName && !variant) return null;
+      if (line.variantName && !variant) { setNotice("A saved size is no longer available. Review this draft before continuing."); return; }
       const optionIds = (line.selectedModifiers ?? []).map((item) => item.optionId).filter((id): id is string => typeof id === "string");
       const selectedModifiers = product.modifierGroups.flatMap((group) => group.options.filter((option) => optionIds.includes(option.id)).map((option) => ({ optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
-      if (selectedModifiers.length !== optionIds.length) return null;
+      if (selectedModifiers.length !== optionIds.length) { setNotice("A saved extra is no longer available. Review this draft before continuing."); return; }
       const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selectedModifiers.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
-      return { key: JSON.stringify([product.id, variant?.id ?? null, [...optionIds].sort()]), product, quantity: line.quantity, variantId: variant?.id, variantName: variant?.name, modifierOptionIds: optionIds, selectedModifiers, unitPriceMinor };
-    }).filter((line): line is CartLine => line !== null);
-    if (lines.length !== draft.lines.length) { setNotice("Some products in this draft are no longer in the live catalogue. Review it in Orders."); return; }
+      lines.push({ key: JSON.stringify([product.id, variant?.id ?? null, [...optionIds].sort()]), product, quantity: line.quantity, ...(variant ? { variantId: variant.id, variantName: variant.name } : {}), modifierOptionIds: optionIds, selectedModifiers, unitPriceMinor });
+    }
     setCart(lines); setDraftId(draft.id); setCustomerName(draft.customerName || ""); setOrderNotes(draft.notes || "");
     setDiscount(0); setDiscountApprovalId(null); setCheckoutKey(""); setDraftsOpen(false);
     setNotice(`Draft #${draft.orderNumber} resumed. Prices are refreshed at checkout.`);
