@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose paid in or paid out, a valid amount, and a reason (3–240 characters)." }, { status: 400 });
   }
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const shift = await tx.shift.findFirst({ where: { userId: user.id, closedAt: null }, orderBy: { openedAt: "desc" } });
       if (!shift) throw new Error("NO_OPEN_SHIFT");
       const [payments, refunds, existing] = await Promise.all([
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       const movement = await tx.cashMovement.create({ data: { shiftId: shift.id, userId: user.id, type, amountMinor: amountMinor as number, reason } });
       await tx.auditEvent.create({ data: { userId: user.id, action: type === "PAID_IN" ? "CASH_PAID_IN" : "CASH_PAID_OUT", entityType: "CashMovement", entityId: movement.id, details: { shiftId: shift.id, amountMinor, reason, expectedBefore, expectedAfter: type === "PAID_IN" ? expectedBefore + amountMinor! : expectedBefore - amountMinor! } } });
       return { movement, expectedCashMinor: type === "PAID_IN" ? expectedBefore + amountMinor! : expectedBefore - amountMinor! };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
