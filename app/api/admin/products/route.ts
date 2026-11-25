@@ -53,11 +53,14 @@ export async function POST(request: NextRequest) {
   try {
     const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
     if (!category || !category.active) return NextResponse.json({ error: "Choose an active category." }, { status: 400 });
-    const product = await prisma.product.create({
-      data: { name, description: body.description?.trim() || null, imageUrl: body.imageUrl?.trim() || null, sku: body.sku?.trim() || null, priceMinor: body.priceMinor!, currency, categoryId: category.id, available: body.available ?? true },
-      include: { category: { select: { id: true, name: true } } },
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: { name, description: body.description?.trim() || null, imageUrl: body.imageUrl?.trim() || null, sku: body.sku?.trim() || null, priceMinor: body.priceMinor!, currency, categoryId: category.id, available: body.available ?? true },
+        include: { category: { select: { id: true, name: true } } },
+      });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_CREATED", entityType: "Product", entityId: created.id, details: { name, priceMinor: created.priceMinor, currency } } });
+      return created;
     });
-    await prisma.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_CREATED", entityType: "Product", entityId: product.id, details: { name, priceMinor: product.priceMinor, currency } } });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "P2002") return NextResponse.json({ error: "That SKU is already in use." }, { status: 409 });
