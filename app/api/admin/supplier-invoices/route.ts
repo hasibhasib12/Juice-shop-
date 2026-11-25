@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         if (typeof line.purchaseOrderLineId !== "string" || !line.purchaseOrderLineId || seen.has(line.purchaseOrderLineId) || !Number.isSafeInteger(line.unitCostMinor) || (line.unitCostMinor as number) < 0) throw new Error("INVALID");
         const quantity = new Prisma.Decimal(String(line.quantity));
         if (!quantity.isFinite() || quantity.lte(0) || quantity.decimalPlaces() > 3) throw new Error("INVALID");
-        const total = quantity.mul(line.unitCostMinor).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+        const total = quantity.mul(line.unitCostMinor as number).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
         if (!total.isFinite() || total.gt(Number.MAX_SAFE_INTEGER)) throw new Error("INVALID");
         seen.add(line.purchaseOrderLineId);
         lines.push({ purchaseOrderLineId: line.purchaseOrderLineId, quantity, unitCostMinor: line.unitCostMinor as number, lineTotalMinor: total.toNumber() });
