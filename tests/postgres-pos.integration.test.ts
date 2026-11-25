@@ -117,6 +117,7 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
     assert.equal(expectedCash, 1650);
   } finally {
     await prisma.refund.deleteMany({ where: { order: { cashierId: userId } } });
+    await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.order.deleteMany({ where: { cashierId: userId } });
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.stockMovement.deleteMany({ where: { ingredientId } });
