@@ -187,6 +187,6 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Added a dedicated PostgreSQL-backed HTTP integration test for the inventory API.
 - A cashier without `MANAGE_INVENTORY` cannot create an ingredient; the test verifies no ingredient, opening-stock movement, or audit event is added.
 - With permission granted, the test exercises ingredient creation with opening stock, purchase receipt, waste, and physical-count adjustment, checking persisted quantities, movement ledger entries, and audit records.
-- Waste that would make stock negative is rejected (409); malformed/negative movement quantity is rejected (400). Both cases verify stock quantity, movement count, and audit count remain unchanged.
+- Waste that would make stock negative is rejected (409); malformed/negative movement quantity is rejected (400). Both cases verify stock quantity, movement count, and audit count remain unchanged. Two concurrent waste attempts against insufficient combined stock produce exactly one success and one conflict, with only one movement/audit entry and no negative balance.
 - Revoking `MANAGE_INVENTORY` blocks subsequent stock movement writes (403) and leaves stock, movement ledger, and audit history unchanged.
 - The test and assertions are committed on `feature/pos-foundation`; isolated PostgreSQL execution and latest-head CI remain pending. No deployment, production data changes, or schema migration.
