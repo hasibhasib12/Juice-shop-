@@ -128,7 +128,7 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     // Force the audit insert to fail for one product update and prove the
     // product write rolls back with it. This trigger exists only in the
     // disposable CI PostgreSQL database and is removed in finally.
-    const auditFailureFunction = `CREATE OR REPLACE FUNCTION public.pos_test_reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityId" = ${JSON.stringify(productId)} THEN RAISE EXCEPTION 'intentional POS audit rollback test'; END IF; RETURN NEW; END; $$`;
+    const auditFailureFunction = `CREATE OR REPLACE FUNCTION public.pos_test_reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityId" = '${productId}' THEN RAISE EXCEPTION 'intentional POS audit rollback test'; END IF; RETURN NEW; END; $$`;
     await prisma.$executeRawUnsafe(auditFailureFunction);
     await prisma.$executeRawUnsafe(`CREATE TRIGGER pos_test_reject_audit_trigger BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION public.pos_test_reject_audit()`);
     const auditFailureUpdate = await request(`/api/admin/products/${productId}`, "PATCH", { name: "Must roll back" });
