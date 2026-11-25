@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Order = { id: string; orderNumber: number; status: string; totalMinor: number; currency: string; createdAt: string; cashier: { name: string }; lines: { productName: string; quantity: number }[]; payments: { method: string; status: string; amountMinor: number; currency: string }[]; refunds: { kind: string; amountMinor: number; reason: string; createdAt: string }[] };
+type Order = { id: string; orderNumber: number; status: string; totalMinor: number; currency: string; createdAt: string; cashier: { name: string }; lines: { id: string; productName: string; quantity: number; returns: { quantity: number; condition: string; disposition: string; reason: string; createdAt: string }[] }[]; payments: { method: string; status: string; amountMinor: number; currency: string }[]; refunds: { kind: string; amountMinor: number; reason: string; createdAt: string }[] };
 const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -26,6 +26,42 @@ export default function OrdersPage() {
     finally { setLoading(false); }
   }
   useEffect(() => { void load(null, true); }, []);
+  async function recordItemReturn(order: Order) {
+    if (!order.lines.length) return;
+    const options = order.lines.map((line, index) => {
+      const returned = line.returns.reduce((sum, entry) => sum + entry.quantity, 0);
+      return `${index + 1}. ${line.productName} — sold ${line.quantity}, already returned ${returned}, remaining ${line.quantity - returned}`;
+    }).join("\\n");
+    const choice = window.prompt(`Choose the line number to return:\\n${options}`);
+    if (choice === null) return;
+    const index = Number(choice) - 1;
+    const line = order.lines[index];
+    if (!Number.isInteger(index) || !line) { setNotice("Choose a valid order line number."); return; }
+    const alreadyReturned = line.returns.reduce((sum, entry) => sum + entry.quantity, 0);
+    const remaining = line.quantity - alreadyReturned;
+    if (remaining <= 0) { setNotice("This line has already been fully returned."); return; }
+    const quantityInput = window.prompt(`Quantity to return (maximum ${remaining}):`, "1");
+    if (quantityInput === null) return;
+    const quantity = Number(quantityInput);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > remaining) { setNotice("Enter a valid quantity within the remaining returnable amount."); return; }
+    const condition = window.prompt("Condition: SEALED_UNUSED, OPENED, PREPARED, or DAMAGED", "PREPARED");
+    if (condition === null) return;
+    const normalized = condition.trim().toUpperCase();
+    if (!["SEALED_UNUSED", "OPENED", "PREPARED", "DAMAGED"].includes(normalized)) { setNotice("Choose a valid return condition."); return; }
+    const reason = window.prompt("Reason for return:");
+    if (!reason || reason.trim().length < 3) return;
+    const disposition = normalized === "SEALED_UNUSED" ? "NOT_RESTOCKABLE" : "WASTE";
+    if (!window.confirm(`Record ${quantity} × ${line.productName} as ${normalized}. This records the physical return only; it does not issue money or restock ingredients.`)) return;
+    setReversalBusy(order.id); setNotice("");
+    try {
+      const response = await fetch(`/api/orders/${order.id}/returns`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: [{ orderLineId: line.id, quantity, condition: normalized, disposition, reason: reason.trim() }] }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Item return could not be recorded.");
+      setNotice(`Recorded ${quantity} returned item(s) for order #${order.orderNumber}. No inventory was restocked and no monetary refund was issued.`);
+      await load(null, true);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Item return could not be recorded."); }
+    finally { setReversalBusy(null); }
+  }
   async function reverseOrder(order: Order, kind: "REFUND" | "VOID") {
     const alreadyRefunded = order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
     const remainingMinor = order.totalMinor - alreadyRefunded;
@@ -59,7 +95,7 @@ export default function OrdersPage() {
       {notice && <p className="catalog-notice">{notice}</p>}
       <section className="catalog-list order-history">
         <div className="catalog-section-head"><div><span>TRANSACTION LOG</span><h2>Recent orders</h2></div></div>
-        {orders.map((order) => <article className="history-order" key={order.id}><div className="history-order-main"><b>Order #{order.orderNumber}</b><span>{new Date(order.createdAt).toLocaleString()} · {order.cashier.name}</span><small>{order.lines.map((line) => `${line.quantity}× ${line.productName}`).join(" · ")}</small></div><div className="history-order-total"><strong>{money(order.totalMinor, order.currency)}</strong><span>{order.status}</span></div><div className="history-order-actions"><a href={`/orders/${order.id}/receipt`}>Receipt ↗</a>{(role === "OWNER" || role === "MANAGER") && order.status === "COMPLETED" && <><button onClick={() => void reverseOrder(order, "REFUND")} disabled={reversalBusy === order.id}>Refund</button><button onClick={() => void reverseOrder(order, "VOID")} disabled={reversalBusy === order.id}>Void remaining</button></>}</div>{order.refunds.length > 0 && <small className="history-reversal-note">Refunded {money(order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0), order.currency)} · {order.refunds.length} transaction(s) · Latest: {order.refunds[0].reason}</small>}</article>)}
+        {orders.map((order) => <article className="history-order" key={order.id}><div className="history-order-main"><b>Order #{order.orderNumber}</b><span>{new Date(order.createdAt).toLocaleString()} · {order.cashier.name}</span><small>{order.lines.map((line) => `${line.quantity}× ${line.productName}`).join(" · ")}</small></div><div className="history-order-total"><strong>{money(order.totalMinor, order.currency)}</strong><span>{order.status}</span></div><div className="history-order-actions"><a href={`/orders/${order.id}/receipt`}>Receipt ↗</a>{(role === "OWNER" || role === "MANAGER") && order.status !== "DRAFT" && <><button onClick={() => void recordItemReturn(order)} disabled={reversalBusy === order.id}>Record item return</button>{order.status === "COMPLETED" && <><button onClick={() => void reverseOrder(order, "REFUND")} disabled={reversalBusy === order.id}>Refund</button><button onClick={() => void reverseOrder(order, "VOID")} disabled={reversalBusy === order.id}>Void remaining</button></>}</>}</div>{order.lines.some((line) => line.returns.length > 0) && <small className="history-reversal-note">Returns: {order.lines.flatMap((line) => line.returns).reduce((sum, entry) => sum + entry.quantity, 0)} item(s) recorded · no automatic restock</small>}{order.refunds.length > 0 && <small className="history-reversal-note">Refunded {money(order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0), order.currency)} · {order.refunds.length} transaction(s) · Latest: {order.refunds[0].reason}</small>}</article>)}
         {!orders.length && !loading && <p>No orders found.</p>}
         {loading && <p>Loading orders…</p>}
         {nextCursor && <button className="catalog-primary history-more" onClick={() => void load(nextCursor)} disabled={loading}>Load more</button>}
