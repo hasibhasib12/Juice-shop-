@@ -37,7 +37,12 @@ export async function GET(request: NextRequest) {
     cashMovements: { select: { type: true, amountMinor: true } },
   }, orderBy: { openedAt: "asc" } });
   const refunds = shifts.length ? await prisma.refund.findMany({ where: { shiftId: { in: shifts.map(s => s.id) } }, select: { shiftId: true, cashRefundMinor: true, createdAt: true } }) : [];
-  const lines = ["JUICE SHOP - SHIFT RECONCILIATION", "Business date: " + selected + " | Timezone: " + timezone, " "];
+  const openingEvents = shifts.length ? await prisma.auditEvent.findMany({
+    where: { action: "SHIFT_OPENED", entityType: "Shift", entityId: { in: shifts.map(s => s.id) } },
+    select: { entityId: true, details: true },
+  }) : [];
+  const currencyByShift = new Map(openingEvents.map(event => [event.entityId, (event.details as { currency?: string } | null)?.currency || "UNKNOWN"]));
+  const lines = ["JUICE SHOP - SHIFT RECONCILIATION", "Business date: " + selected + " | Timezone: " + timezone, "Currency is captured when the shift opens; UNKNOWN means the shift predates currency snapshots.", " "];
   for (const shift of shifts) {
     const endAt = shift.closedAt || new Date();
     const cashRefund = refunds.filter(r => r.shiftId === shift.id && r.createdAt <= endAt).reduce((sum,r)=>sum+r.cashRefundMinor,0);
@@ -46,7 +51,7 @@ export async function GET(request: NextRequest) {
     const paidOut = shift.cashMovements.filter(m=>m.type==="PAID_OUT").reduce((sum,m)=>sum+m.amountMinor,0);
     const expected = calculateExpectedShiftCash(shift.openingCashMinor,cashSales,cashRefund,paidIn,paidOut);
     const counted = shift.closingCashMinor;
-    lines.push(shift.user.name + " | " + shift.user.email, "Opened: " + shift.openedAt.toISOString() + " | Closed: " + (shift.closedAt?.toISOString() || "OPEN"),
+    lines.push(shift.user.name + " | " + shift.user.email + " | Currency: " + (currencyByShift.get(shift.id) || "UNKNOWN"), "Opened: " + shift.openedAt.toISOString() + " | Closed: " + (shift.closedAt?.toISOString() || "OPEN"),
       "Opening float: " + shift.openingCashMinor + " minor | Cash sales: " + cashSales + " minor | Cash refunds: " + cashRefund + " minor",
       "Paid in: " + paidIn + " minor | Paid out: " + paidOut + " minor", "Expected cash: " + expected + " minor | Counted: " + (counted ?? "Not closed") + " | Variance: " + (counted === null ? "N/A" : counted - expected) + " minor",
       "Completed orders: " + shift.orders.length, " ");
