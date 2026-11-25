@@ -269,7 +269,7 @@ export default function Home() {
           </div>
           <div className="quick-actions">
             <button onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
-            <button onClick={() => { setCustomer(customer === "Walk-in customer" ? "Ahmed Khan" : "Walk-in customer"); action("Customer selection"); }}><span>♟</span>Customer</button>
+            <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
             <button onClick={() => { setDiscount(0); setNotice("Discounts are disabled until manager authorization is implemented."); }}><span>%</span>Discount</button>
             <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
             <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
