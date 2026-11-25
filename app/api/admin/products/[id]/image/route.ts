@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const rate = await checkActionRateLimit("product-image-upload", actor.id, 20, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many image uploads. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
-  const product = await prisma.product.findUnique({ where: { id }, select: { id: true, name: true } });
+  const product = await prisma.product.findFirst({ where: { id, branchId: actor.branchId }, select: { id: true, name: true } });
   if (!product) return NextResponse.json({ error: "Product not found." }, { status: 404 });
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Choose an image file." }, { status: 400 }); }
