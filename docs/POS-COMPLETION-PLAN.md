@@ -70,7 +70,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Low-stock thresholds and waste/count adjustment movements.
 - [x] Supplier directory and purchase-order drafts with supplier, ingredient, quantity, unit cost and audit events.
 - [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; partial receipts update only the received quantities, reject over-receiving, keep outstanding lines open, and allow cancellation without reversing previously received stock.
-- [ ] Supplier invoice matching, supplier payment tracking and stock valuation reports/exports.
+- [x] Supplier invoice matching to received purchase-order lines, duplicate invoice protection, cumulative billed-quantity limits, unit-cost variance visibility and partial supplier payments with overpayment protection and audit events. Invoice management screen and API are implemented; workflow tests remain pending.\n- [ ] Stock valuation exports.
 - [x] Inventory movement ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
