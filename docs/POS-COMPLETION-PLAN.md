@@ -77,7 +77,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
 - [x] Manager/owner staff directory and cashier creation; managers may only activate/deactivate cashier accounts, while only owners may change roles. Staff access/role changes increment the session version and revoke existing sessions; self-account access/role changes are blocked.
 - [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
-- [ ] Fine-grained configurable permissions and self-service email/password reset workflow. Owners can configure a maximum manager-approved discount percentage, enforced both when approval is issued and again inside checkout; granular permission assignment remains pending. Owner/manager-assisted staff password reset API and staff-directory controls are implemented for eligible staff, with 12-character minimum, audit logging and session revocation; managers are restricted to cashier accounts. Self-service password change is implemented with current-password verification and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
+- [x] Owner-configurable per-staff permissions for reports, inventory, purchasing, refunds and table management; API guards enforce grants and denials, permission changes are audited, managers retain existing defaults, and cashiers are denied by default. Self-service email/password reset workflow remains pending. Owners can configure a maximum manager-approved discount percentage, enforced both when approval is issued and again inside checkout; Owner/manager-assisted staff password reset API and staff-directory controls are implemented for eligible staff, with 12-character minimum, audit logging and session revocation; managers are restricted to cashier accounts. Self-service password change is implemented with current-password verification and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
@@ -86,7 +86,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
 - [x] Daily staff performance report and CSV export by cashier/processor, with currency-separated sales, discounts, average order, refunds processed and shift/drawer activity. Sales, shift and stock valuation CSV exports are implemented.
-- [ ] PDF report export.
+- [x] Browser print / Save as PDF layouts for sales and staff reports (uses the browser print dialog; a server-generated PDF file remains a future enhancement).
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.

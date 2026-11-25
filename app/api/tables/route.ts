@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +32,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: "Manager access required to manage tables." }, { status: 403 });
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, permissionState?.permissionOverrides, "MANAGE_TABLES")) return NextResponse.json({ error: "Table management permission required." }, { status: 403 });
   let body: { name?: string; section?: string; capacity?: number; sortOrder?: number };
   try {
     const parsed: unknown = await request.json();
