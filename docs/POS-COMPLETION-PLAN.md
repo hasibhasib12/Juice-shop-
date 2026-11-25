@@ -106,3 +106,9 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Purchase order creation and receiving reject currencies that differ from the configured store currency. Currency conversion is intentionally not fabricated; a future FX workflow requires an explicit exchange-rate source and accounting policy.
 - Integration coverage verifies currency changes are blocked while a shift is open and that the shift-opening audit event records the currency.
 - No production database, production environment variables, or deployment were changed.
+
+
+## Verified progress — cash reconciliation
+- Commit `783a07df127242eb1e2b39c73364dd87e6b7ffcd` passed GitHub Actions run `45635966698`: Prisma validation, development migrations, lint, automated tests, TypeScript and production build.
+- PostgreSQL integration coverage now verifies that a cash refund processed on a later cashier shift reduces the refunding drawer, not the original sale's drawer.
+- A new PostgreSQL integration scenario has been added in commit `51c4a58333780b87b894a10011a12e07e1e6789d` to race two receipts of 6 units against a 10-unit purchase-order line. It asserts only one receipt succeeds, stock increases once, weighted-average cost is correct, and the PO line, status, movement ledger and audit trail agree. This newest test is pending CI verification.
