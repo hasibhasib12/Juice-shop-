@@ -75,3 +75,13 @@ test("checkout fingerprint aggregates only identical configured lines", () => {
   assert.equal(split, merged);
   assert.notEqual(split, different);
 });
+
+
+test("checkout fingerprint binds a saved draft when converting it into a sale", () => {
+  const items = [{ productId: "juice-a", quantity: 1 }];
+  const original = checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice" });
+  const draftCheckout = checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice", draftId: "draft-1" });
+  assert.notEqual(original, draftCheckout);
+  assert.notEqual(draftCheckout, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice", draftId: "draft-2" }));
+  assert.equal(draftCheckout, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice", draftId: "draft-1" }));
+});
