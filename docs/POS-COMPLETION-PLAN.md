@@ -51,10 +51,11 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Printable receipt layout, thermal printer/browser print support, and reprints (order number is generated).
 
 ## Milestone 4 — Inventory
-- [ ] Ingredient units, recipes/BOM, modifiers, stock receiving and adjustments.
-- [ ] Deduct recipe quantities only when an order is successfully paid/closed, in the same transaction.
-- [ ] Wastage, stock counts, low-stock thresholds, supplier/purchase records if required.
-- [ ] Inventory ledger and audit trail.
+- [x] Ingredient units, product recipe/BOM links, stock receiving, waste and count adjustments with stock movement ledger and audit events.
+- [x] Deduct configured recipe quantities only when a cash order completes, in the same transaction as order/payment creation; reject insufficient stock and roll back.
+- [x] Low-stock thresholds and waste/count adjustment movements.
+- [ ] Supplier and purchase-order records if required.
+- [x] Inventory movement ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
@@ -64,7 +65,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Daily/weekly/monthly sales, product mix, tax, tender, refunds, stock and staff reports.
 
 ## Milestone 6 — Hardening and release
-- [ ] Responsive usability, accessibility, empty/loading/error states.
+- [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
 - [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
 - [ ] Preview acceptance test with the owner using realistic sample data.
