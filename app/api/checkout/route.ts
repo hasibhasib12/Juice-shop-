@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 type CheckoutItem = { productId: string; quantity: number };
 type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
 const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
+const checkoutFingerprint = (items: CheckoutItem[], tenders: PaymentTender[], cashReceivedMinor: number | undefined, discountApprovalId: string | undefined) =>
+  createHash("sha256").update(JSON.stringify({
+    items: [...items].map((item) => ({ productId: item.productId, quantity: item.quantity })).sort((a,b) => a.productId.localeCompare(b.productId)),
+    tenders: [...tenders].map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })).sort((a,b) => a.method.localeCompare(b.method)),
+    cashReceivedMinor: cashReceivedMinor ?? null,
+    discountApprovalId: discountApprovalId ?? null,
+  })).digest("hex");
 
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
-  const quantities = new Map<string, number>();
+  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId);\n\n  const quantities = new Map<string, number>();
   for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
   if ([...quantities.values()].some((quantity) => quantity > 100)) {
     return NextResponse.json({ error: "A product quantity cannot exceed 100 per order." }, { status: 400 });
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
         include: { lines: true, payments: true },
       });
       if (previous) {
-        if (previous.cashierId !== cashier.id) throw new Error("IDEMPOTENCY_CONFLICT");
+        if (previous.cashierId !== cashier.id || !previous.requestFingerprint || previous.requestFingerprint !== requestFingerprint) throw new Error("IDEMPOTENCY_CONFLICT");
         return previous;
       }
       const activeShift = await tx.shift.findFirst({ where: { userId: cashier.id, closedAt: null }, select: { id: true } });
