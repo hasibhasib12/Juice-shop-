@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
+import { checkoutFingerprint } from "@/lib/checkout-fingerprint";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,13 +11,8 @@ export const dynamic = "force-dynamic";
 type CheckoutItem = { productId: string; quantity: number };
 type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
 const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
-const checkoutFingerprint = (items: CheckoutItem[], tenders: PaymentTender[], cashReceivedMinor: number | undefined, discountApprovalId: string | undefined) =>
-  createHash("sha256").update(JSON.stringify({
-    items: [...items].map((item) => ({ productId: item.productId, quantity: item.quantity })).sort((a,b) => a.productId.localeCompare(b.productId)),
-    tenders: [...tenders].map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })).sort((a,b) => a.method.localeCompare(b.method)),
-    cashReceivedMinor: cashReceivedMinor ?? null,
-    discountApprovalId: discountApprovalId ?? null,
-  })).digest("hex");
+
+
 
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
