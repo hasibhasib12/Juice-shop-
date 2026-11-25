@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selected.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
         const lineTotalMinor = unitPriceMinor * item.quantity;
         if (!Number.isSafeInteger(lineTotalMinor) || lineTotalMinor < 0) throw new Error("INVALID_TOTAL");
-        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selected.length ? selected.map(({ groupName, name, priceDeltaMinor }) => ({ groupName, name, priceDeltaMinor })) : undefined };
+        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selected.length ? selected.map(({ groupId, groupName, name, priceDeltaMinor }) => ({ groupId, groupName, name, priceDeltaMinor })) : undefined };
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor)) throw new Error("INVALID_TOTAL");
