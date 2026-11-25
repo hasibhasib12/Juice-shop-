@@ -143,3 +143,11 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - The main checkout integration now converts that saved draft into the completed order rather than creating a separate order. It verifies the same order ID is retained and exactly one payment is written.
 - Added a second conversion attempt with a distinct idempotency key and verifies the already-completed draft is rejected without creating another payment or order.
 - Tests are committed to `feature/pos-foundation`; full CI and live isolated PostgreSQL execution remain pending. No deployment or production data changes.
+
+
+## Checkout failure-safety coverage — 2026-11-25 (CI pending)
+- Expanded the isolated PostgreSQL HTTP integration test with an insufficient-cash case and verifies no order, payment, sale stock movement, or completed-order audit event is added.
+- Invalid tender totals now receive the same no-partial-write assertions.
+- Added an insufficient-ingredient-stock checkout attempt and verifies no order, payment, sale stock movement, or completion audit event is persisted, and the failed attempt does not consume its idempotency key.
+- These tests exercise API-level rejection and transaction invariants against the isolated integration database. They are committed on `feature/pos-foundation`; execution and full CI verification remain pending.
+- No production database changes and no deployment.
