@@ -10,7 +10,7 @@ export async function GET() {
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
-  const branches = await prisma.branch.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true, timezone: true, currency: true } });
+  const branches = await prisma.branch.findMany({ where: actor.role === "OWNER" ? { active: true } : { id: actor.branchId, active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true, timezone: true, currency: true } });
   return NextResponse.json({ branches }, { headers: { "Cache-Control": "no-store" } });
 }
 
