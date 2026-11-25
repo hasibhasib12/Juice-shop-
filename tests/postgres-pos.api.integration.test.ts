@@ -47,6 +47,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   const invoiceNumber = `API-INV-${suffix}`;
   const password = `Integration-${randomUUID()}-Pass`;
   let server: ChildProcess | undefined;
+  let serverOutput = "";
 
   try {
     await prisma.user.create({ data: {
@@ -81,8 +82,13 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-H", "127.0.0.1", "-p", String(port)], {
       cwd: process.cwd(),
       env: { ...process.env, NODE_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" },
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    const captureServerOutput = (chunk: Buffer) => {
+      serverOutput = `${serverOutput}${chunk.toString()}`.slice(-12000);
+    };
+    server.stdout?.on("data", captureServerOutput);
+    server.stderr?.on("data", captureServerOutput);
     await waitForServer(server);
 
     const publicCatalogue = await fetch(`${baseUrl}/api/products`);
@@ -317,7 +323,9 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const draftCreate = await request("/api/orders/drafts", {
       items: checkoutItems, customerName: "Draft Customer", notes: "Saved before payment",
     });
-    await expectStatus(draftCreate, 201);
+    if (draftCreate.status !== 201) {
+      throw new Error(`Draft creation failed (${draftCreate.status}): ${await draftCreate.text()}\\nRecent Next.js server output:\\n${serverOutput}`);
+    }
     const draftCreateJson = await draftCreate.json() as { draft: { id: string; status: string; totalMinor: number } };
     const draftId = draftCreateJson.draft.id;
     assert.equal(draftCreateJson.draft.status, "DRAFT");
