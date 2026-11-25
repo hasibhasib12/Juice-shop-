@@ -43,6 +43,8 @@ async function main() {
     { key: "store.currency", value: "AFN" },
     { key: "store.timezone", value: "Asia/Kabul" },
     { key: "store.locale", value: "en-AF" },
+    { key: "store.taxRateBps", value: 0 },
+    { key: "store.taxLabel", value: "Tax" },
   ];
   for (const setting of defaultSettings) {
     await prisma.posSetting.upsert({
