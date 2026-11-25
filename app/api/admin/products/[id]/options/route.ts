@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   if (access.response) return access.response;
   const { id } = await context.params;
   const product = await prisma.product.findUnique({ where: { id }, select: {
-    id: true,
+    id: true, name: true,
     variants: { orderBy: { sortOrder: "asc" }, include: { recipeItems: { select: { ingredientId: true, quantity: true } } } },
     modifierGroups: { orderBy: { sortOrder: "asc" }, include: { options: { orderBy: { sortOrder: "asc" } } } },
   } });
