@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "MANAGE_TABLES")) return NextResponse.json({ error: "Table management permission required." }, { status: 403 });
+  const rate = await checkActionRateLimit("table-write", user.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many table changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { name?: string; section?: string; capacity?: number; sortOrder?: number };
   try {
     const parsed: unknown = await request.json();
@@ -52,8 +55,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter a table name, valid section, capacity (1–30), and sort order." }, { status: 400 });
   }
   try {
-    const table = await prisma.diningTable.create({ data: { name, section, capacity, sortOrder } });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "DINING_TABLE_CREATED", entityType: "DiningTable", entityId: table.id, details: { name, section, capacity } } });
+    const table = await prisma.$transaction(async (tx) => {
+      const created = await tx.diningTable.create({ data: { name, section, capacity, sortOrder } });
+      await tx.auditEvent.create({ data: { userId: user.id, action: "DINING_TABLE_CREATED", entityType: "DiningTable", entityId: created.id, details: { name, section, capacity } } });
+      return created;
+    });
     return NextResponse.json({ table }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "A table with this name already exists." }, { status: 409 });
@@ -67,7 +73,10 @@ export async function PATCH(request: NextRequest) {
   }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: "Manager access required to manage tables." }, { status: 403 });
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, permissionState?.permissionOverrides, "MANAGE_TABLES")) return NextResponse.json({ error: "Table management permission required." }, { status: 403 });
+  const rate = await checkActionRateLimit("table-write", user.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many table changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { id?: string; name?: string; section?: string | null; capacity?: number; sortOrder?: number; active?: boolean };
   try {
     const parsed: unknown = await request.json();
