@@ -42,10 +42,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const updated = await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({
         where: { id },
-        select: { id: true, role: true, active: true },
+        select: { id: true, role: true, active: true, branchId: true },
       });
       if (!target) throw new Error("STAFF_NOT_FOUND");
-      if (actor.role === "MANAGER" && target.role !== "CASHIER") {
+      if (actor.role === "MANAGER" && (target.role !== "CASHIER" || target.branchId !== actor.branchId)) {
         throw new Error("STAFF_FORBIDDEN");
       }
       if (!target.active) throw new Error("STAFF_INACTIVE");
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Staff account not found." }, { status: 404 });
     }
     if (error instanceof Error && error.message === "STAFF_FORBIDDEN") {
-      return NextResponse.json({ error: "Managers may reset passwords for cashier accounts only." }, { status: 403 });
+      return NextResponse.json({ error: "Managers may reset passwords for cashier accounts in their own branch only." }, { status: 403 });
     }
     if (error instanceof Error && error.message === "STAFF_INACTIVE") {
       return NextResponse.json({ error: "Reactivate the staff account before resetting its password." }, { status: 409 });
