@@ -139,7 +139,6 @@ model Order {
   payments       Payment[]
   refunds        Refund[]
   itemReturns    OrderLineReturn[]
-  cashMovements  CashMovement[]
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
 
@@ -183,6 +182,7 @@ model Shift {
   userId            String
   user              User         @relation(fields: [userId], references: [id])
   orders            Order[]
+  cashMovements     CashMovement[]
   openingCashMinor  Int
   closingCashMinor  Int?
   expectedCashMinor Int?
