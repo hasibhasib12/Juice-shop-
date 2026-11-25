@@ -58,9 +58,9 @@ async function main() {
   const categoryIds = new Map<string, string>();
   for (const [index, name] of ["Juices", "Smoothies", "Milkshakes", "Desserts"].entries()) {
     const category = await prisma.category.upsert({
-      where: { name },
+      where: { branchId_name: { branchId: mainBranch.id, name } },
       update: { active: true, sortOrder: index },
-      create: { name, sortOrder: index },
+      create: { name, branchId: mainBranch.id, sortOrder: index },
     });
     categoryIds.set(name, category.id);
   }
@@ -69,6 +69,7 @@ async function main() {
     await prisma.product.upsert({
       where: { sku: `DEMO-${String(index + 1).padStart(3, "0")}` },
       update: {
+        branchId: mainBranch.id,
         name: item.name,
         priceMinor: item.price,
         currency: "AFN",
@@ -79,6 +80,7 @@ async function main() {
       },
       create: {
         sku: `DEMO-${String(index + 1).padStart(3, "0")}`,
+        branchId: mainBranch.id,
         name: item.name,
         priceMinor: item.price,
         currency: "AFN",
