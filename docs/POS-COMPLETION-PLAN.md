@@ -69,7 +69,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Milestone 5 — Staff, shifts, cash and reports
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
-- [x] Manager/owner staff directory, cashier creation, account activation/deactivation, and owner-controlled role assignment.
+- [x] Manager/owner staff directory and cashier creation; managers may only activate/deactivate cashier accounts, while only owners may change roles. Staff access/role changes increment the session version and revoke existing sessions; self-account access/role changes are blocked.
 - [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
 - [ ] Fine-grained permissions, password reset workflow and configurable discount approval thresholds. Self-service password change is implemented with current-password verification, a 12-character minimum, audit logging and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
