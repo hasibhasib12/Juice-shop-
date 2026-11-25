@@ -33,3 +33,11 @@ Branch: `feature/pos-foundation`
 ## Scope and safety
 
 This is a focused source review, not a penetration test or completed authorization acceptance. No schema changes, production database operations, environment-variable changes, or deployments were performed. Multi-branch data isolation remains out of scope for this single-store POS phase and is a mandatory gate before multi-branch rollout.
+
+
+## Follow-up implementation — 2026-11-25
+- Fixed product options authorization: GET and PUT now enforce persisted `MANAGE_CATALOG` rather than a hard-coded OWNER/MANAGER role check.
+- Product image upload now enforces the same persisted `MANAGE_CATALOG` permission. The previous role-only check could bypass an explicit catalog permission revocation.
+- Catalog integration assertions now cover options and image-upload denial, options grant and revocation, successful variant/modifier persistence, invalid recipe ingredient rejection without destructive replacement, and audit counts.
+- Inventory integration assertions now cover recipe read/write denial, permission grant and revocation, successful upsert, invalid quantities, missing product/ingredient references, and rejected-write side effects.
+- Latest-head CI execution remains pending. Audit-failure rollback injection remains outstanding and must only run against the isolated CI/development database.
