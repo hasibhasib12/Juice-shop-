@@ -19,7 +19,7 @@ export async function GET() {
   const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
   try {
     const drafts = await prisma.order.findMany({
-      where: { status: "DRAFT", ...(!canViewAllOrders ? { cashierId: user.id } : {}) },
+      where: { status: "DRAFT", cashier: { branchId: user.branchId }, ...(!canViewAllOrders ? { cashierId: user.id } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {
@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
   try {
     const draft = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       if (body.id) {
-        const existing = await tx.order.findUnique({ where: { id: body.id }, select: { id: true, cashierId: true, status: true } });
+        const existing = await tx.order.findUnique({ where: { id: body.id }, select: { id: true, cashierId: true, status: true, cashier: { select: { branchId: true } } } });
         if (!existing) throw new Error("DRAFT_NOT_FOUND");
+        if (existing.cashier.branchId !== user.branchId) throw new Error("DRAFT_FORBIDDEN");
         if (existing.status !== "DRAFT") throw new Error("DRAFT_NOT_EDITABLE");
         if (existing.cashierId !== user.id && user.role !== "OWNER" && user.role !== "MANAGER") throw new Error("DRAFT_FORBIDDEN");
       }
@@ -173,7 +174,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const deleted = await prisma.$transaction(async (tx) => {
       const result = await tx.order.deleteMany({
-        where: { id, status: "DRAFT", ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
+        where: { id, status: "DRAFT", cashier: { branchId: user.branchId }, ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
       });
       if (!result.count) return false;
       await tx.auditEvent.create({ data: { userId: user.id, action: "ORDER_DRAFT_DELETED", entityType: "Order", entityId: id } });
