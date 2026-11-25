@@ -34,7 +34,7 @@ Staff-facing POS only: catalogue, checkout, orders, tables, staff, inventory, su
 - [ ] Deploy an approved Preview build and run an actual product image upload; verify the uploaded image renders on the POS product card. Code and Preview-only storage configuration are present, but no Preview deployment/upload acceptance has been performed.
 - [ ] Test supported barcode scanner models and receipt printers physically. Keyboard-wedge scan-to-cart and 80 mm browser print layouts are implemented, not proof of every device model.
 - [ ] Add automated API/integration tests for concurrent checkout, duplicate requests, refunds, inventory stock races, supplier invoice/payment races, draft conversion and shift reconciliation. Current CI unit tests cover checkout fingerprints, permissions, PDF generation/pagination, image signatures, transaction retry, rate-limit policy and shift cash arithmetic.
-- [ ] Review every write API for consistent authorization, input validation, rate limits, CSRF/session behavior and audit coverage. Sensitive high-impact write actions now have database-backed limits; a full endpoint-by-endpoint security audit remains.
+- [ ] Complete the endpoint-by-endpoint security audit, including CSRF/session behavior and audit coverage. This batch fixed two findings: recipe writes now honor the same fine-grained MANAGE_INVENTORY permission as recipe reads (instead of role-only checks), and recipe mutations plus store-settings writes have database-backed rate limits. Settings and recipe handlers also reject malformed/non-object bodies and bound recipe quantities.
 - [ ] Complete responsive desktop/tablet/mobile and accessibility acceptance.
 - [ ] Complete a Neon backup/restore rehearsal on a disposable development branch and document recovery steps. Production remains untouched.
 - [ ] Test empty/loading/error states, failure recovery and multi-cashier concurrency.
@@ -56,3 +56,8 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 3. Development-branch migrations, storage uploads, backup and restore are verified without touching production.
 4. Owner performs preview acceptance after an approved preview deployment.
 5. No production deployment or production database migration without explicit approval.
+
+
+## Latest security-hardening batch
+- Commit `ab0cad702e58f9ec2ab387b9528970d35fe808d5` plus follow-up `83c1bf36a0efab54fb40f002f1a564331c6f14cb` updates recipe permission enforcement, recipe write rate limits, recipe input validation, store-settings write rate limits and settings request-body validation.
+- The branch CI must pass on the latest head before this batch is considered verified.
