@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 type CheckoutItem = { productId: string; quantity: number; variantId?: string; modifierOptionIds?: string[] };
 type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
-const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
+const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].map((item) => JSON.stringify([item.productId, item.variantId ?? null, [...(item.modifierOptionIds ?? [])].sort(), item.quantity])).sort().join("|")).digest("hex");
 
 
 
