@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   let body: { items?: ReturnInput[] };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
-  if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 50) return NextResponse.json({ error: "Add at least one returned order line." }, { status: 400 });
+  if (!body || typeof body !== "object" || !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 50) return NextResponse.json({ error: "Add at least one returned order line." }, { status: 400 });
   const seen = new Set<string>();
   for (const item of body.items) {
     if (!item || typeof item.orderLineId !== "string" || item.orderLineId.length > 64 || seen.has(item.orderLineId) ||
