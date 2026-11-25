@@ -73,6 +73,11 @@ export async function POST(request: NextRequest) {
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0) throw new Error("INVALID_TOTAL");
       const currency = products[0].currency;
+      const taxSetting = await tx.posSetting.findUnique({ where: { key: "store.taxRateBps" }, select: { value: true } });
+      const taxRateBps = typeof taxSetting?.value === "number" && Number.isSafeInteger(taxSetting.value) && taxSetting.value >= 0 && taxSetting.value <= 10000 ? taxSetting.value : 0;
+      const taxMinor = new Prisma.Decimal(subtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
+      const totalMinor = subtotalMinor + taxMinor;
+      if (!Number.isSafeInteger(taxMinor) || !Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("INVALID_TOTAL");
       const ingredientDemand = new Map<string, Prisma.Decimal>();
       for (const product of products) {
         const soldQuantity = quantities.get(product.id)!;
@@ -92,13 +97,13 @@ export async function POST(request: NextRequest) {
           cashierId: cashier.id,
           subtotalMinor,
           discountMinor: 0,
-          taxMinor: 0,
-          totalMinor: subtotalMinor,
+          taxMinor,
+          totalMinor,
           currency,
           idempotencyKey: key,
           completedAt: new Date(),
           lines: { create: lines },
-          payments: { create: { method: "CASH", status: "COMPLETED", amountMinor: subtotalMinor, currency } },
+          payments: { create: { method: "CASH", status: "COMPLETED", amountMinor: totalMinor, currency } },
         },
         include: { lines: true, payments: true },
       });
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
           action: "ORDER_COMPLETED",
           entityType: "Order",
           entityId: order.id,
-          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, currency, paymentMethod: "CASH" },
+          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, paymentMethod: "CASH" },
         },
       });
       return order;
