@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   for (const item of items) {
     const product = products.find(p => p.id === item.productId)!;
     const variant = item.variantId ? product.variants.find(v => v.id === item.variantId) : null;
-    if (item.variantId && !variant) return NextResponse.json({ error: "A selected size is unavailable." }, { status: 409 });
+    if ((item.variantId && !variant) || (!item.variantId && product.variants.length > 0)) return NextResponse.json({ error: "A selected size is unavailable." }, { status: 409 });
     const ids = item.modifierOptionIds ?? [];
     if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "Duplicate extras are not allowed." }, { status: 400 });
     const chosen = product.modifierGroups.flatMap(g => g.options.filter(o => ids.includes(o.id)).map(o => ({ groupId: g.id, priceDeltaMinor: o.priceDeltaMinor })));
