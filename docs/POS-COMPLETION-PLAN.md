@@ -134,3 +134,12 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Added the permission to the owner-facing staff permissions screen.
 - Added unit coverage for role defaults and permission overrides, plus PostgreSQL/API integration coverage for cashier denial, explicit grant, and revocation across both order list and detail endpoints.
 - Changes are committed on `feature/pos-foundation`; CI verification on the latest head is pending. Vercel's status context reports the existing Hobby build-rate limit; no deployment was attempted.
+
+
+## Draft-order and checkout conversion coverage — 2026-11-25 (CI pending)
+- Extended the PostgreSQL HTTP integration scenario to create a draft, verify its persisted total and creation audit event, and retrieve it from the draft list.
+- Verified a cashier cannot see another cashier/owner's draft in the list, edit that draft, or delete it.
+- Verified the owner can update the draft and that the update audit event is recorded.
+- The main checkout integration now converts that saved draft into the completed order rather than creating a separate order. It verifies the same order ID is retained and exactly one payment is written.
+- Added a second conversion attempt with a distinct idempotency key and verifies the already-completed draft is rejected without creating another payment or order.
+- Tests are committed to `feature/pos-foundation`; full CI and live isolated PostgreSQL execution remain pending. No deployment or production data changes.
