@@ -48,7 +48,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Apply the new cash-tender migration to the isolated Neon development branch and verify it before preview deployment.
 
 ## Milestone 3 — Payments and receipts
-- [x] Cash payment record, server-validated tender amount, persisted cash received/change due, and receipt display; POS currently submits exact tender by default.
+- [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
 - [ ] Split tender, card-provider integration, failed/voided payments, refunds, reconciliation, and provider callback idempotency.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
