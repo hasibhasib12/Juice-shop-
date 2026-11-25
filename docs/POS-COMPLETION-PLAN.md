@@ -82,7 +82,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Shift report export.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
-- [ ] Stock valuation reports/exports, staff performance reports and CSV/PDF export. Ingredient weighted-average unit cost is now maintained when purchase orders are received.
+- [ ] Stock valuation exports, staff performance reports and CSV/PDF report export. The inventory screen now shows an estimated ingredient stock value using weighted-average unit cost and the configured store currency.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
