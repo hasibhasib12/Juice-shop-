@@ -107,3 +107,14 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .payment-actions button{font-weight:800;letter-spacing:-.02em}
 .place-order{font-weight:800;letter-spacing:-.025em}
 @media(max-width:580px){.tile-bottom{min-height:60px;padding:7px 8px}.tile-bottom b{font-size:12px}.tile-bottom strong{font-size:12px}.order-item-info>b{font-size:12px}}
+
+/* Staff sign-in */
+.login-backdrop{position:fixed;inset:0;z-index:50;background:#16040dcc;backdrop-filter:blur(8px);display:grid;place-items:center;padding:18px}
+.login-panel{position:relative;width:min(420px,100%);padding:34px;border:1px solid #82405a;border-radius:22px;background:linear-gradient(155deg,#5b1832,#2e0a19);box-shadow:0 28px 90px #0009;color:#fff;display:flex;flex-direction:column;gap:15px}
+.login-panel h2{font-size:27px;letter-spacing:-.05em;margin:0}.login-panel p{margin:-8px 0 5px;color:#e0cbd3;font-size:13px;line-height:1.5}
+.login-kicker{font-size:10px;font-weight:800;letter-spacing:.16em;color:#f1a8bd}
+.login-panel label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:700;color:#f8eaf0}
+.login-panel input{height:46px;border:1px solid #8a4962;border-radius:10px;background:#260713;color:#fff;padding:0 12px;outline:none}
+.login-panel input:focus{border-color:#27d52a;box-shadow:0 0 0 3px #27d52a25}
+.login-submit{height:48px;border:0;border-radius:11px;background:#20c51d;color:#fff;font-weight:800;margin-top:4px}
+.login-submit:disabled{opacity:.6;cursor:wait}.login-close{position:absolute;right:15px;top:12px;border:0;background:transparent;color:#f5dce5;font-size:25px}
