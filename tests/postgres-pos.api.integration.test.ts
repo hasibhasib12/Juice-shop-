@@ -242,12 +242,49 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const deniedTableUpdate = await cashierRequest("/api/tables", { id: tableJson.table.id, name: "Should be denied" }, "PATCH");
     await expectStatus(deniedTableUpdate, 403);
 
+    const checkoutItems = [{
+      productId, variantId: (await prisma.productVariant.findFirstOrThrow({ where: { productId } })).id, quantity: 1,
+    }];
+    const draftCreate = await request("/api/orders/drafts", {
+      items: checkoutItems, customerName: "Draft Customer", notes: "Saved before payment",
+    });
+    await expectStatus(draftCreate, 201);
+    const draftCreateJson = await draftCreate.json() as { draft: { id: string; status: string; totalMinor: number } };
+    const draftId = draftCreateJson.draft.id;
+    assert.equal(draftCreateJson.draft.status, "DRAFT");
+    assert.equal(draftCreateJson.draft.totalMinor, 1500);
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: draftId, action: "ORDER_DRAFT_CREATED", userId } }), 1);
+
+    const listedDrafts = await fetch(`${baseUrl}/api/orders/drafts`, { headers: { cookie } });
+    await expectStatus(listedDrafts, 200);
+    const listedDraftsJson = await listedDrafts.json() as { drafts: { id: string }[] };
+    assert.equal(listedDraftsJson.drafts.some((draft) => draft.id === draftId), true);
+
+    const forbiddenDraftEdit = await cashierRequest("/api/orders/drafts", {
+      id: draftId, items: checkoutItems, customerName: "Unauthorized edit",
+    });
+    await expectStatus(forbiddenDraftEdit, 403);
+    const forbiddenDraftDelete = await fetch(`${baseUrl}/api/orders/drafts?id=${encodeURIComponent(draftId)}`, {
+      method: "DELETE", headers: { cookie: cashierCookie },
+    });
+    await expectStatus(forbiddenDraftDelete, 404);
+
+    const draftUpdate = await request("/api/orders/drafts", {
+      id: draftId, items: checkoutItems, customerName: "Updated Draft Customer", notes: "Reviewed before checkout",
+    });
+    await expectStatus(draftUpdate, 200);
+    const draftUpdateJson = await draftUpdate.json() as { draft: { customerName: string; notes: string } };
+    assert.equal(draftUpdateJson.draft.customerName, "Updated Draft Customer");
+    assert.equal(draftUpdateJson.draft.notes, "Reviewed before checkout");
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: draftId, action: "ORDER_DRAFT_UPDATED", userId } }), 1);
+
     const checkoutBody = {
-      items: [{ productId, variantId: (await prisma.productVariant.findFirstOrThrow({ where: { productId } })).id, quantity: 1 }],
+      items: checkoutItems,
       paymentTenders: [{ method: "OTHER", amountMinor: 1500 }],
       idempotencyKey: `api-it-key-${suffix}`,
       customerName: "API Integration Customer",
       notes: "End-to-end test",
+      draftId,
     };
     const checkout = await request("/api/checkout", checkoutBody);
     await expectStatus(checkout, 201);
@@ -281,6 +318,15 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.order.count({ where: { idempotencyKey: checkoutBody.idempotencyKey } }), 1);
     assert.equal(await prisma.payment.count({ where: { orderId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_COMPLETED" } }), 1);
+    const convertedDraft = await prisma.order.findUniqueOrThrow({ where: { id: draftId } });
+    assert.equal(convertedDraft.status, "COMPLETED");
+    assert.equal(convertedDraft.id, orderId);
+    const secondDraftConversion = await request("/api/checkout", {
+      ...checkoutBody, idempotencyKey: `api-it-draft-replay-${suffix}`,
+    });
+    await expectStatus(secondDraftConversion, 409);
+    assert.equal(await prisma.order.count({ where: { id: draftId } }), 1);
+    assert.equal(await prisma.payment.count({ where: { orderId: draftId } }), 1);
 
     const refundAttempts = await Promise.all([
       request(`/api/orders/${orderId}/refund`, { kind: "REFUND", amountMinor: 1500, reason: "API integration full refund" }),
