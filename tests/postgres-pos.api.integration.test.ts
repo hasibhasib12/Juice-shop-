@@ -424,8 +424,9 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.payment.count({ where: { orderId, status: "REFUNDED" } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_PARTIALLY_OR_FULLY_REFUNDED" } }), 1);
 
+    const { draftId: _convertedDraftId, ...newOrderCheckoutBody } = checkoutBody;
     const voidCheckout = await request("/api/checkout", {
-      ...checkoutBody,
+      ...newOrderCheckoutBody,
       idempotencyKey: `api-it-void-${suffix}`,
     });
     await expectStatus(voidCheckout, 201);
