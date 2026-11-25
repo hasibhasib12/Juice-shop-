@@ -141,8 +141,6 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     assert.equal(await prisma.productVariant.count({ where: { productId } }), 1);
     assert.equal(await prisma.productModifierGroup.count({ where: { productId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
-    const deniedImageAfterRevoke = await request(`/api/admin/products/${productId}/image`, "POST");
-    await expectStatus(deniedImageAfterRevoke, 403);
 
     const invalidOptionIngredient = await request(`/api/admin/products/${productId}/options`, "PUT", {
       variants: [{ name: "Invalid recipe", priceMinor: 200, recipeItems: [{ ingredientId: `missing-${suffix}`, quantity: 1 }] }],
@@ -193,6 +191,8 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
       where: { id: userId },
       data: { permissionOverrides: { MANAGE_CATALOG: false } },
     });
+    const deniedImageAfterRevoke = await request(`/api/admin/products/${productId}/image`, "POST");
+    await expectStatus(deniedImageAfterRevoke, 403);
     const deniedAfterRevoke = await request(`/api/admin/products/${productId}`, "PATCH", { name: "Revoked rename" });
     await expectStatus(deniedAfterRevoke, 403);
     const deniedOptionsAfterRevoke = await request(`/api/admin/products/${productId}/options`, "PUT", {
