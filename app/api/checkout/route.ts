@@ -53,7 +53,10 @@ export async function POST(request: NextRequest) {
 
       const products = await tx.product.findMany({
         where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
-        select: { id: true, name: true, priceMinor: true, currency: true },
+        select: {
+          id: true, name: true, priceMinor: true, currency: true,
+          recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } },
+        },
       });
       if (products.length !== quantities.size) throw new Error("PRODUCT_UNAVAILABLE");
       const currencies = new Set(products.map((product) => product.currency));
@@ -68,6 +71,18 @@ export async function POST(request: NextRequest) {
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0) throw new Error("INVALID_TOTAL");
       const currency = products[0].currency;
+      const ingredientDemand = new Map<string, Prisma.Decimal>();
+      for (const product of products) {
+        const soldQuantity = quantities.get(product.id)!;
+        for (const recipeItem of product.recipeItems) {
+          const required = recipeItem.quantity.mul(soldQuantity);
+          ingredientDemand.set(recipeItem.ingredientId, (ingredientDemand.get(recipeItem.ingredientId) ?? new Prisma.Decimal(0)).plus(required));
+        }
+      }
+      for (const [ingredientId, required] of ingredientDemand) {
+        const ingredient = products.flatMap((product) => product.recipeItems).find((item) => item.ingredientId === ingredientId)?.ingredient;
+        if (!ingredient || ingredient.quantityOnHand.lt(required)) throw new Error("INSUFFICIENT_STOCK");
+      }
 
       const order = await tx.order.create({
         data: {
@@ -85,6 +100,17 @@ export async function POST(request: NextRequest) {
         },
         include: { lines: true, payments: true },
       });
+
+      for (const [ingredientId, required] of ingredientDemand) {
+        const changed = await tx.ingredient.updateMany({
+          where: { id: ingredientId, quantityOnHand: { gte: required } },
+          data: { quantityOnHand: { decrement: required } },
+        });
+        if (changed.count !== 1) throw new Error("INSUFFICIENT_STOCK");
+        await tx.stockMovement.create({
+          data: { ingredientId, type: "SALE", quantity: required.negated(), reason: "Recipe deduction at checkout", referenceId: order.id },
+        });
+      }
 
       await tx.auditEvent.create({
         data: {
@@ -116,6 +142,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
+    if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
     if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key belongs to another cashier." }, { status: 409 });
     if (message === "INVALID_PRICE" || message === "INVALID_TOTAL") return NextResponse.json({ error: "The order total is invalid." }, { status: 422 });
