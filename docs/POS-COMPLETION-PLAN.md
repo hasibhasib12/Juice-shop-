@@ -41,7 +41,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Milestone 2 — Catalogue and checkout
 - [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
-- [ ] Category rename/archive, image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
+- [x] Category rename, ordering, archive and restore APIs with audit events. Category management UI integration and tests remain pending.
+- [ ] Image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
 - [ ] Server-created draft orders, tables/customer/order notes, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
@@ -71,7 +72,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
 - [x] Manager/owner staff directory and cashier creation; managers may only activate/deactivate cashier accounts, while only owners may change roles. Staff access/role changes increment the session version and revoke existing sessions; self-account access/role changes are blocked.
 - [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
-- [ ] Fine-grained permissions, password reset workflow and configurable discount approval thresholds. Self-service password change is implemented with current-password verification, a 12-character minimum, audit logging and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
+- [ ] Fine-grained configurable permissions, self-service email/password reset workflow, configurable discount approval thresholds, and staff reset UI. Owner/manager-assisted password reset API is implemented for eligible staff, with 12-character minimum, audit logging and session revocation; managers are restricted to cashier accounts. Self-service password change is implemented with current-password verification and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
