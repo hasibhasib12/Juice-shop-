@@ -16,6 +16,23 @@ const catalog = [
 ];
 
 async function main() {
+  // Initial store defaults: Afghanistan and Afghan afghani.
+  // These are defaults only; future multi-location support should store settings per location.
+  const defaultSettings = [
+    { key: "store.countryCode", value: "AF" },
+    { key: "store.countryName", value: "Afghanistan" },
+    { key: "store.currency", value: "AFN" },
+    { key: "store.timezone", value: "Asia/Kabul" },
+    { key: "store.locale", value: "en-AF" },
+  ];
+  for (const setting of defaultSettings) {
+    await prisma.posSetting.upsert({
+      where: { key: setting.key },
+      update: { value: setting.value },
+      create: { key: setting.key, value: setting.value },
+    });
+  }
+
   const categoryIds = new Map<string, string>();
   for (const [index, name] of ["Juices", "Smoothies", "Milkshakes", "Desserts"].entries()) {
     const category = await prisma.category.upsert({
