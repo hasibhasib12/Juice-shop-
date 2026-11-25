@@ -13,6 +13,7 @@ const defaults = {
   locale: "en-AF",
   taxRateBps: 0,
   taxLabel: "Tax",
+  maxDiscountPercentBps: 10000,
 };
 
 const settingKeys = {
@@ -23,6 +24,7 @@ const settingKeys = {
   locale: "store.locale",
   taxRateBps: "store.taxRateBps",
   taxLabel: "store.taxLabel",
+  maxDiscountPercentBps: "store.maxDiscountPercentBps",
 } as const;
 
 export async function GET() {
@@ -58,7 +60,7 @@ export async function PUT(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER") return NextResponse.json({ error: "Only the owner can change store settings." }, { status: 403 });
 
-  let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string };
+  let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string; maxDiscountPercentBps?: number };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -71,6 +73,7 @@ export async function PUT(request: NextRequest) {
     locale: body.locale,
     taxRateBps: body.taxRateBps,
     taxLabel: body.taxLabel,
+    maxDiscountPercentBps: body.maxDiscountPercentBps,
   };
   if (!settings.countryCode || !/^[A-Z]{2}$/.test(settings.countryCode) ||
       !settings.countryName || settings.countryName.trim().length > 80 ||
@@ -78,7 +81,8 @@ export async function PUT(request: NextRequest) {
       !settings.timezone || settings.timezone.length > 80 ||
       !settings.locale || settings.locale.length > 24 ||
       !Number.isSafeInteger(settings.taxRateBps) || (settings.taxRateBps ?? -1) < 0 || (settings.taxRateBps ?? 10001) > 10000 ||
-      !settings.taxLabel || settings.taxLabel.trim().length > 30) {
+      !settings.taxLabel || settings.taxLabel.trim().length > 30 ||
+      !Number.isSafeInteger(settings.maxDiscountPercentBps) || (settings.maxDiscountPercentBps ?? -1) < 1 || (settings.maxDiscountPercentBps ?? 10001) > 10000) {
     return NextResponse.json({ error: "Provide a valid country, ISO currency code, timezone and locale." }, { status: 400 });
   }
   try {
