@@ -130,3 +130,5 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .setup-panel button{height:49px;border:0;border-radius:11px;background:#20c51d;color:#fff;font-weight:800;margin-top:3px}
 .setup-panel button:disabled{opacity:.6;cursor:wait}.setup-error{padding:10px 12px;border-radius:9px;background:#5b1423;color:#ffd9e1;font-size:12px}
 @media(max-width:520px){.setup-panel{padding:26px 20px}}
+
+.online-state.offline-state i{background:#ffae25;box-shadow:0 0 10px #ffae2566}
