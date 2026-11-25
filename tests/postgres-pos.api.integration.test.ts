@@ -296,7 +296,13 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       ]);
       if (server.exitCode === null) server.kill("SIGKILL");
     }
-    await prisma.auditEvent.deleteMany({ where: { entityId: { in: await prisma.supplierInvoice.findMany({ where: { purchaseOrderId }, select: { id: true } }).then((rows) => rows.map((row) => row.id)) } } });
+    const invoiceIds = (await prisma.supplierInvoice.findMany({
+      where: { purchaseOrderId }, select: { id: true },
+    })).map((row) => row.id);
+    await prisma.auditEvent.deleteMany({ where: { entityId: { in: invoiceIds } } });
+    await prisma.supplierPayment.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+    await prisma.supplierInvoiceLine.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+    await prisma.supplierInvoice.deleteMany({ where: { id: { in: invoiceIds } } });
     await prisma.purchaseOrder.deleteMany({ where: { id: purchaseOrderId } });
     await prisma.supplier.deleteMany({ where: { id: supplierId } });
     await prisma.refund.deleteMany({ where: { order: { cashierId: userId } } });
