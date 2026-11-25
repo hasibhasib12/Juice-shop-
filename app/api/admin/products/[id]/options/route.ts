@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       const product = await tx.product.findFirst({ where: { id, branchId: access.user!.branchId }, select: { id: true } });
       if (!product) throw new Error("PRODUCT_NOT_FOUND");
       const ingredientIds = [...new Set(variants.flatMap(v => ((v.recipeItems ?? []) as {ingredientId:string}[]).map(r => r.ingredientId)))];
-      const ingredients = ingredientIds.length ? await tx.ingredient.findMany({ where: { id: { in: ingredientIds } }, select: { id: true } }) : [];
+      const ingredients = ingredientIds.length ? await tx.ingredient.findMany({ where: { id: { in: ingredientIds }, branchId: access.user!.branchId }, select: { id: true } }) : [];
       if (ingredients.length !== ingredientIds.length) throw new Error("INVALID_INGREDIENT");
       await tx.productVariant.deleteMany({ where: { productId: id } });
       await tx.productModifierGroup.deleteMany({ where: { productId: id } });
@@ -96,7 +96,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "PRODUCT_NOT_FOUND") return NextResponse.json({ error: "Product not found." }, { status: 404 });
-    if (message === "INVALID_INGREDIENT") return NextResponse.json({ error: "One or more recipe ingredients do not exist." }, { status: 400 });
+    if (message === "INVALID_INGREDIENT") return NextResponse.json({ error: "One or more recipe ingredients do not exist in this branch." }, { status: 400 });
     if (error instanceof Error && "code" in error && error.code === "P2002") return NextResponse.json({ error: "A variant SKU is already in use." }, { status: 409 });
     return NextResponse.json({ error: "Product options could not be saved." }, { status: 503 });
   }
