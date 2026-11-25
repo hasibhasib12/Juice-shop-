@@ -54,6 +54,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         select: { id: true, role: true, active: true, approvalStatus: true, sessionVersion: true, branchId: true },
       });
       if (!target) throw new Error("STAFF_NOT_FOUND");
+      if (body.active === true && target.approvalStatus !== "APPROVED" && body.approvalStatus !== "APPROVED") throw new Error("STAFF_APPROVAL_REQUIRED");
       // Managers may only activate/deactivate cashier accounts, never manager or owner accounts.
       if (actor.role === "MANAGER" && (target.role !== "CASHIER" || target.branchId !== actor.branchId)) {
         throw new Error("STAFF_FORBIDDEN");
@@ -84,6 +85,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   } catch (error) {
     if (error instanceof Error && error.message === "STAFF_NOT_FOUND") {
       return NextResponse.json({ error: "Staff account not found." }, { status: 404 });
+    }
+    if (error instanceof Error && error.message === "STAFF_APPROVAL_REQUIRED") {
+      return NextResponse.json({ error: "The platform owner must approve this staff request before the account can be enabled." }, { status: 403 });
     }
     if (error instanceof Error && error.message === "STAFF_FORBIDDEN") {
       return NextResponse.json({ error: "Managers may only update cashier accounts in their own branch." }, { status: 403 });
