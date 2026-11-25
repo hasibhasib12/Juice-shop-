@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const previous = await tx.order.findUnique({
         where: { idempotencyKey: key },
         include: { lines: true, payments: true },
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
         },
       });
       return order;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 
     return NextResponse.json({
       order: {
