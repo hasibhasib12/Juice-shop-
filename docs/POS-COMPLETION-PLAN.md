@@ -161,3 +161,14 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Verified cash paid-in is rejected when the cashier has no owned open shift and no cash-movement row is created.
 - Existing owner-side currency-change guard is exercised in the same scenario: currency changes remain blocked while an open shift exists.
 - These are test additions, not a claim of completed full security audit. Full CI and isolated PostgreSQL execution are still pending. No deployment and no production data changes.
+
+
+## Inventory and purchasing authorization checks — 2026-11-25 (CI pending)
+- Reviewed the inventory, supplier, purchase-order, and supplier-invoice API route guards. Each route family checks the current user's persisted permission overrides before returning protected data or accepting mutations; writes also enforce same-origin metadata, action rate limits, and transaction/audit patterns.
+- Expanded the isolated PostgreSQL HTTP integration scenario with a separately authenticated cashier:
+  - inventory, supplier, purchase-order, and supplier-invoice list endpoints deny by default (403);
+  - corresponding create endpoints deny before payload validation (403);
+  - granting MANAGE_INVENTORY enables inventory read access, and revoking it removes access;
+  - granting MANAGE_PURCHASING enables supplier, purchase-order, and supplier-invoice reads, and revoking it removes access.
+- These checks cover API authorization and permission override consistency, not all purchasing object-level mutation cases. Cross-user object identifiers, invoice/payment mutations, and complete inventory lifecycle authorization still need dedicated cases.
+- Integration execution and latest-head CI are not confirmed yet. No deployment; production and main remain untouched.
