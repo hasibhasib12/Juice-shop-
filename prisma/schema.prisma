@@ -61,6 +61,7 @@ model User {
   itemReturnsProcessed OrderLineReturn[]
   cashMovements CashMovement[]
   purchaseOrders PurchaseOrder[]
+  supplierPayments SupplierPayment[]
   discountApprovalsAsCashier DiscountApproval[] @relation("DiscountCashier")
   discountApprovalsAsManager DiscountApproval[] @relation("DiscountManager")
   createdAt    DateTime    @default(now())
@@ -330,6 +331,19 @@ enum PurchaseOrderStatus {
   CANCELLED
 }
 
+enum SupplierInvoiceStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+}
+
+enum SupplierPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  OTHER
+}
+
 model OrderLineReturn {
   id             String            @id @default(cuid())
   orderId        String
@@ -359,6 +373,7 @@ model Supplier {
   notes     String?
   active    Boolean        @default(true)
   orders    PurchaseOrder[]
+  invoices  SupplierInvoice[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -377,6 +392,7 @@ model PurchaseOrder {
   subtotalMinor  Int
   notes          String?
   lines          PurchaseOrderLine[]
+  invoices       SupplierInvoice[]
   createdAt      DateTime            @default(now())
   receivedAt     DateTime?
 
@@ -396,7 +412,62 @@ model PurchaseOrderLine {
   unitCostMinor     Int
   lineTotalMinor    Int
 
+  invoices          SupplierInvoiceLine[]
+
   @@index([purchaseOrderId])
+}
+
+model SupplierInvoice {
+  id              String                @id @default(cuid())
+  supplierId      String
+  supplier        Supplier              @relation(fields: [supplierId], references: [id])
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
+  invoiceNumber   String
+  currency        String
+  totalMinor      Int
+  status          SupplierInvoiceStatus @default(OPEN)
+  invoiceDate     DateTime
+  dueDate         DateTime?
+  notes           String?
+  lines           SupplierInvoiceLine[]
+  payments        SupplierPayment[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([supplierId, invoiceNumber])
+  @@index([purchaseOrderId, createdAt])
+  @@index([status, dueDate])
+}
+
+model SupplierInvoiceLine {
+  id                String             @id @default(cuid())
+  invoiceId         String
+  invoice           SupplierInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId String
+  purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id])
+  quantity          Decimal            @db.Decimal(14, 3)
+  unitCostMinor     Int
+  lineTotalMinor    Int
+
+  @@unique([invoiceId, purchaseOrderLineId])
+}
+
+model SupplierPayment {
+  id          String                @id @default(cuid())
+  invoiceId   String
+  invoice     SupplierInvoice       @relation(fields: [invoiceId], references: [id])
+  amountMinor Int
+  currency    String
+  method      SupplierPaymentMethod
+  reference   String?
+  notes       String?
+  paidAt      DateTime              @default(now())
+  createdById String
+  createdBy   User                  @relation(fields: [createdById], references: [id])
+  createdAt   DateTime              @default(now())
+
+  @@index([invoiceId, paidAt])
 }
 
 
