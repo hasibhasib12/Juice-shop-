@@ -67,12 +67,16 @@ export default function Home() {
     let active = true;
     fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
       const data = await response.json();
-      if (!active || !data.user) return;
-      setStaff(data.user);
-      const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
-      const shiftData = await shiftResponse.json();
-      if (active && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") {
-        window.location.assign("/shift?welcome=1");
+      if (!active) return;
+      setStaff(data.user ?? null);
+      if (!data.user) return;
+      try {
+        const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
+        const shiftData = await shiftResponse.json();
+        if (active && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") window.location.assign("/shift?welcome=1");
+        else if (active && !shiftResponse.ok) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
+      } catch {
+        if (active) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
       }
     }).catch(() => { if (active) setStaff(null); });
     return () => { active = false; };
@@ -300,10 +304,15 @@ export default function Home() {
       setLoginPassword("");
       setLoginOpen(false);
       setProfileMenuOpen(false);
-      const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
-      const shiftData = await shiftResponse.json();
-      if (shiftResponse.ok && !shiftData.shift) {
-        window.location.assign("/shift?welcome=1");
+      try {
+        const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
+        const shiftData = await shiftResponse.json();
+        if (shiftResponse.ok && !shiftData.shift) {
+          window.location.assign("/shift?welcome=1");
+          return;
+        }
+      } catch {
+        setNotice(`Welcome, ${data.user.name}! Please verify your cash shift before making sales.`);
         return;
       }
       setNotice(`Welcome, ${data.user.name}! Your shift is ready.`);
