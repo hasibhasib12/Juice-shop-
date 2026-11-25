@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { getCurrentUser, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,9 @@ type Item = { productId: string; quantity: number; variantId?: string; modifierO
 const fingerprint = (items: Item[]) => createHash("sha256").update([...items].map((item) => JSON.stringify([item.productId, item.variantId ?? null, [...(item.modifierOptionIds ?? [])].sort(), item.quantity])).sort().join("|")).digest("hex");
 
 export async function POST(request: NextRequest) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Sign in before requesting a discount." }, { status: 401 });
   const rate = await checkActionRateLimit("discount-authorization", cashier.id, 8, 900);
