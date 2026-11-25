@@ -26,8 +26,10 @@ export async function POST(request: NextRequest) {
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
   const rate = await checkActionRateLimit("staff-write", actor.id, 10, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many staff changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
-  let body: { name?: string; email?: string; password?: string; role?: "MANAGER" | "CASHIER" };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  let parsed: unknown;
+  try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  const body = parsed as { name?: string; email?: string; password?: string; role?: "MANAGER" | "CASHIER" };
   const name = body.name?.trim();
   const email = body.email?.trim().toLowerCase();
   if (!name || name.length > 80 || !email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof body.password !== "string" || body.password.length < 12 || body.password.length > 200) {
