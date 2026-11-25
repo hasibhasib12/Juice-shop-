@@ -79,5 +79,5 @@ export async function GET(request: NextRequest) {
   }
   lines.push("Generated at: " + new Date().toISOString());
   const pdf = createTextPdf(lines);
-  return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="juice-shop-sales-' + selected + '.pdf"', "Cache-Control": "no-store" } });
+  return new NextResponse(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="juice-shop-sales-' + selected + '.pdf"', "Cache-Control": "no-store" } });
 }

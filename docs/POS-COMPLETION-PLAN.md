@@ -1,108 +1,54 @@
 # Juice Shop POS — Completion Plan
 
-## Release rule
-The application is a preview prototype until every release gate below is implemented, deployed to preview, and tested. Never use production for development. Keep all work on `feature/pos-foundation`; do not merge to `main` or promote a production deployment without explicit approval.
+## Release rules
+- All development stays on \`feature/pos-foundation\`.
+- Never modify \`main\` or the production Neon branch during development.
+- Do not deploy during development. A preview/production release requires completed acceptance checks and explicit owner approval.
+- Card payment provider is intentionally deferred; cash and manual OTHER tender remain supported.
+- Initial defaults are Afghanistan / AFN / Asia-Kabul, with worldwide configuration. Never assume a tax rate.
 
-## Product scope
-One staff-facing POS for the Juice Shop. No customer ordering app, delivery marketplace, or unrelated modules. Preserve the approved pomegranate visual design and the reference layout while adding real functionality.
+## Scope
+Staff-facing POS only: catalogue, checkout, orders, tables, staff, inventory, suppliers/purchasing, shifts, refunds/returns, reports, receipts, hardware compatibility, security and operational reliability. No customer app, delivery marketplace or online ordering.
 
-## Current verified baseline
-- Next.js 15 / React 19 / TypeScript application with the approved pomegranate POS layout.
-- PostgreSQL/Neon uses a dedicated `juice-shop-preview-development` branch for development; the original Neon production branch remains untouched. Initial POS, cash-tender, refund/void, cash-refund-allocation, cash-movement, shift-link, manager-discount, partial-refund refund-history-index, partial-purchase-receipt and order-notes migrations are applied and tracked on the development branch.
-- Prisma schema, initial SQL migration, repeatable catalogue seed, and database health endpoint are committed.
-- Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards only if the live catalogue cannot be loaded.
-- Manager/owner catalogue APIs and a branded `/catalog` management screen now support creating, editing, hiding, and archiving products, adding categories, HTTPS image URLs, SKU, currency and price updates. Writes are audited.
-- Store country, currency, timezone and locale have Afghanistan / AFN / Asia-Kabul defaults and an owner-only settings API. The owner can also configure the maximum manager-approved discount percentage (default 100%), enforced at approval and checkout.
-- Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
-- Checkout supports cash and cash plus a manually confirmed external tender (no gateway). It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
-- Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; finished-product restocking (no finished-product inventory model yet), direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Partial monetary refunds are now implemented. Manager-authorized discounts are now implemented.
+## Implemented
+- [x] Next.js 15 / React 19 / TypeScript POS and Prisma/PostgreSQL backend.
+- [x] Isolated Neon development branch and preview database configuration; production branch remains untouched.
+- [x] Owner/manager/cashier authentication, scrypt password hashing, secure HMAC HttpOnly sessions, session versioning, login throttling, one-time owner setup and audited manager/owner staff password resets.
+- [x] Owner-configurable staff permissions for reports, inventory, purchasing, refunds and table administration, enforced in server APIs.
+- [x] Product/category CRUD, SKU, currency/price, variants, variant recipes, modifier groups/options, availability and archive controls.
+- [x] POS product search now matches product name and SKU. Keyboard-wedge barcode scanners that type a code into the focused search field are supported by the same flow; physical scanner acceptance remains outstanding.
+- [x] Product image upload implementation: JPEG/PNG/WebP signature validation, 5 MB limit, unique object keys, manager/owner authorization, audit events and Neon Object Storage integration. The \`pos-product-images\` bucket and scoped development-branch storage credentials are configured for the Preview environment only.
+- [x] Cash and split cash/manual OTHER checkout, server-calculated totals, cash received/change, idempotency fingerprints, open-shift enforcement and atomic stock deduction.
+- [x] Draft orders, order notes/customer name, order history, reprints and receipt refund history.
+- [x] Tables, order assignment/transfer and permission enforcement.
+- [x] Ingredient inventory, recipes, stock movements, waste/count adjustments, suppliers, purchase orders, partial receiving, weighted-average costs, supplier invoices and partial supplier payments.
+- [x] Serializable purchasing transactions now retry Prisma serialization conflicts with bounded retries; unit tests cover retry and failure behavior.
+- [x] Full/partial refunds and item-level return records with audit history.
+- [x] Shift open/close, paid-in/out, cash reconciliation and shift CSV export.
+- [x] Sales, staff, shift and stock valuation CSV reports; timezone-aware sales periods and currency-separated staff reporting.
+- [x] Server-generated sales PDF export at \`/api/reports/pdf\`, alongside browser print layouts. The server PDF groups totals by currency.
+- [x] Thermal receipt print stylesheet targets 80 mm paper using the browser print dialog.
 
-## Target architecture
-- PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
-- Server-side business services for products, orders, payments, stock movements, shifts, discounts, and reports.
-- Atomic database transactions for order completion, payment recording, and ingredient deduction.
-- Server-side validation for every write; money stored as integer minor units or exact decimal values, never floating-point arithmetic.
-- Authentication with password hashing, secure sessions, role/permission checks, and audit events.
-- Idempotency keys for checkout/payment callbacks to prevent duplicate orders or charges.
-- Configurable currency, tax rates, receipt details, timezone, and rounding rules. AFN can be the initial display currency, but tax must not be assumed to be 10%.
-- Provider-specific card terminal integration only after the merchant selects and configures a supported provider. Never store raw card data.
-- Cash payments can be implemented independently of a card provider.
+## Remaining implementation and acceptance
+- [ ] Finish and validate server PDF exports for staff and shift reports; sales PDF is implemented.
+- [ ] Run an actual image upload against the isolated Preview environment and verify image display on POS cards. Code and Preview-only storage configuration are present; no Preview deployment has been performed.
+- [ ] Test supported barcode scanner models and receipt printers physically. Browser keyboard-wedge scanning and 80 mm print layout are compatibility foundations, not proof of every device model.
+- [ ] Add automated API/integration tests for concurrent checkout, refunds, inventory stock races, supplier invoice/payment races, draft conversion and shift reconciliation.
+- [ ] Review all write APIs for consistent authorization, input validation, rate limits, CSRF/session behavior and audit coverage.
+- [ ] Complete responsive desktop/tablet/mobile and accessibility acceptance.
+- [ ] Complete Neon backup/restore rehearsal on a disposable development branch and document recovery steps.
+- [ ] Test empty/loading/error states, failure recovery and multi-cashier concurrency.
+- [ ] Perform full POS acceptance with realistic products, recipes, suppliers, taxes, shifts and refunds.
+- [ ] Complete production readiness review and obtain explicit owner approval before any deployment or production migration.
 
-## Milestone 1 — Data and business foundation
-- [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
-- [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
-- [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
-- [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
-- [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
-- [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
-- [ ] Broader unit/integration tests for critical calculations and transaction rollback, including saved-draft conversion and cross-cashier permissions. Pure permission tests now cover role defaults, owner immutability, explicit grants and invalid overrides; server guards enforce purchasing, inventory/recipes, reports, refunds/returns and table administration. Focused unit tests cover canonical checkout idempotency fingerprints, including item/tender order invariance, split-tender amount sensitivity, duplicate-line aggregation, cash received and discount approval changes; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
-- [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
-- [x] Apply and verify the product variants/modifiers migration on the isolated Neon development branch; CI validates Prisma schema, lint, six tests, TypeScript and production build.
+## Deferred by owner
+- [x] Card payment gateway/terminal integration is intentionally deferred. Manual OTHER tender is not a card gateway.
+- [ ] Tax-inclusive pricing and jurisdiction-specific tax rules require the actual legal business location and accounting rules.
+- [ ] Finished-product restocking requires a finished-goods inventory model; returned prepared drinks are recorded as waste and sealed goods are not restocked automatically.
 
-## Milestone 2 — Catalogue and checkout
-- [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
-- [x] Category rename, ordering, archive and restore APIs with audit events. Category management UI controls for rename, archive and restore are integrated.
-- [ ] Image upload/storage and advanced price rules.
-- [x] Product sizes/variants with independent prices and optional variant-specific ingredient recipes; configurable modifier groups/options with selection limits and extra pricing; POS selection, saved draft snapshots, checkout validation/pricing, discount authorization, idempotency fingerprints, ingredient deductions and receipt/order-history display are implemented. Migration and end-to-end acceptance remain release gates.
-- [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
-- [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
-- [x] Server-created persistent draft orders: cashier-scoped save/list/update/delete, manager visibility, resume in the POS, and conversion into a completed order during the same checkout transaction. Draft conversion refreshes product prices and tax, requires an open shift, records payment/stock/audit entries, and prevents a draft from being completed twice.\n- [x] Table management foundation: manager-created tables with section/capacity, cashier-scoped draft visibility, assign/transfer/unassign workflows, audit events, and a database-enforced one-open-draft-per-table constraint. Completing the draft checkout releases the table automatically. The `/tables` screen and API are implemented; full floor-layout UX and end-to-end acceptance remain release gates.\n- [ ] Tax-inclusive pricing and jurisdiction-specific tax rules.
-- [x] Cashier can attach an optional customer name and up to 1,000 characters of staff order notes at checkout; details are persisted on the order and displayed on reprinted receipts.
-- [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
-- [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key bound to a canonical request fingerprint; reusing a key for a different cart/tender is rejected.
-- [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount, partial-refund, refund-history-index and partial-purchase-receipt migrations on the isolated Neon development branch.
-
-## Milestone 3 — Payments and receipts
-- [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
-- [x] Cash + manually confirmed external split tender with exact total validation and separate receipt lines (manual external payment is not a card gateway).
-- [ ] Card payment integration with a selected provider/terminal; intentionally deferred because the owner does not need it now.
-- [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
-- [ ] Card-provider integration (deferred), item-level returns/restocking, and cash drawer reconciliation automation beyond shift close.
-- [x] Manager/owner-only partial or full monetary refunds and full remaining-balance voids, with required reason, cumulative balance/tax/tender allocation, atomic ledger updates and audit events.
-- [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
-- [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
-
-## Milestone 4 — Inventory
-- [x] Ingredient units, product recipe/BOM links, stock receiving, waste and count adjustments with stock movement ledger and audit events.
-- [x] Deduct configured recipe quantities only when a cash order completes, in the same transaction as order/payment creation; reject insufficient stock and roll back.
-- [x] Low-stock thresholds and waste/count adjustment movements.
-- [x] Supplier directory and purchase-order drafts with supplier, ingredient, quantity, unit cost and audit events.
-- [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; partial receipts update only the received quantities, reject over-receiving, keep outstanding lines open, and allow cancellation without reversing previously received stock.
-- [x] Supplier invoice matching to received purchase-order lines, duplicate invoice protection, cumulative billed-quantity limits, unit-cost variance visibility and partial supplier payments with overpayment protection and audit events. Invoice management screen and API are implemented; workflow tests remain pending.\n- [x] Manager/owner stock valuation CSV export with ingredient quantities, reorder thresholds, weighted-average unit cost, per-item valuation and total stock value; formula-injection-safe cells.
-- [x] Inventory movement ledger and audit trail.
-
-## Milestone 5 — Staff, shifts, cash and reports
-- [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
-- [x] Manager/owner staff directory and cashier creation; managers may only activate/deactivate cashier accounts, while only owners may change roles. Staff access/role changes increment the session version and revoke existing sessions; self-account access/role changes are blocked.
-- [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
-- [x] Owner-configurable per-staff permissions for reports, inventory, purchasing, refunds and table management; API guards enforce grants and denials, permission changes are audited, managers retain existing defaults, and cashiers are denied by default. Owner/manager-assisted staff password reset API and staff-directory controls are implemented for eligible staff; resets revoke existing sessions and are audited. Self-service email reset is not implemented because no email delivery provider has been selected. Owner-configurable maximum manager-approved discount percentage is enforced at approval and checkout., with 12-character minimum, audit logging and session revocation; managers are restricted to cashier accounts. Self-service password change is implemented with current-password verification and account-wide session revocation. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
-- [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
-- [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
-- [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
-- [x] Associate each completed order and cash refund with the exact cashier shift; cash refunds require an open shift and are linked to it for accurate drawer reconciliation and exports.
-- [x] Manager/owner daily shift CSV export with cashier, opening/closing timestamps, opening float, cash sales/refunds, paid-in/out, expected/count/variance and order count; timezone-aware date filtering.
-- [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
-- [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
-- [x] Daily staff performance report and CSV export by cashier/processor, with currency-separated sales, discounts, average order, refunds processed and shift/drawer activity. Sales, shift and stock valuation CSV exports are implemented.
-- [x] Browser print / Save as PDF layouts for sales and staff reports (uses the browser print dialog; a server-generated PDF file remains a future enhancement).
-
-## Milestone 6 — Hardening and release
-- [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
-- [ ] Security review, broader API rate limiting, CSRF/session protections, secrets handling, backup/restore test. Login attempts are throttled using a hashed email key in the isolated database. Versioned sessions now invalidate all previously issued sessions after a password change; the session-version migration is applied and verified on the development branch.
-- [ ] Automated integration tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation. Checkout now persists a request fingerprint, rejects mismatched idempotency-key reuse (including unique-key race recovery), and has unit coverage for canonical request fingerprints.
-- [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Sealed returns are also forced to NOT_RESTOCKABLE until finished-product inventory exists.
-- [x] Apply and verify the item-level-return migration on the isolated Neon development branch, then run Prisma validation and build checks (validation/build still pending).
-- [ ] Preview acceptance test with the owner using realistic sample data.
-- [ ] Production readiness checklist and explicit owner approval before any production release.
-
-## Decisions that must be configured before live use
-1. PostgreSQL hosting/provider and credentials.
-2. Legal business location, tax rules, receipt/business identity, timezone, and currency settings.
-3. Card terminal/payment provider and merchant credentials, only if card payments are required later.
-4. Receipt printer model/connection method, if direct thermal printing is required.
-5. Actual menu, prices, sizes, extras, recipes, and ingredient units.
-
-## Non-negotiable acceptance criteria
-A sale is complete only when the server has validated the order, calculated totals from trusted settings, recorded payment, deducted stock exactly once, and committed all related records atomically. A failed step must roll back safely. Reports must reconcile to the underlying order/payment ledger. No demo-only control may be presented as a working business operation.
+## Release gates
+1. All remaining implementation and tests above completed.
+2. CI passes Prisma validation, lint, unit tests, TypeScript and production build on the final branch head.
+3. Development-branch migrations, storage uploads, backup and restore are verified without touching production.
+4. Owner performs preview acceptance after an approved preview deployment.
+5. No production deployment or production database migration without explicit approval.
