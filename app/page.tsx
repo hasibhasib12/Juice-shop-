@@ -80,26 +80,27 @@ export default function Home() {
     if (!modalOpen) return;
     const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
     if (!dialog) return;
+    const activeDialog = dialog;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const getFocusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter((element) => element.getAttribute("aria-hidden") !== "true");
+    const getFocusable = () => Array.from(activeDialog.querySelectorAll<HTMLElement>(selector)).filter((element) => element.getAttribute("aria-hidden") !== "true");
     const focusables = getFocusable();
-    (focusables[0] ?? dialog).focus();
+    (focusables[0] ?? activeDialog).focus();
 
     function containTabFocus(event: KeyboardEvent) {
       if (event.key !== "Tab") return;
       const current = getFocusable();
       if (current.length === 0) {
         event.preventDefault();
-        dialog.focus();
+        activeDialog.focus();
         return;
       }
       const first = current[0];
       const last = current[current.length - 1];
-      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
         event.preventDefault();
         first.focus();
       }
