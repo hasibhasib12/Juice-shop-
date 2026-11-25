@@ -44,14 +44,16 @@ export default function ReportsPage() {
             <article><span>ORDERS</span><strong>{item.orderCount}</strong></article>
             <article><span>AVERAGE ORDER</span><strong>{money(item.averageOrderMinor, item.currency)}</strong></article>
             <article><span>TAX RECORDED</span><strong>{money(item.taxMinor, item.currency)}</strong></article>
-            <article><span>REFUNDS</span><strong>{item.refundCount} · {money(item.refundTotalMinor, item.currency)}</strong></article>\n            <article><span>VOIDS</span><strong>{item.voidCount} · {money(item.voidTotalMinor, item.currency)}</strong></article>
+            <article><span>REFUNDS</span><strong>{item.refundCount} · {money(item.refundTotalMinor, item.currency)}</strong></article>
+            <article><span>VOIDS</span><strong>{item.voidCount} · {money(item.voidTotalMinor, item.currency)}</strong></article>
           </section>
         </section>) : <section className="report-metrics">
           <article><span>NET SALES</span><strong>{money(report.totalMinor ?? 0, currency)}</strong></article>
           <article><span>ORDERS</span><strong>{report.orderCount}</strong></article>
           <article><span>AVERAGE ORDER</span><strong>{money(report.averageOrderMinor ?? 0, currency)}</strong></article>
           <article><span>TAX RECORDED</span><strong>{money(report.taxMinor ?? 0, currency)}</strong></article>
-          <article><span>REFUNDS</span><strong>{report.refundCount} · {money(report.refundTotalMinor ?? 0, currency)}</strong></article>\n          <article><span>VOIDS</span><strong>{report.voidCount} · {money(report.voidTotalMinor ?? 0, currency)}</strong></article>
+          <article><span>REFUNDS</span><strong>{report.refundCount} · {money(report.refundTotalMinor ?? 0, currency)}</strong></article>
+          <article><span>VOIDS</span><strong>{report.voidCount} · {money(report.voidTotalMinor ?? 0, currency)}</strong></article>
         </section>}
         {report.currencies.length > 1 ? report.currencyBreakdown.map((item) => <section className="report-columns" key={item.currency}>
           <div className="catalog-list"><div className="catalog-section-head"><div><span>{item.currency} · PRODUCT MIX</span><h2>Top products</h2></div></div>{item.topProducts.map((p) => <article className="report-row" key={p.name}><b>{p.name}</b><span>{p.quantity} sold</span><strong>{money(p.salesMinor, item.currency)}</strong></article>)}{!item.topProducts.length && <p>No completed sales in this currency.</p>}</div>
