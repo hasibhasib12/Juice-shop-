@@ -6,15 +6,15 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Item = { productId: string; quantity: number };
-const fingerprint = (items: Item[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
+type Item = { productId: string; quantity: number; variantId?: string; modifierOptionIds?: string[] };
+const fingerprint = (items: Item[]) => createHash("sha256").update([...items].map((item) => JSON.stringify([item.productId, item.variantId ?? null, [...(item.modifierOptionIds ?? [])].sort(), item.quantity])).sort().join("|")).digest("hex");
 
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Sign in before requesting a discount." }, { status: 401 });
 
   let body: { managerEmail?: string; managerPassword?: string; discountMinor?: number; reason?: string; items?: Item[] };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
 
   const email = body.managerEmail?.trim().toLowerCase();
   const reason = body.reason?.trim();
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter a valid discount amount." }, { status: 400 });
   }
   if (!reason || reason.length < 3 || reason.length > 200) return NextResponse.json({ error: "Enter a discount reason between 3 and 200 characters." }, { status: 400 });
-  if (!Array.isArray(items) || items.length < 1 || items.length > 50 || !items.every((item) => item && typeof item.productId === "string" && item.productId.length <= 64 && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100)) {
+  if (!Array.isArray(items) || items.length < 1 || items.length > 50 || !items.every((item) => item && typeof item.productId === "string" && item.productId.length <= 64 && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100 && (item.variantId === undefined || (typeof item.variantId === "string" && item.variantId.length <= 64)) && (item.modifierOptionIds === undefined || (Array.isArray(item.modifierOptionIds) && item.modifierOptionIds.length <= 30 && item.modifierOptionIds.every(id => typeof id === "string" && id.length <= 64)))) {
     return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
   }
 
@@ -41,11 +41,21 @@ export async function POST(request: NextRequest) {
 
   const products = await prisma.product.findMany({
     where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
-    select: { id: true, priceMinor: true, currency: true },
+    select: { id: true, priceMinor: true, currency: true, variants: { where: { active: true }, select: { id: true, priceMinor: true } }, modifierGroups: { where: { active: true }, select: { id: true, minSelections: true, maxSelections: true, options: { where: { active: true }, select: { id: true, priceDeltaMinor: true } } } } },
   });
   if (products.length !== quantities.size) return NextResponse.json({ error: "One or more cart products are unavailable." }, { status: 409 });
   if (new Set(products.map((product) => product.currency)).size !== 1) return NextResponse.json({ error: "All products must use the same currency." }, { status: 409 });
-  const subtotalMinor = products.reduce((sum, product) => sum + product.priceMinor * quantities.get(product.id)!, 0);
+  let subtotalMinor = 0;
+  for (const item of items) {
+    const product = products.find(p => p.id === item.productId)!;
+    const variant = item.variantId ? product.variants.find(v => v.id === item.variantId) : null;
+    if (item.variantId && !variant) return NextResponse.json({ error: "A selected size is unavailable." }, { status: 409 });
+    const ids = item.modifierOptionIds ?? [];
+    if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "Duplicate extras are not allowed." }, { status: 400 });
+    const chosen = product.modifierGroups.flatMap(g => g.options.filter(o => ids.includes(o.id)).map(o => ({ groupId: g.id, priceDeltaMinor: o.priceDeltaMinor })));
+    if (chosen.length !== ids.length || product.modifierGroups.some(g => { const count = chosen.filter(o => o.groupId === g.id).length; return count < g.minSelections || count > g.maxSelections; })) return NextResponse.json({ error: "Selected extras are invalid." }, { status: 400 });
+    subtotalMinor += ((variant?.priceMinor ?? product.priceMinor) + chosen.reduce((sum, option) => sum + option.priceDeltaMinor, 0)) * item.quantity;
+  }
   if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0 || body.discountMinor! >= subtotalMinor) return NextResponse.json({ error: "Discount cannot exceed the current cart subtotal." }, { status: 400 });
   const limitSetting = await prisma.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
   const maxDiscountPercentBps = typeof limitSetting?.value === "number" && Number.isSafeInteger(limitSetting.value) && limitSetting.value >= 1 && limitSetting.value <= 10000 ? limitSetting.value : 10000;
