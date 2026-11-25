@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     lines.push(shift.user.name + " | " + shift.user.email + " | Currency: " + (currencyByShift.get(shift.id) || "UNKNOWN"), "Opened: " + shift.openedAt.toISOString() + " | Closed: " + (shift.closedAt?.toISOString() || "OPEN"),
       "Opening float: " + shift.openingCashMinor + " minor | Cash sales: " + cashSales + " minor | Cash refunds: " + cashRefund + " minor",
       "Paid in: " + paidIn + " minor | Paid out: " + paidOut + " minor", "Expected cash: " + expected + " minor | Counted: " + (counted ?? "Not closed") + " | Variance: " + (counted === null ? "N/A" : counted - expected) + " minor",
-      "Completed orders: " + shift.orders.length, " ");
+      "Completed/refunded orders: " + shift.orders.filter(order => order.status !== "VOIDED").length,
+      "Voided orders: " + shift.orders.filter(order => order.status === "VOIDED").length, " ");
   }
   if (!shifts.length) lines.push("No shifts were opened on this business date.");
   lines.push("Generated at: " + new Date().toISOString());
