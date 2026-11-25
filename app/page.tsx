@@ -466,12 +466,12 @@ export default function Home() {
         <aside className="order-card">
           <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" disabled={checkoutBusy || checkoutUncertain} onClick={() => setCart([])}>×</button></div>
           <div className="order-quick-actions" aria-label="Order tools">
-            <button type="button" onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
-            <button type="button" onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
-            <button type="button" onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
-            <button type="button" onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
-            <button type="button" onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
-            <button type="button" onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Receipt</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
+            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Receipt</button>
           </div>
           <div className="order-items" aria-label="Current order items">
             {cart.length === 0 ? (
