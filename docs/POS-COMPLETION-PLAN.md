@@ -37,7 +37,7 @@ Phase 0 is the current priority: complete and accept the staff-facing POS. The o
 - [x] Add same-origin / Fetch Metadata checks to every current API mutation handler (POST, PUT, PATCH and DELETE), including checkout, refunds, returns, authentication, staff, catalogue, inventory, purchasing, shifts, tables, settings, drafts, discount authorization and image uploads. Unit tests cover same-origin, cross-origin, malformed-origin and missing-origin metadata cases.
 - [ ] Complete the deeper endpoint-by-endpoint security review of session freshness, role/permission enforcement, object ownership, audit coverage and proxy/host-origin behavior. The origin guard permits non-browser clients with no Origin or Fetch Metadata; confirm this remains appropriate for the deployment threat model.
 - [ ] Complete responsive desktop/tablet/mobile and accessibility acceptance.
-- [ ] Complete a Neon backup/restore rehearsal on a disposable development branch and document recovery steps. Production remains untouched.
+- [ ] Complete a Neon point-in-time restore (PITR) rehearsal on a disposable development child branch. The procedure and strict production safeguards are documented in `docs/NEON-BACKUP-RESTORE-REHEARSAL.md`; the clone check alone does not count as a PITR rehearsal. Production remains untouched.
 - [ ] Test empty/loading/error states, failure recovery and multi-cashier concurrency.
 - [ ] Perform full POS acceptance with realistic products, recipes, suppliers, taxes, shifts and refunds.
 - [ ] Complete production readiness review and obtain explicit owner approval before any deployment or production migration.
