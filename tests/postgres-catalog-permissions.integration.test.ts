@@ -97,6 +97,13 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     await expectStatus(deniedProductUpdate, 403);
     const deniedProductArchive = await request(`/api/admin/products/${productId}`, "DELETE");
     await expectStatus(deniedProductArchive, 403);
+    const deniedOptionsRead = await request(`/api/admin/products/${productId}/options`, "GET");
+    await expectStatus(deniedOptionsRead, 403);
+    const deniedOptionsWrite = await request(`/api/admin/products/${productId}/options`, "PUT", {
+      variants: [{ name: "Unauthorized size", priceMinor: 150 }],
+      modifierGroups: [],
+    });
+    await expectStatus(deniedOptionsWrite, 403);
     const deniedCategoryCreate = await request("/api/admin/categories", "POST", { name: `Denied ${suffix}` });
     await expectStatus(deniedCategoryCreate, 403);
     const deniedCategoryUpdate = await request("/api/admin/categories", "PATCH", { id: baseCategoryId, name: "Unauthorized category rename" });
@@ -118,6 +125,30 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
 
     const grantedRead = await request("/api/admin/products", "GET");
     await expectStatus(grantedRead, 200);
+    const grantedOptionsRead = await request(`/api/admin/products/${productId}/options`, "GET");
+    await expectStatus(grantedOptionsRead, 200);
+    const optionConfig = {
+      variants: [{ name: "Large", priceMinor: 175, sku: `OPT-${suffix}` }],
+      modifierGroups: [{
+        name: "Add-ons", required: false, minSelections: 0, maxSelections: 1,
+        options: [{ name: "Extra topping", priceDeltaMinor: 25 }],
+      }],
+    };
+    const grantedOptionsWrite = await request(`/api/admin/products/${productId}/options`, "PUT", optionConfig);
+    await expectStatus(grantedOptionsWrite, 200);
+    assert.equal(await prisma.productVariant.count({ where: { productId } }), 1);
+    assert.equal(await prisma.productModifierGroup.count({ where: { productId } }), 1);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
+
+    const invalidOptionIngredient = await request(`/api/admin/products/${productId}/options`, "PUT", {
+      variants: [{ name: "Invalid recipe", priceMinor: 200, recipeItems: [{ ingredientId: `missing-${suffix}`, quantity: 1 }] }],
+      modifierGroups: [],
+    });
+    await expectStatus(invalidOptionIngredient, 400);
+    assert.equal(await prisma.productVariant.count({ where: { productId } }), 1, "invalid ingredient must preserve existing variants");
+    assert.equal(await prisma.productModifierGroup.count({ where: { productId } }), 1, "invalid ingredient must preserve existing modifier groups");
+    assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1,
+      "rejected option changes must not create audit events");
     const grantedCreateCategory = await request("/api/admin/categories", "POST", { name: `Granted ${suffix}`, sortOrder: 5 });
     await expectStatus(grantedCreateCategory, 201);
     const createdCategory = await grantedCreateCategory.json() as { category: { id: string } };
@@ -160,6 +191,14 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     });
     const deniedAfterRevoke = await request(`/api/admin/products/${productId}`, "PATCH", { name: "Revoked rename" });
     await expectStatus(deniedAfterRevoke, 403);
+    const deniedOptionsAfterRevoke = await request(`/api/admin/products/${productId}/options`, "PUT", {
+      variants: [{ name: "Revoked size", priceMinor: 300 }],
+      modifierGroups: [],
+    });
+    await expectStatus(deniedOptionsAfterRevoke, 403);
+    assert.equal(await prisma.productVariant.count({ where: { productId } }), 1);
+    assert.equal(await prisma.productModifierGroup.count({ where: { productId } }), 1);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
     assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).name, productName);
   } finally {
     if (server && server.exitCode === null) {
