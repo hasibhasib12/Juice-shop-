@@ -7,6 +7,7 @@ import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       });
       return { ...updated, cashSalesMinor, cashRefundMinor, paidInMinor, paidOutMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-    return NextResponse.json({ shift: closed });
+    return NextResponse.json({ shift: closed }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message === "NO_OPEN_SHIFT") {
       return NextResponse.json({ error: "There is no open shift to close." }, { status: 409 });
