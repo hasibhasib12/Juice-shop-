@@ -33,7 +33,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
 - [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
-- [x] Expand schema for full-order refund/void records and payment tender allocation.\n- [ ] Expand schema for variants, modifiers, cash movements, discounts and customers.
+- [x] Expand schema for full-order refund/void records and payment tender allocation.
+- [ ] Expand schema for variants, modifiers, cash movements, discounts and customers.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
