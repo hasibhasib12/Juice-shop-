@@ -260,6 +260,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       body: JSON.stringify({ action: "payment", invoiceId, amountMinor: 100, method: "CASH" }),
     });
     await expectStatus(foreignInvoicePayment, 404);
+    const foreignTables = await fetch(`${baseUrl}/api/tables`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignTables, 200);
+    const foreignTablesJson = await foreignTables.json() as { tables: { id: string }[] };
+    assert.equal(foreignTablesJson.tables.some((item) => item.id === createdTableId), false,
+      "dining table list must be restricted to the assigned branch");
+    const foreignTableTransfer = await fetch(`${baseUrl}/api/table-orders`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ orderId, tableId: createdTableId }),
+    });
+    await expectStatus(foreignTableTransfer, 403);
     const concurrentSupplierPayments = await Promise.all([
       request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-a" }),
       request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-b" }),
