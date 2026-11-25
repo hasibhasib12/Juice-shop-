@@ -6,6 +6,7 @@ type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER
 export default function StaffPage() {
   const [users, setUsers] = useState<Staff[]>([]);
   const [currentRole, setCurrentRole] = useState("CASHIER");
+  const [currentUserId, setCurrentUserId] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +19,7 @@ export default function StaffPage() {
     if (!response.ok) throw new Error(data.error || "Could not load staff.");
     setUsers(data.users);
     setCurrentRole(data.currentRole);
+    setCurrentUserId(data.currentUserId);
   }
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -36,6 +38,21 @@ export default function StaffPage() {
     if (!response.ok) setNotice(data.error || "Could not update staff.");
     else { setNotice("Staff account updated."); await load(); }
   }
+
+  async function resetPassword(user: Staff) {
+    const nextPassword = window.prompt(`Set a new temporary password for ${user.name} (minimum 12 characters)`);
+    if (nextPassword === null) return;
+    const confirmPassword = window.prompt("Enter the new temporary password again");
+    if (confirmPassword === null) return;
+    if (nextPassword !== confirmPassword) { setNotice("The passwords do not match."); return; }
+    const response = await fetch(`/api/admin/staff/${user.id}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword: nextPassword }),
+    });
+    const data = await response.json();
+    setNotice(response.ok ? "Password reset. The employee must sign in again." : data.error || "Could not reset password.");
+  }
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · MANAGEMENT</span><h1>Staff & permissions</h1><p>Create staff logins and control account access.</p></div></header>
@@ -45,12 +62,12 @@ export default function StaffPage() {
           <div className="catalog-section-head"><div><span>NEW ACCOUNT</span><h2>Add staff member</h2></div></div>
           <label>Full name<input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
           <label>Email address<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in (password reset is not implemented yet).</small></label>
+          <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in.</small></label>
           <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option>{currentRole === "OWNER" && <option value="MANAGER">Manager</option>}</select></label>
           <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
-          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small></div><div className="catalog-product-actions">{user.role !== "OWNER" && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</div></article>)}
+          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small></div><div className="catalog-product-actions">{user.id !== currentUserId && <><button type="button" onClick={() => void resetPassword(user)}>Reset password</button>{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
           {!users.length && <p>No staff accounts found.</p>}
         </section>
       </section>
