@@ -7,6 +7,7 @@ test("owner permissions cannot be reduced by overrides", () => {
   assert.equal(p.VIEW_REPORTS, true);
   assert.equal(p.VIEW_ALL_ORDERS, true);
   assert.equal(p.PROCESS_REFUNDS, true);
+  assert.equal(p.MANAGE_CATALOG, true);
 });
 
 test("manager defaults preserve existing operational access and all-order visibility", () => {
@@ -14,6 +15,7 @@ test("manager defaults preserve existing operational access and all-order visibi
   assert.equal(p.VIEW_REPORTS, true);
   assert.equal(p.VIEW_ALL_ORDERS, true);
   assert.equal(p.MANAGE_PURCHASING, true);
+  assert.equal(p.MANAGE_CATALOG, true);
 });
 
 test("cashiers cannot view other cashiers' orders unless explicitly granted", () => {
@@ -30,4 +32,11 @@ test("cashiers are denied by default and can receive individual grants", () => {
 
 test("invalid override values and unknown keys are ignored", () => {
   assert.deepEqual(normalizePermissionOverrides({ VIEW_REPORTS: "true", UNKNOWN: true, MANAGE_TABLES: false }), { MANAGE_TABLES: false });
+});
+
+
+test("catalog management is denied to cashiers by default and supports explicit grants", () => {
+  assert.equal(hasPermission("CASHIER", {}, "MANAGE_CATALOG"), false);
+  assert.equal(hasPermission("CASHIER", { MANAGE_CATALOG: true }, "MANAGE_CATALOG"), true);
+  assert.equal(hasPermission("CASHIER", { MANAGE_CATALOG: false }, "MANAGE_CATALOG"), false);
 });
