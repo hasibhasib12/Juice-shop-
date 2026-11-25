@@ -541,6 +541,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     }, beforeCashFailure, "insufficient stock must roll back order, payment, stock movement and audit writes");
     assert.equal(await prisma.order.count({ where: { idempotencyKey: `api-it-stock-short-${suffix}` } }), 0,
       "failed checkout must not consume the idempotency key");
+
+    const concurrentShiftCloses = await Promise.all([
+      cashierRequest("/api/shifts/close", { closingCashMinor: 20 }),
+      cashierRequest("/api/shifts/close", { closingCashMinor: 20 }),
+    ]);
+    assert.deepEqual(concurrentShiftCloses.map((response) => response.status).sort(), [200, 409]);
+    const closedCashierShift = await prisma.shift.findUniqueOrThrow({ where: { id: createdCashierShiftId } });
+    assert.ok(closedCashierShift.closedAt);
+    assert.equal(closedCashierShift.expectedCashMinor, 20);
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCashierShiftId, action: "SHIFT_CLOSED", userId: cashierId } }), 1);
   } finally {
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
