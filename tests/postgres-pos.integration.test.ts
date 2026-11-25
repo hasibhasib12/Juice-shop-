@@ -25,10 +25,12 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
 
   try {
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: userId, name: "Integration cashier", email: `${suffix}@integration.invalid`,
       passwordHash: "integration-only-not-a-real-password", role: "CASHIER",
     } });
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: refundUserId, name: "Integration refund cashier", email: `refund-${suffix}@integration.invalid`,
       passwordHash: "integration-only-not-a-real-password", role: "CASHIER",
     } });
