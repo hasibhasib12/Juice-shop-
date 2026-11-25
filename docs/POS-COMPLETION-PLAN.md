@@ -65,7 +65,9 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Ingredient units, product recipe/BOM links, stock receiving, waste and count adjustments with stock movement ledger and audit events.
 - [x] Deduct configured recipe quantities only when a cash order completes, in the same transaction as order/payment creation; reject insufficient stock and roll back.
 - [x] Low-stock thresholds and waste/count adjustment movements.
-- [ ] Supplier and purchase-order records if required.
+- [x] Supplier directory and purchase-order drafts with supplier, ingredient, quantity, unit cost and audit events.
+- [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; received/cancelled orders cannot be processed twice.
+- [ ] Supplier invoice matching, partial receipts, supplier payment tracking and stock valuation reports/exports.
 - [x] Inventory movement ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
@@ -80,7 +82,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Shift report export.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
-- [ ] Stock valuation, staff performance reports and CSV/PDF export.
+- [ ] Stock valuation reports/exports, staff performance reports and CSV/PDF export. Ingredient weighted-average unit cost is now maintained when purchase orders are received.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
