@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
   const tableId = body.tableId ?? null;
   try {
     const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id: body.orderId! }, select: { id: true, orderNumber: true, status: true, cashierId: true, tableId: true } });
+      const order = await tx.order.findUnique({ where: { id: body.orderId! }, select: { id: true, orderNumber: true, status: true, cashierId: true, tableId: true, cashier: { select: { branchId: true } } } });
       if (!order) throw new Error("ORDER_NOT_FOUND");
+      if (order.cashier.branchId !== user.branchId) throw new Error("ORDER_FORBIDDEN");
       if (order.status !== "DRAFT") throw new Error("ORDER_NOT_OPEN");
       if (order.cashierId !== user.id && !canViewAllOrders) throw new Error("ORDER_FORBIDDEN");
       if (tableId) {
