@@ -50,6 +50,7 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     await prisma.category.create({ data: { id: categoryId, name: `Inventory Recipes ${suffix}` } });
     await prisma.product.create({ data: { id: productId, name: `Recipe Product ${suffix}`, priceMinor: 500, currency: "AFN", categoryId } });
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: userId,
       name: "Inventory Integration Manager",
       email,
