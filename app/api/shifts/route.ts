@@ -14,12 +14,18 @@ export async function GET() {
     orderBy: { openedAt: "desc" },
   });
   if (!shift) return NextResponse.json({ shift: null }, { headers: { "Cache-Control": "no-store" } });
-  const cashPayments = await prisma.payment.aggregate({
-    where: { method: "CASH", status: "COMPLETED", order: { cashierId: user.id, createdAt: { gte: shift.openedAt } } },
-    _sum: { amountMinor: true },
-  });
+  const [cashPayments, cashRefunds, cashMovements, movements] = await Promise.all([
+    prisma.payment.aggregate({ where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] }, order: { cashierId: user.id, createdAt: { gte: shift.openedAt } } }, _sum: { amountMinor: true } }),
+    prisma.refund.aggregate({ where: { processedById: user.id, createdAt: { gte: shift.openedAt } }, _sum: { cashRefundMinor: true } }),
+    prisma.cashMovement.groupBy({ by: ["type"], where: { shiftId: shift.id }, _sum: { amountMinor: true } }),
+    prisma.cashMovement.findMany({ where: { shiftId: shift.id }, orderBy: { createdAt: "desc" }, take: 50 }),
+  ]);
   const cashSalesMinor = cashPayments._sum.amountMinor ?? 0;
-  return NextResponse.json({ shift, cashSalesMinor, expectedCashMinor: shift.openingCashMinor + cashSalesMinor }, { headers: { "Cache-Control": "no-store" } });
+  const cashRefundMinor = cashRefunds._sum.cashRefundMinor ?? 0;
+  const paidInMinor = cashMovements.find((movement) => movement.type === "PAID_IN")?._sum.amountMinor ?? 0;
+  const paidOutMinor = cashMovements.find((movement) => movement.type === "PAID_OUT")?._sum.amountMinor ?? 0;
+  const expectedCashMinor = shift.openingCashMinor + cashSalesMinor - cashRefundMinor + paidInMinor - paidOutMinor;
+  return NextResponse.json({ shift, cashSalesMinor, cashRefundMinor, paidInMinor, paidOutMinor, expectedCashMinor, movements }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
