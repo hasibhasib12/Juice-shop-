@@ -23,7 +23,7 @@ Phase 0 is the current priority: complete and accept the staff-facing POS. The o
 - [x] Draft orders, order notes/customer name, order history, reprints and receipt refund history.
 - [x] Tables, order assignment/transfer and permission enforcement.
 - [x] Ingredient inventory, recipes, stock movements, waste/count adjustments, suppliers, purchase orders, partial receiving, weighted-average costs, supplier invoices and partial supplier payments.
-- [x] Serializable purchasing transactions retry Prisma serialization conflicts with bounded retries; tests cover retry, non-retryable failures and exhaustion.
+- [x] Serializable checkout, refunds and purchasing transactions retry Prisma serialization conflicts with bounded retries; tests cover retry, non-retryable failures and exhaustion. Stock deductions use conditional database updates inside the serializable checkout transaction.
 - [x] Full/partial refunds and item-level return records with audit history.
 - [x] Shift open/close, paid-in/out, cash reconciliation and shift CSV export. Cash paid-in/out calculations attribute refunds to the exact shift via refund.shiftId; shift exports fetch refunds in one query rather than querying once per shift.
 - [x] Sales, staff, shift and stock valuation CSV reports; timezone-aware sales periods and currency-separated staff reporting.
@@ -34,7 +34,8 @@ Phase 0 is the current priority: complete and accept the staff-facing POS. The o
 - [ ] Deploy an approved Preview build and run an actual product image upload; verify the uploaded image renders on the POS product card. Code and Preview-only storage configuration are present, but no Preview deployment/upload acceptance has been performed.
 - [ ] Test supported barcode scanner models and receipt printers physically. Keyboard-wedge scan-to-cart and 80 mm browser print layouts are implemented, not proof of every device model.
 - [ ] Add automated API/integration tests for concurrent checkout, duplicate requests, refunds, inventory stock races, supplier invoice/payment races, draft conversion and shift reconciliation. Current CI unit tests cover checkout fingerprints, permissions, PDF generation/pagination, image signatures, transaction retry, rate-limit policy and shift cash arithmetic.
-- [ ] Complete the endpoint-by-endpoint security audit, including CSRF/session behavior and audit coverage. Fixed findings: recipe writes now honor MANAGE_INVENTORY; recipe and store-settings writes are rate-limited and validate request bodies; product option writes, discount authorization attempts, draft mutations, table-order assignments and password changes now have database-backed rate limits. These controls reduce abuse but do not replace the remaining CSRF/session review.
+- [x] Add same-origin / Fetch Metadata checks to every current API mutation handler (POST, PUT, PATCH and DELETE), including checkout, refunds, returns, authentication, staff, catalogue, inventory, purchasing, shifts, tables, settings, drafts, discount authorization and image uploads. Unit tests cover same-origin, cross-origin, malformed-origin and missing-origin metadata cases.
+- [ ] Complete the deeper endpoint-by-endpoint security review of session freshness, role/permission enforcement, object ownership, audit coverage and proxy/host-origin behavior. The origin guard permits non-browser clients with no Origin or Fetch Metadata; confirm this remains appropriate for the deployment threat model.
 - [ ] Complete responsive desktop/tablet/mobile and accessibility acceptance.
 - [ ] Complete a Neon backup/restore rehearsal on a disposable development branch and document recovery steps. Production remains untouched.
 - [ ] Test empty/loading/error states, failure recovery and multi-cashier concurrency.
