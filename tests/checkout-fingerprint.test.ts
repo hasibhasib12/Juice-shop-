@@ -51,3 +51,27 @@ test("checkout fingerprint binds customer name and staff order notes", () => {
   assert.notEqual(original, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "Extra ice" }));
   assert.equal(original, checkoutFingerprint(items, cash, 1300, undefined, { customerName: " Walk-in ", notes: "No ice " }));
 });
+
+
+test("checkout fingerprint binds variant and modifier selections", () => {
+  const baseItem = [{ productId: "juice-a", quantity: 1, variantId: "large", modifierOptionIds: ["pearls", "protein"] }];
+  const original = checkoutFingerprint(baseItem, cash, 1300, undefined);
+  assert.equal(original, checkoutFingerprint([{ productId: "juice-a", quantity: 1, variantId: "large", modifierOptionIds: ["protein", "pearls"] }], cash, 1300, undefined));
+  assert.notEqual(original, checkoutFingerprint([{ productId: "juice-a", quantity: 1, variantId: "small", modifierOptionIds: ["pearls", "protein"] }], cash, 1300, undefined));
+  assert.notEqual(original, checkoutFingerprint([{ productId: "juice-a", quantity: 1, variantId: "large", modifierOptionIds: ["pearls"] }], cash, 1300, undefined));
+});
+
+test("checkout fingerprint aggregates only identical configured lines", () => {
+  const split = checkoutFingerprint([
+    { productId: "juice-a", quantity: 1, variantId: "large", modifierOptionIds: ["pearls"] },
+    { productId: "juice-a", quantity: 2, variantId: "large", modifierOptionIds: ["pearls"] },
+  ], cash, 1300, undefined);
+  const merged = checkoutFingerprint([
+    { productId: "juice-a", quantity: 3, variantId: "large", modifierOptionIds: ["pearls"] },
+  ], cash, 1300, undefined);
+  const different = checkoutFingerprint([
+    { productId: "juice-a", quantity: 3, variantId: "large", modifierOptionIds: ["jelly"] },
+  ], cash, 1300, undefined);
+  assert.equal(split, merged);
+  assert.notEqual(split, different);
+});
