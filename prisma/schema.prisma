@@ -129,6 +129,7 @@ model Order {
   idempotencyKey String?       @unique
   lines          OrderLine[]
   payments       Payment[]
+  refund         Refund?
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
 
