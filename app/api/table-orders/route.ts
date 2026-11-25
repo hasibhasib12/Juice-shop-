@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       if (order.status !== "DRAFT") throw new Error("ORDER_NOT_OPEN");
       if (order.cashierId !== user.id && !canViewAllOrders) throw new Error("ORDER_FORBIDDEN");
       if (tableId) {
-        const table = await tx.diningTable.findUnique({ where: { id: tableId }, select: { id: true, active: true } });
+        const table = await tx.diningTable.findFirst({ where: { id: tableId, branchId: user.branchId }, select: { id: true, active: true } });
         if (!table || !table.active) throw new Error("TABLE_UNAVAILABLE");
       }
       const updated = await tx.order.update({ where: { id: order.id }, data: { tableId }, select: { id: true, orderNumber: true, tableId: true } });
