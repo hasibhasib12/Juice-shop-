@@ -155,7 +155,11 @@ export async function POST(request: NextRequest) {
       }
 
       let order;
-      const persistedLines = lines.map(({ _variant, _product, ...line }) => line);
+      const persistedLines = lines.map((line) => ({
+        productId: line.productId, productName: line.productName, quantity: line.quantity,
+        unitPriceMinor: line.unitPriceMinor, lineTotalMinor: line.lineTotalMinor,
+        variantName: line.variantName, selectedModifiers: line.selectedModifiers,
+      }));
       const paymentCreates = normalizedTenders.map((tender) => ({ method: tender.method, status: "COMPLETED" as const, amountMinor: tender.amountMinor, currency, ...(tender.method === "CASH" ? { cashReceivedMinor, changeDueMinor } : {}) }));
       const orderFields = {
         status: "COMPLETED" as const, cashierId: cashier.id, shiftId: activeShift.id,

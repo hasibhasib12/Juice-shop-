@@ -26,7 +26,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter a valid discount amount." }, { status: 400 });
   }
   if (!reason || reason.length < 3 || reason.length > 200) return NextResponse.json({ error: "Enter a discount reason between 3 and 200 characters." }, { status: 400 });
-  if (!Array.isArray(items) || items.length < 1 || items.length > 50 || !items.every((item) => item && typeof item.productId === "string" && item.productId.length <= 64 && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100 && (item.variantId === undefined || (typeof item.variantId === "string" && item.variantId.length <= 64)) && (item.modifierOptionIds === undefined || (Array.isArray(item.modifierOptionIds) && item.modifierOptionIds.length <= 30 && item.modifierOptionIds.every(id => typeof id === "string" && id.length <= 64)))) {
+  if (!Array.isArray(items) || items.length < 1 || items.length > 50) return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
+  const validItems = items.every((item) => {
+    if (!item || typeof item.productId !== "string" || item.productId.length > 64 || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) return false;
+    if (item.variantId !== undefined && (typeof item.variantId !== "string" || item.variantId.length > 64)) return false;
+    if (item.modifierOptionIds !== undefined && (!Array.isArray(item.modifierOptionIds) || item.modifierOptionIds.length > 30 || !item.modifierOptionIds.every((id) => typeof id === "string" && id.length <= 64) || new Set(item.modifierOptionIds).size !== item.modifierOptionIds.length)) return false;
+    return true;
+  });
+  if (!validItems) return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
     return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
   }
 
