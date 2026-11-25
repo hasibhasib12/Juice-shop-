@@ -54,6 +54,43 @@ export async function GET(request: NextRequest) {
   });
   const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true, kind: true } });
   const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
+  const currencyBreakdown = currencies.map((currency) => {
+    const currencyOrders = orders.filter((order) => order.currency === currency);
+    const currencyRefunds = refundRows.filter((refund) => refund.currency === currency);
+    const gross = currencyOrders.reduce((sum, order) => sum + order.totalMinor, 0);
+    const grossTax = currencyOrders.reduce((sum, order) => sum + order.taxMinor, 0);
+    const refunded = currencyRefunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
+    const refundedTax = currencyRefunds.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
+    const currencyTenders = new Map<string, number>();
+    const currencyProducts = new Map<string, { quantity: number; salesMinor: number }>();
+    for (const order of currencyOrders) {
+      for (const payment of order.payments) currencyTenders.set(payment.method, (currencyTenders.get(payment.method) || 0) + payment.amountMinor);
+      for (const line of order.lines) {
+        const current = currencyProducts.get(line.productName) || { quantity: 0, salesMinor: 0 };
+        current.quantity += line.quantity;
+        current.salesMinor += line.lineTotalMinor;
+        currencyProducts.set(line.productName, current);
+      }
+    }
+    for (const refund of currencyRefunds) {
+      if (refund.cashRefundMinor) currencyTenders.set("CASH", (currencyTenders.get("CASH") || 0) - refund.cashRefundMinor);
+      if (refund.otherRefundMinor) currencyTenders.set("OTHER", (currencyTenders.get("OTHER") || 0) - refund.otherRefundMinor);
+    }
+    return {
+      currency,
+      orderCount: currencyOrders.length,
+      refundCount: currencyRefunds.length,
+      grossTotalMinor: gross,
+      refundTotalMinor: refunded,
+      totalMinor: gross - refunded,
+      taxMinor: grossTax - refundedTax,
+      discountMinor: currencyOrders.reduce((sum, order) => sum + order.discountMinor, 0),
+      averageOrderMinor: currencyOrders.length ? Math.round(gross / currencyOrders.length) : 0,
+      tenders: [...currencyTenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })),
+      topProducts: [...currencyProducts.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+    };
+  });
+  const singleCurrency = currencies.length <= 1;
   const refundTotalMinor = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
   const taxRefundMinor = refundRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
   const grossTotalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
@@ -77,10 +114,12 @@ export async function GET(request: NextRequest) {
     if (refund.otherRefundMinor) tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
   }
   const report = {
-    period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor, currencies, totalMinor, taxMinor, discountMinor,
-    averageOrderMinor: orders.length ? Math.round(grossTotalMinor / orders.length) : 0,
-    tenders: [...tenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })),
-    topProducts: [...products.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+    period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor: singleCurrency ? refundTotalMinor : null, currencies,
+    totalMinor: singleCurrency ? totalMinor : null, taxMinor: singleCurrency ? taxMinor : null, discountMinor: singleCurrency ? discountMinor : null,
+    averageOrderMinor: singleCurrency ? (orders.length ? Math.round(grossTotalMinor / orders.length) : 0) : null,
+    currencyBreakdown,
+    tenders: singleCurrency ? [...tenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })) : [],
+    topProducts: singleCurrency ? [...products.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10) : [],
     recentOrders: orders.slice(0, 20).map((order) => ({ orderNumber: order.orderNumber, totalMinor: order.totalMinor, currency: order.currency, cashier: order.cashier.name })),
   };
   if (request.nextUrl.searchParams.get("format") === "csv") {
@@ -96,12 +135,14 @@ export async function GET(request: NextRequest) {
       ["Summary", "End", report.end.toISOString(), "", ""],
       ["Summary", "Orders", report.orderCount, "", ""],
       ["Summary", "Refund count", report.refundCount, "", ""],
-      ["Summary", "Net sales", report.totalMinor, "", report.currencies.join("|")],
-      ["Summary", "Tax", report.taxMinor, "", report.currencies.join("|")],
-      ["Summary", "Refund total", report.refundTotalMinor, "", report.currencies.join("|")],
-      ["Summary", "Discounts", report.discountMinor, "", report.currencies.join("|")],
-      ...report.tenders.map((item) => ["Tender", item.method, "", item.amountMinor, report.currencies.join("|")]),
-      ...report.topProducts.map((item) => ["Product", item.name, item.quantity, item.salesMinor, report.currencies.join("|")]),
+      ...report.currencyBreakdown.flatMap((item) => [
+        ["Summary", `Net sales (${item.currency})`, item.totalMinor, "", item.currency],
+        ["Summary", `Tax (${item.currency})`, item.taxMinor, "", item.currency],
+        ["Summary", `Refund total (${item.currency})`, item.refundTotalMinor, "", item.currency],
+        ["Summary", `Discounts (${item.currency})`, item.discountMinor, "", item.currency],
+        ...item.tenders.map((tender) => ["Tender", `${tender.method} (${item.currency})`, "", tender.amountMinor, item.currency]),
+        ...item.topProducts.map((product) => ["Product", `${product.name} (${item.currency})`, product.quantity, product.salesMinor, item.currency]),
+      ]),
       ...report.recentOrders.map((item) => ["Order", `#${item.orderNumber} · ${item.cashier}`, "", item.totalMinor, item.currency]),
     ];
     const csv = rows.map((row) => row.map((value, index) => cell(value, index === 1)).join(",")).join(String.fromCharCode(13, 10));
