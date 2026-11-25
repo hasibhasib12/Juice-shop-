@@ -15,6 +15,7 @@ export async function GET() {
   const shift = await prisma.shift.findFirst({
     where: { userId: user.id, closedAt: null },
     orderBy: { openedAt: "desc" },
+    include: { branch: { select: { id: true, name: true, code: true, timezone: true, currency: true } } },
   });
   if (!shift) return NextResponse.json({ shift: null }, { headers: { "Cache-Control": "no-store" } });
   const [cashPayments, cashRefunds, cashMovements, movements] = await Promise.all([
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
       const currencySetting = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
       const currency = typeof currencySetting?.value === "string" ? currencySetting.value.toUpperCase() : "AFN";
       const created = await tx.shift.create({
-        data: { userId: user.id, openingCashMinor: openingCashMinor as number },
+        data: { userId: user.id, branchId: user.branchId, openingCashMinor: openingCashMinor as number },
       });
       await tx.auditEvent.create({
         data: { userId: user.id, action: "SHIFT_OPENED", entityType: "Shift", entityId: created.id, details: { openingCashMinor, currency } },
