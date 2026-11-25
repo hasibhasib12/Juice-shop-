@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     select: { entityId: true, details: true },
   }) : [];
   const currencyByShift = new Map(openingEvents.map((event) => [event.entityId, (event.details as { currency?: string } | null)?.currency || "UNKNOWN"]));
-  const rows: (string | number)[][] = [["Cashier", "Email", "Currency", "Shift opened", "Shift closed", "Opening cash minor", "Cash sales minor", "Cash refunds minor", "Paid in minor", "Paid out minor", "Expected cash minor", "Counted cash minor", "Variance minor", "Orders"]];
+  const rows: (string | number)[][] = [["Cashier", "Email", "Currency", "Shift opened", "Shift closed", "Opening cash minor", "Cash sales minor", "Cash refunds minor", "Paid in minor", "Paid out minor", "Expected cash minor", "Counted cash minor", "Variance minor", "Completed/refunded orders", "Voided orders"]];
   for (const shift of shifts) {
     const endAt = shift.closedAt || new Date();
     const cashRefund = shift.refunds.filter((refund) => refund.createdAt <= endAt).reduce((sum, refund) => sum + refund.cashRefundMinor, 0);
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const paidOut = shift.cashMovements.filter((movement) => movement.type === "PAID_OUT").reduce((sum, movement) => sum + movement.amountMinor, 0);
     const expected = calculateExpectedShiftCash(shift.openingCashMinor, cashSales, cashRefund, paidIn, paidOut);
     const counted = shift.closingCashMinor;
-    rows.push([shift.user.name, shift.user.email, currencyByShift.get(shift.id) || "UNKNOWN", shift.openedAt.toISOString(), shift.closedAt?.toISOString() || "OPEN", shift.openingCashMinor, cashSales, cashRefund, paidIn, paidOut, expected, counted ?? "", counted === null ? "" : counted - expected, shift.orders.length]);
+    rows.push([shift.user.name, shift.user.email, currencyByShift.get(shift.id) || "UNKNOWN", shift.openedAt.toISOString(), shift.closedAt?.toISOString() || "OPEN", shift.openingCashMinor, cashSales, cashRefund, paidIn, paidOut, expected, counted ?? "", counted === null ? "" : counted - expected, shift.orders.filter((order) => order.status !== "VOIDED").length, shift.orders.filter((order) => order.status === "VOIDED").length]);
   }
   const csv = rows.map((row) => row.map((value, index) => csvCell(value, index === 0 || index === 1 || index === 2 || index === 3)).join(",")).join("\r\n");
   return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="juice-shop-shifts-${selected}.csv"`, "Cache-Control": "no-store" } });
