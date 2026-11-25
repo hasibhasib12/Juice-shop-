@@ -9,20 +9,37 @@ export default function OrdersPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
-  const [loading, setLoading] = useState(true);\n  const [role, setRole] = useState("");\n  const [reversalBusy, setReversalBusy] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState("");
+  const [reversalBusy, setReversalBusy] = useState<string | null>(null);
   async function load(next?: string | null, reset = false) {
     setLoading(true); setNotice("");
     try {
       const response = await fetch(`/api/orders?limit=20${next ? `&cursor=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not load orders.");
-      setOrders((current) => reset ? data.orders : [...current, ...data.orders]);\n      if (data.currentRole) setRole(data.currentRole);
+      setOrders((current) => reset ? data.orders : [...current, ...data.orders]);
+      if (data.currentRole) setRole(data.currentRole);
       setNextCursor(data.nextCursor);
       setCursor(next || null);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not load orders."); }
     finally { setLoading(false); }
   }
-  useEffect(() => { void load(null, true); }, []);\n  async function reverseOrder(order: Order, kind: "REFUND" | "VOID") {\n    const reason = window.prompt(`Reason for ${kind.toLowerCase()} of order #${order.orderNumber}:`);\n    if (!reason || reason.trim().length < 3) return;\n    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} the full ${money(order.totalMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone.`)) return;\n    setReversalBusy(order.id); setNotice("");\n    try {\n      const response = await fetch(`/api/orders/${order.id}/refund`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, reason }) });\n      const data = await response.json();\n      if (!response.ok) throw new Error(data.error || "Reversal failed.");\n      setNotice(`Order #${order.orderNumber} ${kind === "VOID" ? "voided" : "refunded"} successfully.`);\n      await load(null, true);\n    } catch (error) { setNotice(error instanceof Error ? error.message : "Reversal failed."); }\n    finally { setReversalBusy(null); }\n  }
+  useEffect(() => { void load(null, true); }, []);
+  async function reverseOrder(order: Order, kind: "REFUND" | "VOID") {
+    const reason = window.prompt(`Reason for ${kind.toLowerCase()} of order #${order.orderNumber}:`);
+    if (!reason || reason.trim().length < 3) return;
+    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} the full ${money(order.totalMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone.`)) return;
+    setReversalBusy(order.id); setNotice("");
+    try {
+      const response = await fetch(`/api/orders/${order.id}/refund`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, reason }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Reversal failed.");
+      setNotice(`Order #${order.orderNumber} ${kind === "VOID" ? "voided" : "refunded"} successfully.`);
+      await load(null, true);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Reversal failed."); }
+    finally { setReversalBusy(null); }
+  }
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · SALES</span><h1>Order history</h1><p>Find completed sales and reprint receipts.</p></div></header>
