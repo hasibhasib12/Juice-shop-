@@ -4,7 +4,9 @@ import Link from "next/link";
 
 import { FormEvent, useEffect, useState } from "react";
 
-type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string };
+type PermissionKey = "VIEW_REPORTS" | "MANAGE_INVENTORY" | "MANAGE_PURCHASING" | "PROCESS_REFUNDS" | "MANAGE_TABLES";
+type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string; permissions?: Record<PermissionKey, boolean> };
+const permissionLabels: Record<PermissionKey, string> = { VIEW_REPORTS: "Reports", MANAGE_INVENTORY: "Inventory", MANAGE_PURCHASING: "Purchasing", PROCESS_REFUNDS: "Refunds", MANAGE_TABLES: "Tables" };
 export default function StaffPage() {
   const [users, setUsers] = useState<Staff[]>([]);
   const [currentRole, setCurrentRole] = useState("CASHIER");
@@ -41,6 +43,14 @@ export default function StaffPage() {
     else { setNotice("Staff account updated."); await load(); }
   }
 
+  async function updatePermission(user: Staff, permission: PermissionKey, enabled: boolean) {
+    const overrides = Object.fromEntries((Object.keys(permissionLabels) as PermissionKey[]).map((key) => [key, key === permission ? enabled : user.permissions?.[key]]).filter((entry) => typeof entry[1] === "boolean"));
+    const response = await fetch(`/api/admin/staff/${user.id}/permissions`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ overrides }) });
+    const data = await response.json();
+    if (!response.ok) { setNotice(data.error || "Could not update permissions."); return; }
+    setNotice("Staff permissions updated."); await load();
+  }
+
   async function resetPassword(user: Staff) {
     const nextPassword = window.prompt(`Set a new temporary password for ${user.name} (minimum 12 characters)`);
     if (nextPassword === null) return;
@@ -69,7 +79,7 @@ export default function StaffPage() {
           <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
-          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small></div><div className="catalog-product-actions">{user.id !== currentUserId && <><button type="button" onClick={() => void resetPassword(user)}>Reset password</button>{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
+          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small>{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <><button type="button" onClick={() => void resetPassword(user)}>Reset password</button>{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
           {!users.length && <p>No staff accounts found.</p>}
         </section>
       </section>

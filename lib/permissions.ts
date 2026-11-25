@@ -1,0 +1,29 @@
+export const PERMISSIONS = [
+  { key: "VIEW_REPORTS", label: "View sales, staff and shift reports" },
+  { key: "MANAGE_INVENTORY", label: "Manage ingredient inventory and stock adjustments" },
+  { key: "MANAGE_PURCHASING", label: "Manage suppliers, purchase orders and invoices" },
+  { key: "PROCESS_REFUNDS", label: "Process refunds and voids" },
+  { key: "MANAGE_TABLES", label: "Manage dining tables" },
+] as const;
+export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
+export type PermissionOverrides = Partial<Record<PermissionKey, boolean>>;
+export type Role = "OWNER" | "MANAGER" | "CASHIER";
+const DEFAULTS: Record<Role, Record<PermissionKey, boolean>> = {
+  OWNER: { VIEW_REPORTS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
+  MANAGER: { VIEW_REPORTS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
+  CASHIER: { VIEW_REPORTS: false, MANAGE_INVENTORY: false, MANAGE_PURCHASING: false, PROCESS_REFUNDS: false, MANAGE_TABLES: false },
+};
+export function normalizePermissionOverrides(value: unknown): PermissionOverrides {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const input = value as Record<string, unknown>;
+  const result: PermissionOverrides = {};
+  for (const { key } of PERMISSIONS) if (typeof input[key] === "boolean") result[key] = input[key] as boolean;
+  return result;
+}
+export function effectivePermissions(role: Role, overrides: unknown): Record<PermissionKey, boolean> {
+  const normalized = normalizePermissionOverrides(overrides);
+  return Object.fromEntries(PERMISSIONS.map(({ key }) => [key, role === "OWNER" ? true : normalized[key] ?? DEFAULTS[role][key]])) as Record<PermissionKey, boolean>;
+}
+export function hasPermission(role: Role, overrides: unknown, permission: PermissionKey): boolean {
+  return effectivePermissions(role, overrides)[permission];
+}

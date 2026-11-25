@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { effectivePermissions } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +10,9 @@ export async function GET() {
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
-  const users = await prisma.user.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true } });
-  return NextResponse.json({ users, currentRole: actor.role, currentUserId: actor.id }, { headers: { "Cache-Control": "no-store" } });
+  const users = await prisma.user.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, permissionOverrides: true } });
+  const usersWithPermissions = users.map(({ permissionOverrides, ...user }) => ({ ...user, permissions: effectivePermissions(user.role, permissionOverrides) }));
+  return NextResponse.json({ users: usersWithPermissions, currentRole: actor.role, currentUserId: actor.id }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
