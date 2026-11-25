@@ -19,7 +19,7 @@ async function managerOnly() {
 export async function GET() {
   const access = await managerOnly();
   if (access.response) return access.response;
-  const suppliers = await prisma.supplier.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] });
+  const suppliers = await prisma.supplier.findMany({ where: { branchId: access.user!.branchId }, orderBy: [{ active: "desc" }, { name: "asc" }] });
   return NextResponse.json({ suppliers }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid supplier email address." }, { status: 400 });
   try {
     const supplier = await prisma.$transaction(async (tx) => {
-      const created = await tx.supplier.create({ data: { name, contact, phone, email, address, notes } });
+      const created = await tx.supplier.create({ data: { branchId: access.user!.branchId, name, contact, phone, email, address, notes } });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_CREATED", entityType: "Supplier", entityId: created.id, details: { name } } });
       return created;
     });
@@ -92,7 +92,9 @@ export async function PATCH(request: NextRequest) {
   if (!Object.keys(data).length) return NextResponse.json({ error: "No supplier changes supplied." }, { status: 400 });
   try {
     const supplier = await prisma.$transaction(async (tx) => {
-      const updated = await tx.supplier.update({ where: { id: value.id as string }, data });
+      const existing = await tx.supplier.findFirst({ where: { id: value.id as string, branchId: access.user!.branchId }, select: { id: true } });
+      if (!existing) throw new Error("SUPPLIER_NOT_FOUND");
+      const updated = await tx.supplier.update({ where: { id: existing.id }, data });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_UPDATED", entityType: "Supplier", entityId: updated.id, details: data } });
       return updated;
     });
