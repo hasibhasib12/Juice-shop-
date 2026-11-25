@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,8 +29,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("inventory-write", access.user!.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many inventory changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { action?: "create" | "movement"; name?: string; unit?: string; reorderLevel?: string | number; openingQuantity?: string | number; ingredientId?: string; type?: "PURCHASE" | "WASTE" | "ADJUSTMENT"; quantity?: string | number; reason?: string };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
 
   try {
     if (body.action === "create") {
