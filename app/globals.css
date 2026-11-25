@@ -132,3 +132,46 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 @media(max-width:520px){.setup-panel{padding:26px 20px}}
 
 .online-state.offline-state i{background:#ffae25;box-shadow:0 0 10px #ffae2566}
+
+
+/* Catalogue management */
+.catalog-admin{min-height:100vh;padding:28px clamp(16px,4vw,56px) 60px;background:radial-gradient(ellipse at 50% -20%,#6c1b3a 0,#310b1b 55%,#1b050d 100%);color:#fff}
+.catalog-admin-header{display:flex;align-items:flex-start;gap:30px;padding:10px 0 28px;border-bottom:1px solid #713047}
+.catalog-back{color:#f4cbd8;text-decoration:none;font-size:13px;font-weight:700;white-space:nowrap;padding:12px 15px;border:1px solid #78364f;border-radius:10px;background:#481629}
+.catalog-admin-header>div>span,.catalog-section-head>div>span{font-size:10px;font-weight:800;letter-spacing:.16em;color:#f1a8bd}
+.catalog-admin-header h1{margin:6px 0;font-size:clamp(27px,4vw,40px);letter-spacing:-.05em}
+.catalog-admin-header p{margin:0;color:#e0cbd3;font-size:13px}
+.catalog-notice{padding:12px 15px;border-radius:10px;background:#fff1d9;color:#69461b;font-size:13px}
+.catalog-admin-grid{display:grid;grid-template-columns:minmax(280px,390px) minmax(0,1fr);gap:20px;align-items:start;padding-top:22px}
+.catalog-editor,.catalog-category-form,.catalog-list{border:1px solid #713047;border-radius:17px;background:linear-gradient(160deg,#50152b,#310b1b);padding:20px;box-shadow:0 12px 30px #0003}
+.catalog-editor{display:flex;flex-direction:column;gap:13px}
+.catalog-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.catalog-section-head h2{font-size:20px;letter-spacing:-.04em;margin:4px 0 0}
+.catalog-section-head h2 small{font-size:12px;color:#e2b7c6}
+.catalog-editor label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#f7e8ee}
+.catalog-editor input,.catalog-editor select,.catalog-inline input{height:42px;border:1px solid #82405a;border-radius:9px;background:#260713;color:#fff;padding:0 11px;outline:none;min-width:0}
+.catalog-editor input:focus,.catalog-editor select:focus,.catalog-inline input:focus{border-color:#20c51d;box-shadow:0 0 0 3px #20c51d20}
+.catalog-form-row{display:grid;grid-template-columns:1fr 100px;gap:10px}
+.catalog-check{display:flex!important;flex-direction:row!important;align-items:center;gap:9px!important}
+.catalog-check input{width:17px;height:17px;accent-color:#20c51d}
+.catalog-primary,.catalog-inline button{height:45px;border:0;border-radius:10px;background:#20c51d;color:#fff;font-weight:800}
+.catalog-cancel{border:1px solid #82405a;border-radius:8px;padding:8px 12px;background:#390d1d;color:#f6dce5;font-weight:700}
+.catalog-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.catalog-category-form{padding-bottom:17px}
+.catalog-inline{display:flex;gap:8px}.catalog-inline input{flex:1}.catalog-inline button{padding:0 17px}
+.catalog-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+.catalog-chips span{padding:6px 10px;border-radius:20px;background:#70203d;color:#fff;font-size:11px;font-weight:700}
+.catalog-chips span.muted{opacity:.5}
+.catalog-list{min-width:0}
+.catalog-product{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #713047}
+.catalog-product>img,.catalog-placeholder{width:58px;height:58px;flex:0 0 58px;border-radius:10px;object-fit:cover;background:#f4e9ed}
+.catalog-placeholder{display:grid;place-items:center;font-size:25px}
+.catalog-product-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.catalog-product-info b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catalog-product-info span{font-size:11px;color:#e8cbd5}
+.catalog-product-info small{font-size:10px;color:#b5dfae}
+.catalog-product.archived{opacity:.55}
+.catalog-product-actions{display:flex;gap:6px}
+.catalog-product-actions button{border:1px solid #82405a;border-radius:8px;background:#481629;color:#fff;padding:7px 9px;font-size:10px;font-weight:700}
+@media(max-width:760px){.catalog-admin-grid{grid-template-columns:1fr}.catalog-admin-header{flex-direction:column;gap:15px}.catalog-product-actions{flex-direction:column}}
+@media(max-width:460px){.catalog-admin{padding:16px 12px 35px}.catalog-editor,.catalog-category-form,.catalog-list{padding:15px}.catalog-product{gap:8px}.catalog-product>img,.catalog-placeholder{width:46px;height:46px;flex-basis:46px}.catalog-product-actions button{padding:6px}.catalog-product-info b{font-size:11px}}
