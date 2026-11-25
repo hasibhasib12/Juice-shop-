@@ -155,6 +155,17 @@ test("POS purchasing API: invoice authorization and purchase-order line boundari
       where: { userId, entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED" },
     }), 1);
     assert.equal((await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: invoiceId } })).status, "PARTIALLY_PAID");
+
+    const overpayment = await post({
+      action: "payment", invoiceId, amountMinor: 101, method: "BANK_TRANSFER", reference: "integration-overpayment",
+    });
+    await expectStatus(overpayment, 409);
+    assert.equal(await prisma.supplierPayment.count({ where: { invoiceId } }), 1,
+      "a payment above the outstanding balance must not create another payment");
+    assert.equal(await prisma.auditEvent.count({
+      where: { userId, entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED" },
+    }), 1, "rejected overpayment must not write an audit event");
+    assert.equal((await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: invoiceId } })).status, "PARTIALLY_PAID");
   } finally {
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
