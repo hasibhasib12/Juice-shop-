@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0) throw new Error("INVALID_TOTAL");
+      const discountLimitSetting = await tx.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
+      const maxDiscountPercentBps = typeof discountLimitSetting?.value === "number" && Number.isSafeInteger(discountLimitSetting.value) && discountLimitSetting.value >= 1 && discountLimitSetting.value <= 10000 ? discountLimitSetting.value : 10000;
       const currency = products[0].currency;
       const taxSetting = await tx.posSetting.findUnique({ where: { key: "store.taxRateBps" }, select: { value: true } });
       const taxRateBps = typeof taxSetting?.value === "number" && Number.isSafeInteger(taxSetting.value) && taxSetting.value >= 0 && taxSetting.value <= 10000 ? taxSetting.value : 0;
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
         if (!approval) throw new Error("INVALID_DISCOUNT_APPROVAL");
         const approvingManager = await tx.user.findUnique({ where: { id: approval.managerId }, select: { active: true, role: true } });
         if (!approvingManager?.active || (approvingManager.role !== "OWNER" && approvingManager.role !== "MANAGER")) throw new Error("INVALID_DISCOUNT_APPROVAL");
+        if (approval.discountMinor * 10000 > subtotalMinor * maxDiscountPercentBps) throw new Error("DISCOUNT_LIMIT_EXCEEDED");
         discountMinor = approval.discountMinor;
         discountApproval = approval;
         const consumed = await tx.discountApproval.updateMany({ where: { id: approval.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
@@ -180,6 +183,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "INVALID_DISCOUNT_APPROVAL") return NextResponse.json({ error: "Discount approval is invalid, expired, already used, or no longer matches this order. Request approval again." }, { status: 409 });
+    if (message === "DISCOUNT_LIMIT_EXCEEDED") return NextResponse.json({ error: "The approved discount exceeds the current store limit. Request a smaller discount." }, { status: 409 });
     if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must cover the cash portion." }, { status: 400 });
     if (message === "TENDER_TOTAL_MISMATCH") return NextResponse.json({ error: "Payment amounts must add up exactly to the order total." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
