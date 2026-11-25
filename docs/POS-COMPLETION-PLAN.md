@@ -87,3 +87,13 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - This is a focused review of session handling and high-risk checkout/refund/return paths, not a completed endpoint-by-endpoint penetration test. Continue reviewing every mutation/read route, audit coverage and trusted-proxy host handling before production approval.
 
 - Added `docs/POS-DEVICE-ACCEPTANCE.md` with repeatable scanner, 80 mm receipt printer, responsive/accessibility, and operational acceptance procedures. These procedures are prepared but remain untested on physical devices.
+
+
+## Additional development — 2026-11-25
+- Commit `5098d0a3f1952ef0c2434b339d4d2bad48ba642d` passed full CI run `45606262465`: Prisma validation, development migrations, lint, tests, TypeScript and production build.
+- Category create/update/archive now share the catalogue mutation rate limit; owner permission changes are also rate limited.
+- Supplier create/update and their audit events now commit atomically. Supplier list reads no longer consume the supplier-write rate limit.
+- Initial owner setup rejects null, array and non-object JSON payloads instead of failing on property access.
+- Table create/update now consistently enforce the configurable `MANAGE_TABLES` permission, apply database-backed rate limits, and persist create audit records atomically.
+- The owner will perform physical scanner/printer tests and real-device acceptance personally. These remain open acceptance tasks until the owner reports results; development should continue independently.
+- These newest security/reliability changes are on the feature branch and require a successful CI run on the final current head before being marked verified.
