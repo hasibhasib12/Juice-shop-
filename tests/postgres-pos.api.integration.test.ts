@@ -194,6 +194,33 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.payment.count({ where: { orderId, status: "REFUNDED" } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_PARTIALLY_OR_FULLY_REFUNDED" } }), 1);
 
+    const voidCheckout = await request("/api/checkout", {
+      ...checkoutBody,
+      idempotencyKey: `api-it-void-${suffix}`,
+    });
+    await expectStatus(voidCheckout, 201);
+    const voidCheckoutJson = await voidCheckout.json() as { order: { id: string; totalMinor: number } };
+    const voidOrderId = voidCheckoutJson.order.id;
+    const voidResponse = await request(`/api/orders/${voidOrderId}/refund`, {
+      kind: "VOID", amountMinor: voidCheckoutJson.order.totalMinor, reason: "API integration void",
+    });
+    await expectStatus(voidResponse, 201);
+    const reportResponse = await fetch(`${baseUrl}/api/reports?period=day`, { headers: { cookie } });
+    await expectStatus(reportResponse, 200);
+    const report = await reportResponse.json() as {
+      orderCount: number; refundCount: number; voidCount: number; voidTotalMinor: number;
+      currencyBreakdown: { currency: string; orderCount: number; refundCount: number; voidCount: number; totalMinor: number; voidTotalMinor: number; topProducts: { quantity: number }[] }[];
+    };
+    assert.equal(report.orderCount, 1, "voided orders must not count as completed sales");
+    assert.equal(report.refundCount, 1, "voids must not be classified as refunds");
+    assert.equal(report.voidCount, 1);
+    assert.equal(report.voidTotalMinor, 1500);
+    assert.equal(report.currencyBreakdown.length, 1);
+    assert.equal(report.currencyBreakdown[0].totalMinor, 0, "full refund leaves zero net sales");
+    assert.equal(report.currencyBreakdown[0].voidCount, 1);
+    assert.equal(report.currencyBreakdown[0].voidTotalMinor, 1500);
+    assert.equal(report.currencyBreakdown[0].topProducts.reduce((sum, item) => sum + item.quantity, 0), 1, "voided order lines must not inflate product sales");
+
     const returnAttempts = await Promise.all([
       request(`/api/orders/${orderId}/returns`, { items: [{ orderLineId: lineId, quantity: 1, condition: "PREPARED", disposition: "WASTE", reason: "Prepared drink returned" }] }),
       request(`/api/orders/${orderId}/returns`, { items: [{ orderLineId: lineId, quantity: 1, condition: "PREPARED", disposition: "WASTE", reason: "Competing return" }] }),
