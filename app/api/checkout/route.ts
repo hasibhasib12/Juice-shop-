@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; idempotencyKey?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; idempotencyKey?: string };
   try {
     body = await request.json();
   } catch {
@@ -78,6 +78,9 @@ export async function POST(request: NextRequest) {
       const taxMinor = new Prisma.Decimal(subtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
       const totalMinor = subtotalMinor + taxMinor;
       if (!Number.isSafeInteger(taxMinor) || !Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("INVALID_TOTAL");
+      const cashReceivedMinor = body.cashReceivedMinor ?? totalMinor;
+      if (!Number.isSafeInteger(cashReceivedMinor) || cashReceivedMinor < totalMinor || cashReceivedMinor > 2_000_000_000) throw new Error("INSUFFICIENT_TENDER");
+      const changeDueMinor = cashReceivedMinor - totalMinor;
       const ingredientDemand = new Map<string, Prisma.Decimal>();
       for (const product of products) {
         const soldQuantity = quantities.get(product.id)!;
@@ -103,7 +106,7 @@ export async function POST(request: NextRequest) {
           idempotencyKey: key,
           completedAt: new Date(),
           lines: { create: lines },
-          payments: { create: { method: "CASH", status: "COMPLETED", amountMinor: totalMinor, currency } },
+          payments: { create: { method: "CASH", status: "COMPLETED", amountMinor: totalMinor, currency, cashReceivedMinor, changeDueMinor } },
         },
         include: { lines: true, payments: true },
       });
@@ -125,7 +128,7 @@ export async function POST(request: NextRequest) {
           action: "ORDER_COMPLETED",
           entityType: "Order",
           entityId: order.id,
-          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, paymentMethod: "CASH" },
+          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, paymentMethod: "CASH", cashReceivedMinor, changeDueMinor },
         },
       });
       return order;
@@ -148,6 +151,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
+    if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must be at least the order total and within the supported amount." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
