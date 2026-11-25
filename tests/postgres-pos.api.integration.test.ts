@@ -97,14 +97,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     server.stderr?.on("data", captureServerOutput);
     await waitForServer(server);
 
-    const publicCatalogue = await fetch(`${baseUrl}/api/products`);
-    await expectStatus(publicCatalogue, 200);
-    const publicCatalogueJson = await publicCatalogue.json() as { products: { id: string; variants: Record<string, unknown>[] }[] };
-    const exposedProduct = publicCatalogueJson.products.find((item) => item.id === productId);
-    assert.ok(exposedProduct);
-    assert.equal(exposedProduct.variants.length, 1);
-    assert.equal("recipeItems" in exposedProduct.variants[0], false);
-    assert.equal("ingredientId" in exposedProduct.variants[0], false);
+    const unauthenticatedCatalogue = await fetch(`${baseUrl}/api/products`);
+    await expectStatus(unauthenticatedCatalogue, 401);
 
     const origin = baseUrl;
     const login = await fetch(`${baseUrl}/api/auth/login`, {
@@ -115,7 +109,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
 
-    const settingsResponse = await fetch(`${baseUrl}/api/settings`);
+    const authenticatedCatalogue = await fetch(`${baseUrl}/api/products`, { headers: { cookie } });
+    await expectStatus(authenticatedCatalogue, 200);
+    const catalogueJson = await authenticatedCatalogue.json() as { products: { id: string; variants: Record<string, unknown>[] }[] };
+    const exposedProduct = catalogueJson.products.find((item) => item.id === productId);
+    assert.ok(exposedProduct);
+    assert.equal(exposedProduct.variants.length, 1);
+    assert.equal("recipeItems" in exposedProduct.variants[0], false);
+    assert.equal("ingredientId" in exposedProduct.variants[0], false);
+
+    const settingsResponse = await fetch(`${baseUrl}/api/settings`, { headers: { cookie } });
     await expectStatus(settingsResponse, 200);
     const settingsJson = await settingsResponse.json() as { settings: { currency: string; countryCode: string; countryName: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string; maxDiscountPercentBps: number } };
     const requestedCurrency = settingsJson.settings.currency === "USD" ? "AFN" : "USD";

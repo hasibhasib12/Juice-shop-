@@ -133,7 +133,7 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     const nonexistentIngredientRecipe = await recipeRequest("POST", {
       productId, ingredientId: `missing-ingredient-${suffix}`, quantity: "1",
     });
-    await expectStatus(nonexistentIngredientRecipe, 409);
+    await expectStatus(nonexistentIngredientRecipe, 404);
     const nonexistentProductRecipe = await recipeRequest("POST", {
       productId: `missing-product-${suffix}`, ingredientId, quantity: "1",
     });
