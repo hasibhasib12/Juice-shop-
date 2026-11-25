@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       include: {
         lines: true,
         payments: true,
-        refund: true,
+        refunds: { orderBy: { createdAt: 'desc' } },
         cashier: { select: { id: true, name: true } },
       },
     });
