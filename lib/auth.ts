@@ -38,8 +38,11 @@ export async function authenticate(email: string, password: string) {
 }
 
 export async function createSession(user: { id: string }) {
+  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { sessionVersion: true, active: true } });
+  if (!current?.active) throw new Error("Cannot create a session for an inactive user");
   const payload = Buffer.from(JSON.stringify({
     sub: user.id,
+    ver: current.sessionVersion,
     exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS,
   })).toString("base64url");
   const token = `${payload}.${sign(payload)}`;
@@ -68,13 +71,13 @@ export async function getCurrentUser() {
   if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
 
   try {
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub: string; exp: number };
-    if (!data.sub || data.exp <= Math.floor(Date.now() / 1000)) return null;
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub: string; ver: number; exp: number };
+    if (!data.sub || !Number.isSafeInteger(data.ver) || data.ver < 0 || data.exp <= Math.floor(Date.now() / 1000)) return null;
     const user = await prisma.user.findUnique({
       where: { id: data.sub },
-      select: { id: true, name: true, email: true, role: true, active: true },
+      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true },
     });
-    if (!user?.active) return null;
+    if (!user?.active || user.sessionVersion !== data.ver) return null;
     return { id: user.id, name: user.name, email: user.email, role: user.role };
   } catch {
     return null;
