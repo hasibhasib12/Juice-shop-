@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -17,12 +18,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       include: {
         lines: true,
         payments: true,
-        refunds: { orderBy: { createdAt: 'desc' } },
+        refunds: { orderBy: { createdAt: "desc" } },
         cashier: { select: { id: true, name: true } },
       },
     });
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    const canViewAll = user.role === "OWNER" || user.role === "MANAGER";
+    const canViewAll = hasPermission(user.role, user.permissionOverrides, "VIEW_ALL_ORDERS");
     if (!canViewAll && order.cashierId !== user.id) {
       return NextResponse.json({ error: "You cannot view this order." }, { status: 403 });
     }
