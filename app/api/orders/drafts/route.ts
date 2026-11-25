@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const draft = await prisma.$transaction(async (tx) => {
+    const draft = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       if (body.id) {
         const existing = await tx.order.findUnique({ where: { id: body.id }, select: { id: true, cashierId: true, status: true } });
         if (!existing) throw new Error("DRAFT_NOT_FOUND");
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
         data: { userId: user.id, action: body.id ? "ORDER_DRAFT_UPDATED" : "ORDER_DRAFT_CREATED", entityType: "Order", entityId: saved.id, details: { lineCount: lines.length, subtotalMinor, currency: saved.currency } },
       });
       return saved;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ draft }, { status: body.id ? 200 : 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
