@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type Order = { id: string; orderNumber: number; status: string; subtotalMinor: number; discountMinor: number; taxMinor: number; totalMinor: number; currency: string; completedAt: string | null; cashier: { name: string }; lines: { id: string; productName: string; quantity: number; unitPriceMinor: number; lineTotalMinor: number }[]; payments: { method: string; amountMinor: number; status: string }[] };
+type Order = { id: string; orderNumber: number; status: string; subtotalMinor: number; discountMinor: number; taxMinor: number; totalMinor: number; currency: string; completedAt: string | null; cashier: { name: string }; lines: { id: string; productName: string; quantity: number; unitPriceMinor: number; lineTotalMinor: number }[]; payments: { method: string; amountMinor: number; status: string; cashReceivedMinor?: number | null; changeDueMinor?: number | null; currency?: string }[] };
 const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(minor / 100);
 
 export default function ReceiptPage() {
