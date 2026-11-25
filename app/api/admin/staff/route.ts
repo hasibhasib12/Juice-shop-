@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const role = body.role === "MANAGER" ? "MANAGER" : "CASHIER";
   try {
     const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password), role }, select: { id: true, name: true, email: true, role: true, active: true } });
+      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password!), role }, select: { id: true, name: true, email: true, role: true, active: true } });
       await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role } } });
       return created;
     });
