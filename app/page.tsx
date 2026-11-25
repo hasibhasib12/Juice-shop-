@@ -63,6 +63,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    function handleModalKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (loginOpen && !loginBusy) setLoginOpen(false);
+      else if (configProduct) setConfigProduct(null);
+      else if (discountOpen && !discountBusy) setDiscountOpen(false);
+      else if (notesOpen) setNotesOpen(false);
+      else if (draftsOpen && !draftBusy) setDraftsOpen(false);
+    }
+    window.addEventListener("keydown", handleModalKeyDown);
+    return () => window.removeEventListener("keydown", handleModalKeyDown);
+  }, [configProduct, discountBusy, discountOpen, draftsOpen, draftBusy, loginBusy, loginOpen, notesOpen]);
+
+  useEffect(() => {
     let active = true;
     fetch("/api/settings", { cache: "no-store" })
       .then((response) => response.json())
