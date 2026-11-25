@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const start = localMidnightUtc(startYear, startMonth, startDay, timezone);
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
   const [orders, refunds, currencySetting] = await Promise.all([
-    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED"] }, completedAt: { gte: start, lt: end } }, select: { totalMinor: true, taxMinor: true, discountMinor: true, currency: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } } }),
+    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } }, select: { totalMinor: true, taxMinor: true, discountMinor: true, currency: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } } }),
     prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);

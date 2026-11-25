@@ -73,6 +73,7 @@ export default function CataloguePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save product.");
       if (imageFile) {
+        if (!editing) setEditing(data.product.id);
         const imageData = new FormData();
         imageData.set("image", imageFile);
         const upload = await fetch(`/api/admin/products/${data.product.id}/image`, { method: "POST", body: imageData });
