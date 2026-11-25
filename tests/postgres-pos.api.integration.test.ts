@@ -41,6 +41,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   let otherBranchManagerId: string | undefined;
   let otherBranchProductId: string | undefined;
   let otherBranchCategoryId: string | undefined;
+  let otherBranchCookie = "";
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const ingredientId = `api-it-ingredient-${suffix}`;
@@ -502,7 +503,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       body: JSON.stringify({ email: otherBranchManagerEmail, password }),
     });
     await expectStatus(otherBranchLogin, 200);
-    const otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     const crossBranchVariantRecipe = await fetch(`${baseUrl}/api/admin/products/${otherBranchProductId}/options`, {
       method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie, origin: baseUrl },
       body: JSON.stringify({ variants: [{ name: "Unsafe cross-branch recipe", priceMinor: 1300, recipeItems: [{ ingredientId, quantity: 10 }] }], modifierGroups: [] }),

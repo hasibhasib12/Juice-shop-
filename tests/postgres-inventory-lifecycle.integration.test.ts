@@ -137,7 +137,7 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     const nonexistentProductRecipe = await recipeRequest("POST", {
       productId: `missing-product-${suffix}`, ingredientId, quantity: "1",
     });
-    await expectStatus(nonexistentProductRecipe, 409);
+    await expectStatus(nonexistentProductRecipe, 404);
     assert.equal(await prisma.recipeItem.count({ where: { productId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { userId, action: "RECIPE_ITEM_SAVED" } }), 1);
 
