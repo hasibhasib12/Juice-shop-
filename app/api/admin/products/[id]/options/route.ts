@@ -90,7 +90,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         } });
       }
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_OPTIONS_UPDATED", entityType: "Product", entityId: id, details: { variantCount: variants.length, modifierGroupCount: groups.length } } });
-      return tx.product.findUnique({ where: { id }, include: { variants: { orderBy: { sortOrder: "asc" }, include: { recipeItems: true } }, modifierGroups: { orderBy: { sortOrder: "asc" }, include: { options: { orderBy: { sortOrder: "asc" } } } } } });
+      return tx.product.findFirst({ where: { id, branchId: access.user!.branchId }, include: { variants: { orderBy: { sortOrder: "asc" }, include: { recipeItems: true } }, modifierGroups: { orderBy: { sortOrder: "asc" }, include: { options: { orderBy: { sortOrder: "asc" } } } } } });
     });
     return NextResponse.json({ product: saved });
   } catch (error) {
