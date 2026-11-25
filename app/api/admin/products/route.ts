@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   const body = parsed as { name?: string; description?: string; imageUrl?: string; sku?: string; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean };
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const currency = typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "";
-  if (!name || name.length > 100 || !body.categoryId || !Number.isSafeInteger(body.priceMinor) || (body.priceMinor ?? 0) < 1 || !currency || !/^[A-Z]{3}$/.test(currency)) {
+  if (!name || name.length > 100 || typeof body.categoryId !== "string" || !body.categoryId || body.categoryId.length > 64 || !Number.isSafeInteger(body.priceMinor) || (body.priceMinor ?? 0) < 1 || !currency || !/^[A-Z]{3}$/.test(currency)) {
     return NextResponse.json({ error: "Name, category, positive price in minor units and ISO currency are required." }, { status: 400 });
   }
   if (body.description !== undefined && (typeof body.description !== "string" || body.description.length > 500)) return NextResponse.json({ error: "Description is too long or invalid." }, { status: 400 });
