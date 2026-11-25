@@ -33,7 +33,7 @@ Phase 0 is the current priority: complete and accept the staff-facing POS. The o
 ## Remaining implementation and acceptance
 - [ ] Deploy an approved Preview build and run an actual product image upload; verify the uploaded image renders on the POS product card. Code and Preview-only storage configuration are present, but no Preview deployment/upload acceptance has been performed.
 - [ ] Test supported barcode scanner models and receipt printers physically. Keyboard-wedge scan-to-cart and 80 mm browser print layouts are implemented, not proof of every device model.
-- [ ] Add automated API/integration tests for concurrent checkout, duplicate requests, refunds, inventory stock races, supplier invoice/payment races, draft conversion and shift reconciliation. Current CI unit tests cover checkout fingerprints, permissions, PDF generation/pagination, image signatures, transaction retry, rate-limit policy and shift cash arithmetic.
+- [x] Add automated API/integration tests for login, checkout, duplicate checkout idempotency, concurrent refunds, concurrent item returns and invalid payment rejection against a real PostgreSQL-backed Next.js HTTP server. PostgreSQL concurrency tests also cover stock races, duplicate idempotency keys, partial refund races and shift cash reconciliation. Supplier invoice/payment races and draft conversion API scenarios remain additional coverage opportunities.
 - [x] Add same-origin / Fetch Metadata checks to every current API mutation handler (POST, PUT, PATCH and DELETE), including checkout, refunds, returns, authentication, staff, catalogue, inventory, purchasing, shifts, tables, settings, drafts, discount authorization and image uploads. Unit tests cover same-origin, cross-origin, malformed-origin and missing-origin metadata cases.
 - [ ] Complete the deeper endpoint-by-endpoint security review of session freshness, role/permission enforcement, object ownership, audit coverage and proxy/host-origin behavior. The origin guard permits non-browser clients with no Origin or Fetch Metadata; confirm this remains appropriate for the deployment threat model.
 - [ ] Complete responsive desktop/tablet/mobile and accessibility acceptance.
@@ -68,3 +68,12 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Commit `18f448b607097d224174363121fabba7d47d77f7` adds database-backed rate limits to product variant/modifier updates, manager discount authorization attempts, order draft create/update/delete, table-order assignment/transfer, and password changes.
 - Rate limits use the existing HMAC-keyed LoginAttempt store and return HTTP 429 with Retry-After when exceeded.
 - Latest code and documentation commits require CI verification; no deployment was performed.
+
+
+## Verified progress — 2026-11-25
+- Commit `255591541c587ba5c2a13c18829abb26ac55acc0` passed GitHub Actions run `45605257538`: Prisma validation, development CI migrations, ESLint, automated test suite (including PostgreSQL and HTTP API integration tests), TypeScript and production build.
+- The API integration harness sends non-browser requests without Origin / Fetch Metadata headers; browser origin protection remains covered by dedicated unit tests. The broader threat-model decision about absent metadata is still open.
+- A disposable child branch `juice-shop-pos-restore-rehearsal-20261125` was cloned from the isolated development branch and verified to contain an identical database object tree (106 objects). It is set to expire automatically on 2026-11-26. This validates branch cloning, not point-in-time backup restoration.
+- Neon rejected manual snapshot creation on the development child branch because manual snapshots are restricted to root branches. No production branch or data was changed. A true backup/restore rehearsal remains open and must use a supported isolated restore path; do not snapshot or restore production as a workaround.
+- Responsive/accessibility code has keyboard focus-visible and reduced-motion support plus responsive breakpoints, but device/browser acceptance and screen-reader testing remain open.
+- Image upload/render, physical scanner/printer tests, multi-cashier failure recovery, full business acceptance and final release approval remain open.
