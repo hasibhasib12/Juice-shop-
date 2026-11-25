@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { detectProductImageType } from "@/lib/product-image";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const BUCKET = "pos-product-images";
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
+  const rate = await checkActionRateLimit("product-image-upload", actor.id, 20, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many image uploads. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   const product = await prisma.product.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!product) return NextResponse.json({ error: "Product not found." }, { status: 404 });

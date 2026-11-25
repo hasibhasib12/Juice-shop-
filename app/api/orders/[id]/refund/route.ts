@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permissionState = await prisma.user.findUnique({ where: { id: actor.id }, select: { permissionOverrides: true } });
   if (!hasPermission(actor.role, permissionState?.permissionOverrides, "PROCESS_REFUNDS")) return NextResponse.json({ error: "Refund permission is required to refund or void a sale." }, { status: 403 });
+  const rate = await checkActionRateLimit("refund", actor.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many refund requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   if (!id || id.length > 64) return NextResponse.json({ error: "Invalid order ID." }, { status: 400 });
 

@@ -4,6 +4,7 @@ import { checkoutFingerprint } from "@/lib/checkout-fingerprint";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...i
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
+  const rate = await checkActionRateLimit("checkout", cashier.id, 60, 60);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many checkout requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string };
   try {

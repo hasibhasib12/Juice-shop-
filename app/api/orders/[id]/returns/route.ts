@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ type ReturnInput = {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
-  if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner approval is required to record item returns." }, { status: 403 });
+  const permissionState = await prisma.user.findUnique({ where: { id: actor.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(actor.role, permissionState?.permissionOverrides, "PROCESS_REFUNDS")) return NextResponse.json({ error: "Return permission is required." }, { status: 403 });
+  const rate = await checkActionRateLimit("item-return", actor.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many return requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   if (!id || id.length > 64) return NextResponse.json({ error: "Invalid order ID." }, { status: 400 });
 

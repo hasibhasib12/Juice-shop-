@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") {
     return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
   }
+  const rate = await checkActionRateLimit("staff-password-reset", actor.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many password reset requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   const { id } = await context.params;
   if (id === actor.id) {
