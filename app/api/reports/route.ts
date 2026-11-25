@@ -46,13 +46,18 @@ export async function GET(request: NextRequest) {
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const orders = await prisma.order.findMany({
-    where: { status: "COMPLETED", completedAt: { gte: start, lt: end } },
-    select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: "COMPLETED" }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
+    where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } },
+    select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
     orderBy: { completedAt: "desc" },
   });
   const currencies = [...new Set(orders.map((order) => order.currency))];
-  const totalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
-  const taxMinor = orders.reduce((sum, order) => sum + order.taxMinor, 0);
+  const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, kind: true } });
+  const refundTotalMinor = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
+  const taxRefundMinor = refundRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
+  const grossTotalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
+  const grossTaxMinor = orders.reduce((sum, order) => sum + order.taxMinor, 0);
+  const totalMinor = grossTotalMinor - refundTotalMinor;
+  const taxMinor = grossTaxMinor - taxRefundMinor;
   const discountMinor = orders.reduce((sum, order) => sum + order.discountMinor, 0);
   const tenders = new Map<string, number>();
   const products = new Map<string, { quantity: number; salesMinor: number }>();
@@ -65,8 +70,12 @@ export async function GET(request: NextRequest) {
       products.set(line.productName, current);
     }
   }
+  for (const refund of refundRows) {
+    if (refund.cashRefundMinor) tenders.set("CASH", (tenders.get("CASH") || 0) - refund.cashRefundMinor);
+    if (refund.otherRefundMinor) tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
+  }
   return NextResponse.json({
-    period, start, end, orderCount: orders.length, currencies, totalMinor, taxMinor, discountMinor,
+    period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor, currencies, totalMinor, taxMinor, discountMinor,
     averageOrderMinor: orders.length ? Math.round(totalMinor / orders.length) : 0,
     tenders: [...tenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })),
     topProducts: [...products.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
