@@ -175,3 +175,11 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .catalog-product-actions button{border:1px solid #82405a;border-radius:8px;background:#481629;color:#fff;padding:7px 9px;font-size:10px;font-weight:700}
 @media(max-width:760px){.catalog-admin-grid{grid-template-columns:1fr}.catalog-admin-header{flex-direction:column;gap:15px}.catalog-product-actions{flex-direction:column}}
 @media(max-width:460px){.catalog-admin{padding:16px 12px 35px}.catalog-editor,.catalog-category-form,.catalog-list{padding:15px}.catalog-product{gap:8px}.catalog-product>img,.catalog-placeholder{width:46px;height:46px;flex-basis:46px}.catalog-product-actions button{padding:6px}.catalog-product-info b{font-size:11px}}
+
+
+.inventory-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;padding:22px 0}
+.inventory-hint{margin:0;color:#e4c2cf;font-size:11px;line-height:1.5}
+.inventory-list{max-width:100%}
+.inventory-quantity{font-size:13px;color:#fff;white-space:nowrap}
+@media(max-width:900px){.inventory-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.inventory-grid{grid-template-columns:1fr}}
