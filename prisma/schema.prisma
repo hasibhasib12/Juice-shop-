@@ -133,6 +133,8 @@ model Order {
   cashier        User          @relation(fields: [cashierId], references: [id])
   shiftId        String?
   shift          Shift?        @relation(fields: [shiftId], references: [id])
+  tableId        String?
+  table          DiningTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
   customerName   String?
   notes          String?
   subtotalMinor  Int
@@ -150,6 +152,7 @@ model Order {
   completedAt    DateTime?
 
   @@index([status, createdAt])
+  @@index([tableId, status])
 }
 
 model OrderLine {
@@ -453,4 +456,19 @@ model ProductModifierOption {
   updatedAt      DateTime              @updatedAt
 
   @@index([groupId, active, sortOrder])
+}
+
+
+model DiningTable {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  section   String?
+  capacity  Int      @default(2)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder, name])
 }
