@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -17,10 +19,10 @@ export default function ReceiptPage() {
       setOrder(data.order);
     }).catch((error) => setNotice(error.message));
   }, [params.id]);
-  if (!order) return <main className="receipt-screen"><p>{notice || "Loading receipt…"}</p><a href="/">Back to POS</a></main>;
+  if (!order) return <main className="receipt-screen"><p>{notice || "Loading receipt…"}</p><Link href="/">Back to POS</Link></main>;
   return (
     <main className="receipt-screen">
-      <div className="receipt-toolbar"><a href="/">← Back to POS</a><button onClick={() => window.print()}>Print receipt</button></div>
+      <div className="receipt-toolbar"><Link href="/">← Back to POS</Link><button onClick={() => window.print()}>Print receipt</button></div>
       <article className="receipt-paper">
         <div className="receipt-brand"><img src="/juice-shop-logo.svg" alt="Juice Shop"/><h1>JUICE SHOP</h1><p>Fresh · Healthy · Happy</p></div>
         <div className="receipt-rule"/>
