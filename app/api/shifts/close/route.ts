@@ -17,11 +17,13 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const rate = await checkActionRateLimit("shift-close", user.id, 10, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many shift changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
-  let body: { closingCashMinor?: number };
+  let body: { closingCashMinor?: number; closingNote?: string };
   try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
   const closingCashMinor = body.closingCashMinor;
+  const closingNote = typeof body.closingNote === "string" ? body.closingNote.trim() : "";
+  if (closingNote.length > 1000) return NextResponse.json({ error: "Closing note must be 1,000 characters or fewer." }, { status: 400 });
   if (!Number.isSafeInteger(closingCashMinor) || (closingCashMinor as number) < 0) {
     return NextResponse.json({ error: "Counted cash must be a non-negative amount in minor currency units." }, { status: 400 });
   }
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
       const expectedCashMinor = shift.openingCashMinor + cashSalesMinor - cashRefundMinor + paidInMinor - paidOutMinor;
       const updated = await tx.shift.update({
         where: { id: shift.id },
-        data: { closingCashMinor: closingCashMinor as number, expectedCashMinor, closedAt },
+        data: { closingCashMinor: closingCashMinor as number, closingNote: closingNote || null, expectedCashMinor, closedAt },
       });
       await tx.auditEvent.create({
         data: {
