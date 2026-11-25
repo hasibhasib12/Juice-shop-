@@ -30,6 +30,7 @@ export default function Home() {
   const [customer, setCustomer] = useState("Walk-in customer");
   const [discount, setDiscount] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "demo">("loading");
   const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN" });
   const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -74,6 +75,7 @@ export default function Home() {
           })),
         );
         setCategoryNames(data.categories.map((item: { name: string }) => item.name));
+        setCatalogSource("database");
       })
       .catch(() => {
         if (!active) return;
@@ -91,6 +93,7 @@ export default function Home() {
           { id: "demo-fruit-dessert", name: "Fruit Dessert", category: "Desserts", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=700&q=85" },
         ]);
         setCategoryNames(["Juices", "Smoothies", "Milkshakes", "Desserts"]);
+        setCatalogSource("demo");
         setNotice("DEMO CATALOGUE — database tables are not installed yet. Orders are preview-only.");
       })
       .finally(() => {
@@ -214,7 +217,7 @@ export default function Home() {
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products..." />
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
-        <div className="online-state"><span className="wifi">⌁</span><i/>Database</div>
+        <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
         <button className="cashier" onClick={() => staff ? void signOut() : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
       </header>
 
