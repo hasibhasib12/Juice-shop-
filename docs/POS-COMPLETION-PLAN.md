@@ -151,3 +151,13 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Added an insufficient-ingredient-stock checkout attempt and verifies no order, payment, sale stock movement, or completion audit event is persisted, and the failed attempt does not consume its idempotency key.
 - These tests exercise API-level rejection and transaction invariants against the isolated integration database. They are committed on `feature/pos-foundation`; execution and full CI verification remain pending.
 - No production database changes and no deployment.
+
+
+## Settings and shift ownership security checks — 2026-11-25 (CI pending)
+- Extended the PostgreSQL HTTP integration scenario with a real cashier login separate from the owner session.
+- Verified a cashier cannot update store settings (HTTP 403) and cannot create a store-settings audit event.
+- Verified the cashier's shift endpoint returns no shift when only another user's shift is open.
+- Verified a cashier cannot close another user's shift (HTTP 409) and the owner's shift remains open.
+- Verified cash paid-in is rejected when the cashier has no owned open shift and no cash-movement row is created.
+- Existing owner-side currency-change guard is exercised in the same scenario: currency changes remain blocked while an open shift exists.
+- These are test additions, not a claim of completed full security audit. Full CI and isolated PostgreSQL execution are still pending. No deployment and no production data changes.
