@@ -8,7 +8,7 @@ import { checkActionRateLimit } from "@/lib/action-rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function inventoryAccess() {
+async function inventoryAccess(): Promise<{ user?: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>; response?: NextResponse }> {
   const user = await getCurrentUser();
   if (!user) return { response: NextResponse.json({ error: "Sign-in required." }, { status: 401 }) };
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
