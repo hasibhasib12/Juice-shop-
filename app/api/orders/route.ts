@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -12,13 +13,11 @@ export async function GET(request: NextRequest) {
   const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "20");
   const limit = Number.isInteger(rawLimit) ? Math.min(50, Math.max(1, rawLimit)) : 20;
   const cursor = request.nextUrl.searchParams.get("cursor");
-  const canViewAll = user.role === "OWNER" || user.role === "MANAGER";
+  const canViewAll = hasPermission(user.role, user.permissionOverrides, "VIEW_ALL_ORDERS");
 
   try {
     const orders = await prisma.order.findMany({
-      where: {
-        ...(canViewAll ? {} : { cashierId: user.id }),
-      },
+      where: { ...(canViewAll ? {} : { cashierId: user.id }) },
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: "desc" },
       take: limit + 1,
