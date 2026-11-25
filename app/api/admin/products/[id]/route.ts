@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   }
   if (body.categoryId !== undefined) {
     if (typeof body.categoryId !== "string" || !body.categoryId || body.categoryId.length > 64) return NextResponse.json({ error: "Choose a valid category." }, { status: 400 });
-    const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
+    const category = await prisma.category.findFirst({ where: { id: body.categoryId, branchId: access.user!.branchId } });
     if (!category || !category.active) return NextResponse.json({ error: "Choose an active category." }, { status: 400 });
     data.categoryId = category.id;
   }
@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "No valid changes supplied." }, { status: 400 });
   try {
     const product = await prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id }, data, include: { category: { select: { id: true, name: true } } } });
+      const updated = await tx.product.update({ where: { id, branchId: access.user!.branchId }, data, include: { category: { select: { id: true, name: true } } } });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_UPDATED", entityType: "Product", entityId: id, details: data as object } });
       return updated;
     });
@@ -98,7 +98,7 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
   const { id } = await context.params;
   try {
     const product = await prisma.$transaction(async (tx) => {
-      const archived = await tx.product.update({ where: { id }, data: { status: "ARCHIVED", available: false } });
+      const archived = await tx.product.update({ where: { id, branchId: access.user!.branchId }, data: { status: "ARCHIVED", available: false } });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_ARCHIVED", entityType: "Product", entityId: id } });
       return archived;
     });
