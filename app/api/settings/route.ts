@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,6 @@ export async function GET() {
       where: { key: { in: Object.values(settingKeys) } },
       select: { key: true, value: true },
     });
-
     const stored = new Map(rows.map((row) => [row.key, row.value]));
     const settings = Object.fromEntries(
       Object.entries(settingKeys).map(([field, key]) => [
@@ -41,13 +41,11 @@ export async function GET() {
         stored.has(key) ? stored.get(key) : defaults[field as keyof typeof defaults],
       ]),
     );
-
     return NextResponse.json(
       { settings, configured: rows.length === Object.keys(settingKeys).length },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch {
-    // Keep the POS display predictable while the initial database migration is pending.
     return NextResponse.json(
       { settings: defaults, configured: false, source: "defaults" },
       { headers: { "Cache-Control": "no-store" } },
@@ -59,9 +57,15 @@ export async function PUT(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER") return NextResponse.json({ error: "Only the owner can change store settings." }, { status: 403 });
+  const rate = await checkActionRateLimit("store-settings-write", user.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many settings changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string; maxDiscountPercentBps?: number };
-  try { body = await request.json(); } catch {
+  try {
+    const parsed: unknown = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    body = parsed as typeof body;
+  } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
@@ -75,13 +79,13 @@ export async function PUT(request: NextRequest) {
     taxLabel: body.taxLabel,
     maxDiscountPercentBps: body.maxDiscountPercentBps,
   };
-  if (!settings.countryCode || !/^[A-Z]{2}$/.test(settings.countryCode) ||
-      !settings.countryName || settings.countryName.trim().length > 80 ||
-      !settings.currency || !/^[A-Z]{3}$/.test(settings.currency) ||
-      !settings.timezone || settings.timezone.length > 80 ||
-      !settings.locale || settings.locale.length > 24 ||
+  if (typeof settings.countryCode !== "string" || !/^[A-Z]{2}$/.test(settings.countryCode) ||
+      typeof settings.countryName !== "string" || !settings.countryName.trim() || settings.countryName.trim().length > 80 ||
+      typeof settings.currency !== "string" || !/^[A-Z]{3}$/.test(settings.currency) ||
+      typeof settings.timezone !== "string" || !settings.timezone || settings.timezone.length > 80 ||
+      typeof settings.locale !== "string" || !settings.locale || settings.locale.length > 24 ||
       !Number.isSafeInteger(settings.taxRateBps) || (settings.taxRateBps ?? -1) < 0 || (settings.taxRateBps ?? 10001) > 10000 ||
-      !settings.taxLabel || settings.taxLabel.trim().length > 30 ||
+      typeof settings.taxLabel !== "string" || !settings.taxLabel.trim() || settings.taxLabel.trim().length > 30 ||
       !Number.isSafeInteger(settings.maxDiscountPercentBps) || (settings.maxDiscountPercentBps ?? -1) < 1 || (settings.maxDiscountPercentBps ?? 10001) > 10000) {
     return NextResponse.json({ error: "Provide a valid country, ISO currency code, timezone and locale." }, { status: 400 });
   }
@@ -103,15 +107,10 @@ export async function PUT(request: NextRequest) {
         });
       }
       await tx.auditEvent.create({
-        data: {
-          userId: user.id,
-          action: "STORE_SETTINGS_UPDATED",
-          entityType: "PosSetting",
-          details: settings,
-        },
+        data: { userId: user.id, action: "STORE_SETTINGS_UPDATED", entityType: "PosSetting", details: settings },
       });
     });
-    return NextResponse.json({ settings });
+    return NextResponse.json({ settings }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Store settings could not be saved." }, { status: 503 });
   }
