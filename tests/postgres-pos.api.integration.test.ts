@@ -459,6 +459,12 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       kind: "VOID", amountMinor: voidCheckoutJson.order.totalMinor, reason: "API integration void",
     });
     await expectStatus(voidResponse, 201);
+    const voidOrderLine = await prisma.orderLine.findFirstOrThrow({ where: { orderId: voidOrderId }, select: { id: true } });
+    const returnAgainstVoidedSale = await request(`/api/orders/${voidOrderId}/returns`, {
+      items: [{ orderLineId: voidOrderLine.id, quantity: 1, condition: "PREPARED", disposition: "WASTE", reason: "Attempted return after void" }],
+    });
+    await expectStatus(returnAgainstVoidedSale, 409);
+    assert.equal(await prisma.orderLineReturn.count({ where: { orderId: voidOrderId } }), 0, "voided sales must not accept item returns");
     const reportResponse = await fetch(`${baseUrl}/api/reports?period=day`, { headers: { cookie } });
     await expectStatus(reportResponse, 200);
     const report = await reportResponse.json() as {
