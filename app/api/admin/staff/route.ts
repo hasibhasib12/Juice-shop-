@@ -12,7 +12,7 @@ export async function GET() {
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
-  const users = await prisma.user.findMany({ where: actor.role === "OWNER" ? {} : { branchId: actor.branchId }, orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, phone: true, photoUrl: true, employeeCode: true, branch: { select: { id: true, name: true, code: true } }, permissionOverrides: true } });
+  const users = await prisma.user.findMany({ where: actor.role === "OWNER" ? {} : { branchId: actor.branchId }, orderBy: [{ approvalStatus: "asc" }, { active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, approvalStatus: true, createdAt: true, phone: true, photoUrl: true, employeeCode: true, branch: { select: { id: true, name: true, code: true } }, permissionOverrides: true } });
   const usersWithPermissions = users.map(({ permissionOverrides, ...user }) => ({ ...user, permissions: effectivePermissions(user.role, permissionOverrides) }));
   return NextResponse.json({ users: usersWithPermissions, currentRole: actor.role, currentUserId: actor.id }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -49,11 +49,11 @@ export async function POST(request: NextRequest) {
     const user = await prisma.$transaction(async (tx) => {
       const branch = await tx.branch.findFirst({ where: { id: branchId, active: true }, select: { id: true } });
       if (!branch) throw new Error("BRANCH_NOT_FOUND");
-      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password!), role, branchId, phone: phone || null, employeeCode: employeeCode || null, photoUrl: photoUrl || null }, select: { id: true, name: true, email: true, role: true, active: true, phone: true, employeeCode: true, photoUrl: true, branch: { select: { id: true, name: true, code: true } } } });
-      await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role, branchId, phone: phone || null, employeeCode: employeeCode || null } } });
+      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password!), role, branchId, phone: phone || null, employeeCode: employeeCode || null, photoUrl: photoUrl || null }, select: { id: true, name: true, email: true, role: true, active: actor.role === "OWNER", approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING", phone: true, employeeCode: true, photoUrl: true, branch: { select: { id: true, name: true, code: true } } } });
+      await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role, branchId, phone: phone || null, employeeCode: employeeCode || null, approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING" } } });
       return created;
     });
-    return NextResponse.json({ user }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ user, message: actor.role === "OWNER" ? "Staff account created and active." : "Staff request submitted. The platform owner must approve it before sign-in is enabled." }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message === "BRANCH_NOT_FOUND") return NextResponse.json({ error: "Selected branch is unavailable." }, { status: 400 });
     return NextResponse.json({ error: "That email or employee code is already registered, or staff could not be created." }, { status: 409 });
