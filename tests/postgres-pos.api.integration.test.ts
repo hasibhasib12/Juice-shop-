@@ -259,6 +259,10 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(listedDrafts, 200);
     const listedDraftsJson = await listedDrafts.json() as { drafts: { id: string }[] };
     assert.equal(listedDraftsJson.drafts.some((draft) => draft.id === draftId), true);
+    const cashierDraftList = await cashierRequest("/api/orders/drafts", undefined, "GET");
+    await expectStatus(cashierDraftList, 200);
+    const cashierDraftListJson = await cashierDraftList.json() as { drafts: { id: string }[] };
+    assert.equal(cashierDraftListJson.drafts.some((draft) => draft.id === draftId), false);
 
     const forbiddenDraftEdit = await cashierRequest("/api/orders/drafts", {
       id: draftId, items: checkoutItems, customerName: "Unauthorized edit",
