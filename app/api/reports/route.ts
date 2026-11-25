@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period") || "day";
   const dateParam = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period)) return NextResponse.json({ error: "Period must be day, week or month." }, { status: 400 });
-  if (dateParam && !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateParam)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
+  if (dateParam && !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
   const timezoneRow = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
   const timezone = typeof timezoneRow?.value === "string" ? timezoneRow.value : "Asia/Kabul";
   const currentParts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
     select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
     orderBy: { completedAt: "desc" },
   });
-  const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
   const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true, kind: true } });
+  const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
   const refundTotalMinor = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
   const taxRefundMinor = refundRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
   const grossTotalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
