@@ -72,8 +72,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   }
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "No valid changes supplied." }, { status: 400 });
   try {
-    const product = await prisma.product.update({ where: { id }, data, include: { category: { select: { id: true, name: true } } } });
-    await prisma.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_UPDATED", entityType: "Product", entityId: id, details: data as object } });
+    const product = await prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({ where: { id }, data, include: { category: { select: { id: true, name: true } } } });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_UPDATED", entityType: "Product", entityId: id, details: data as object } });
+      return updated;
+    });
     return NextResponse.json({ product });
   } catch {
     return NextResponse.json({ error: "Product could not be updated. Check the SKU and try again." }, { status: 409 });
@@ -90,8 +93,11 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
   if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   try {
-    const product = await prisma.product.update({ where: { id }, data: { status: "ARCHIVED", available: false } });
-    await prisma.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_ARCHIVED", entityType: "Product", entityId: id } });
+    const product = await prisma.$transaction(async (tx) => {
+      const archived = await tx.product.update({ where: { id }, data: { status: "ARCHIVED", available: false } });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_ARCHIVED", entityType: "Product", entityId: id } });
+      return archived;
+    });
     return NextResponse.json({ product: { id: product.id, status: product.status } });
   } catch {
     return NextResponse.json({ error: "Product could not be archived." }, { status: 404 });
