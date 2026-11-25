@@ -24,8 +24,8 @@ export async function GET() {
   if (access.response) return access.response;
   try {
     const [products, ingredients] = await Promise.all([
-      prisma.product.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, include: { recipeItems: { include: { ingredient: true } } } }),
-      prisma.ingredient.findMany({ orderBy: { name: "asc" } }),
+      prisma.product.findMany({ where: { branchId: access.user!.branchId, status: "ACTIVE" }, orderBy: { name: "asc" }, include: { recipeItems: { include: { ingredient: true } } } }),
+      prisma.ingredient.findMany({ where: { branchId: access.user!.branchId }, orderBy: { name: "asc" } }),
     ]);
     return NextResponse.json({ products, ingredients }, { headers: { "Cache-Control": "no-store" } });
   } catch {
@@ -64,6 +64,11 @@ export async function POST(request: NextRequest) {
   if (!quantity.isFinite() || quantity.lte(0) || quantity.gt(100000000)) return NextResponse.json({ error: "Recipe quantity must be greater than zero and within the supported range." }, { status: 400 });
   try {
     const recipe = await prisma.$transaction(async (tx) => {
+      const [product, ingredient] = await Promise.all([
+        tx.product.findFirst({ where: { id: body.productId!, branchId: user.branchId }, select: { id: true } }),
+        tx.ingredient.findFirst({ where: { id: body.ingredientId!, branchId: user.branchId }, select: { id: true } }),
+      ]);
+      if (!product || !ingredient) throw new Error("BRANCH_RESOURCE_NOT_FOUND");
       const saved = await tx.recipeItem.upsert({
         where: { productId_ingredientId: { productId: body.productId!, ingredientId: body.ingredientId! } },
         update: { quantity },
@@ -74,7 +79,8 @@ export async function POST(request: NextRequest) {
       return saved;
     });
     return NextResponse.json({ recipe });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "BRANCH_RESOURCE_NOT_FOUND") return NextResponse.json({ error: "The selected product or ingredient is not available in this branch." }, { status: 404 });
     return NextResponse.json({ error: "Recipe could not be saved. Check the selected product and ingredient." }, { status: 409 });
   }
 }
@@ -103,9 +109,17 @@ export async function DELETE(request: NextRequest) {
   }
   try {
     await prisma.$transaction(async (tx) => {
+      const [product, ingredient] = await Promise.all([
+        tx.product.findFirst({ where: { id: body.productId!, branchId: user.branchId }, select: { id: true } }),
+        tx.ingredient.findFirst({ where: { id: body.ingredientId!, branchId: user.branchId }, select: { id: true } }),
+      ]);
+      if (!product || !ingredient) throw new Error("BRANCH_RESOURCE_NOT_FOUND");
       const deleted = await tx.recipeItem.delete({ where: { productId_ingredientId: { productId: body.productId!, ingredientId: body.ingredientId! } } });
       await tx.auditEvent.create({ data: { userId: user.id, action: "RECIPE_ITEM_REMOVED", entityType: "RecipeItem", entityId: deleted.id, details: body } });
     });
     return NextResponse.json({ removed: true });
-  } catch { return NextResponse.json({ error: "Recipe item could not be removed." }, { status: 404 }); }
+  } catch (error) {
+    if (error instanceof Error && error.message === "BRANCH_RESOURCE_NOT_FOUND") return NextResponse.json({ error: "The selected product or ingredient is not available in this branch." }, { status: 404 });
+    return NextResponse.json({ error: "Recipe item could not be removed." }, { status: 404 });
+  }
 }
