@@ -149,6 +149,22 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     });
     assert.equal(Number(adjustmentMovement.quantity), -4);
 
+    const movementCountBeforeRace = await prisma.stockMovement.count({ where: { ingredientId } });
+    const auditCountBeforeRace = await prisma.auditEvent.count({
+      where: { userId, entityId: ingredientId, action: "STOCK_MOVEMENT_RECORDED" },
+    });
+    const competingWaste = await Promise.all([
+      post({ action: "movement", ingredientId, type: "WASTE", quantity: "5", reason: "Concurrent waste A" }),
+      post({ action: "movement", ingredientId, type: "WASTE", quantity: "5", reason: "Concurrent waste B" }),
+    ]);
+    assert.deepEqual(competingWaste.map((response) => response.status).sort(), [200, 409]);
+    assert.equal(Number((await prisma.ingredient.findUniqueOrThrow({ where: { id: ingredientId } })).quantityOnHand), 3);
+    assert.equal(await prisma.stockMovement.count({ where: { ingredientId } }), movementCountBeforeRace + 1);
+    assert.equal(await prisma.auditEvent.count({
+      where: { userId, entityId: ingredientId, action: "STOCK_MOVEMENT_RECORDED" },
+    }), auditCountBeforeRace + 1,
+      "only the winning concurrent stock movement may write a movement and audit event");
+
     await prisma.user.update({
       where: { id: userId },
       data: { permissionOverrides: { MANAGE_INVENTORY: false } },
