@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
           status: "COMPLETED",
           cashierId: cashier.id,
           shiftId: activeShift.id,
+          customerName: body.customerName?.trim() || null,
+          notes: body.notes?.trim() || null,
           subtotalMinor,
           discountMinor,
           taxMinor,
