@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const [staff, orders, refunds, shifts, movements] = await Promise.all([
-    prisma.user.findMany({ where: { active: true }, select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({ select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
     prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } }, select: { cashierId: true, currency: true, totalMinor: true, discountMinor: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } }),
     prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { processedById: true, currency: true, amountMinor: true } }),
     prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end } }, select: { userId: true, closedAt: true, openingCashMinor: true, closingCashMinor: true } }),
