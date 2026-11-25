@@ -144,13 +144,22 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       body: JSON.stringify(body),
     });
 
-    const invoiceResponse = await request("/api/admin/supplier-invoices", {
-      action: "invoice", purchaseOrderId, invoiceNumber,
-      invoiceDate: new Date().toISOString(), lines: [{
-        purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
-      }],
-    });
-    await expectStatus(invoiceResponse, 201);
+    const invoiceRequests = await Promise.all([
+      request("/api/admin/supplier-invoices", {
+        action: "invoice", purchaseOrderId, invoiceNumber,
+        invoiceDate: new Date().toISOString(), lines: [{
+          purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
+        }],
+      }),
+      request("/api/admin/supplier-invoices", {
+        action: "invoice", purchaseOrderId, invoiceNumber: `${invoiceNumber}-RACE2`,
+        invoiceDate: new Date().toISOString(), lines: [{
+          purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
+        }],
+      }),
+    ]);
+    assert.deepEqual(invoiceRequests.map((response) => response.status).sort(), [201, 409]);
+    const invoiceResponse = invoiceRequests.find((response) => response.status === 201)!;
     const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
     assert.equal(invoiceJson.invoice.totalMinor, 1000);
     const invoiceId = invoiceJson.invoice.id;
