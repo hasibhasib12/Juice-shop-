@@ -102,6 +102,8 @@ model Ingredient {
   unit           String
   quantityOnHand Decimal         @default(0) @db.Decimal(14, 3)
   reorderLevel   Decimal         @default(0) @db.Decimal(14, 3)
+  averageCostMinor Int           @default(0)
+  purchaseOrderLines PurchaseOrderLine[]
   recipeItems    RecipeItem[]
   movements      StockMovement[]
   createdAt      DateTime        @default(now())
@@ -311,6 +313,12 @@ enum ReturnDisposition {
   NOT_RESTOCKABLE
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  RECEIVED
+  CANCELLED
+}
+
 model OrderLineReturn {
   id             String            @id @default(cuid())
   orderId        String
@@ -327,4 +335,55 @@ model OrderLineReturn {
 
   @@index([orderId, createdAt])
   @@index([orderLineId, createdAt])
+}
+
+
+model Supplier {
+  id        String         @id @default(cuid())
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  active    Boolean        @default(true)
+  orders    PurchaseOrder[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([active, name])
+}
+
+model PurchaseOrder {
+  id             String              @id @default(cuid())
+  orderNumber    Int                 @unique @default(autoincrement())
+  supplierId     String
+  supplier       Supplier            @relation(fields: [supplierId], references: [id])
+  createdById    String
+  createdBy      User                @relation(fields: [createdById], references: [id])
+  status         PurchaseOrderStatus @default(DRAFT)
+  currency       String              @default("AFN")
+  subtotalMinor  Int
+  notes          String?
+  lines          PurchaseOrderLine[]
+  createdAt      DateTime            @default(now())
+  receivedAt     DateTime?
+
+  @@index([supplierId, createdAt])
+  @@index([status, createdAt])
+}
+
+model PurchaseOrderLine {
+  id                String        @id @default(cuid())
+  purchaseOrderId   String
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ingredientId      String
+  ingredient        Ingredient    @relation(fields: [ingredientId], references: [id])
+  ingredientName    String
+  quantity          Decimal       @db.Decimal(14, 3)
+  receivedQuantity  Decimal       @default(0) @db.Decimal(14, 3)
+  unitCostMinor     Int
+  lineTotalMinor    Int
+
+  @@index([purchaseOrderId])
 }
