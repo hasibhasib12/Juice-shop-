@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useState } from "react";
 
 type Category = { id: string; name: string; active: boolean };
@@ -124,7 +126,7 @@ export default function CataloguePage() {
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header">
-        <a href="/" className="catalog-back">← Back to POS</a>
+        <Link href="/" className="catalog-back">← Back to POS</Link>
         <div><span>JUICE SHOP · MANAGEMENT</span><h1>Product catalogue</h1><p>Manage the menu that appears on the till.</p></div>
       </header>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
