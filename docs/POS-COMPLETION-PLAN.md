@@ -112,3 +112,11 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Commit `783a07df127242eb1e2b39c73364dd87e6b7ffcd` passed GitHub Actions run `45635966698`: Prisma validation, development migrations, lint, automated tests, TypeScript and production build.
 - PostgreSQL integration coverage now verifies that a cash refund processed on a later cashier shift reduces the refunding drawer, not the original sale's drawer.
 - A new PostgreSQL integration scenario has been added in commit `51c4a58333780b87b894a10011a12e07e1e6789d` to race two receipts of 6 units against a 10-unit purchase-order line. It asserts only one receipt succeeds, stock increases once, weighted-average cost is correct, and the PO line, status, movement ledger and audit trail agree. This newest test is pending CI verification.
+
+
+## Verified progress — purchasing concurrency
+- Commit `b2d699ad9f407547f210946fa8e6d8371d54ba24` passed GitHub Actions run `45637110572`: Prisma validation, development migrations, lint, automated tests, TypeScript and production build.
+- PostgreSQL/API integration coverage verifies competing receipts cannot over-receive a purchase-order line; stock quantity, weighted-average cost, purchase-order status, stock movement and audit records remain consistent.
+- Supplier invoice integration coverage verifies competing invoices cannot bill more than the received uninvoiced quantity.
+- Supplier payment integration coverage verifies concurrent payments cannot overpay an invoice and that the payment, invoice status and audit record remain consistent.
+- These checks ran in the isolated CI development database. No production database or environment was changed.
