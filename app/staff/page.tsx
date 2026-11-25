@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useState } from "react";
 
 type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string };
@@ -55,7 +57,7 @@ export default function StaffPage() {
   }
   return (
     <main className="catalog-admin">
-      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · MANAGEMENT</span><h1>Staff & permissions</h1><p>Create staff logins and control account access.</p></div></header>
+      <header className="catalog-admin-header"><Link href="/" className="catalog-back">← Back to POS</Link><div><span>JUICE SHOP · MANAGEMENT</span><h1>Staff & permissions</h1><p>Create staff logins and control account access.</p></div></header>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       <section className="staff-grid">
         <form className="catalog-editor" onSubmit={create}>
