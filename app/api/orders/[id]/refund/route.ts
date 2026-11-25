@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       if (kind === "VOID" && amountMinor !== remainingMinor) throw new Error("VOID_MUST_BE_FULL");
       if (amountMinor > remainingMinor) throw new Error("REFUND_EXCEEDS_BALANCE");
       const isFinalRefund = amountMinor === remainingMinor;
-      let cashRefundMinor = isFinalRefund ? remainingCashMinor : Math.floor(amountMinor * remainingCashMinor / remainingMinor);
+      let cashRefundMinor = isFinalRefund ? remainingCashMinor : Number((BigInt(amountMinor) * BigInt(remainingCashMinor)) / BigInt(remainingMinor));
       let otherRefundMinor = amountMinor - cashRefundMinor;
       if (otherRefundMinor > remainingOtherMinor) {
         const overflow = otherRefundMinor - remainingOtherMinor;
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         otherRefundMinor = remainingOtherMinor;
       }
       if (cashRefundMinor > remainingCashMinor || cashRefundMinor + otherRefundMinor !== amountMinor) throw new Error("REFUND_LEDGER_MISMATCH");
-      const taxRefundMinor = isFinalRefund ? remainingTaxMinor : Math.min(remainingTaxMinor, Math.floor(amountMinor * remainingTaxMinor / remainingMinor));
+      const taxRefundMinor = isFinalRefund ? remainingTaxMinor : Math.min(remainingTaxMinor, Number((BigInt(amountMinor) * BigInt(remainingTaxMinor)) / BigInt(remainingMinor)));
 
       if (cashRefundMinor > 0) {
         const activeShift = await tx.shift.findFirst({ where: { userId: actor.id, closedAt: null }, select: { id: true } });
