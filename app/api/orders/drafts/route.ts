@@ -34,7 +34,13 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
 
   let body: { id?: string; items?: DraftItem[]; customerName?: string; notes?: string };
-  try { body = await request.json(); } catch {
+  try {
+    const parsed: unknown = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+    body = parsed as typeof body;
+  } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
   if (body.id !== undefined && (typeof body.id !== "string" || body.id.length > 64)) {
@@ -123,11 +129,15 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id || id.length > 64) return NextResponse.json({ error: "A valid draft ID is required." }, { status: 400 });
   try {
-    const result = await prisma.order.deleteMany({
-      where: { id, status: "DRAFT", ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
+    const deleted = await prisma.$transaction(async (tx) => {
+      const result = await tx.order.deleteMany({
+        where: { id, status: "DRAFT", ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
+      });
+      if (!result.count) return false;
+      await tx.auditEvent.create({ data: { userId: user.id, action: "ORDER_DRAFT_DELETED", entityType: "Order", entityId: id } });
+      return true;
     });
-    if (!result.count) return NextResponse.json({ error: "Draft not found or you cannot remove it." }, { status: 404 });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "ORDER_DRAFT_DELETED", entityType: "Order", entityId: id } });
+    if (!deleted) return NextResponse.json({ error: "Draft not found or you cannot remove it." }, { status: 404 });
     return NextResponse.json({ deleted: true });
   } catch {
     return NextResponse.json({ error: "Draft could not be deleted." }, { status: 503 });
