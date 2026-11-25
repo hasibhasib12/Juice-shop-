@@ -94,11 +94,12 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
     await expectStatus(deniedTableCreate, 403);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
-    const allowedTableCreate = await cashierRequest("/api/tables", { name: `API table ${suffix}` });
+    const allowedTableCreate = await cashierRequest("/api/tables", { name: `API table ${suffix}`, section: "Integration", capacity: 4, sortOrder: 10 });
     await expectStatus(allowedTableCreate, 201);
     const tableJson = await allowedTableCreate.json() as { table: { id: string } };
     assert.ok(tableJson.table.id);
     createdTableId = tableJson.table.id;
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdTableId, action: "DINING_TABLE_CREATED", userId: cashierId } }), 1);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: false } } });
     const deniedTableUpdate = await cashierRequest("/api/tables", { id: tableJson.table.id, name: "Should be denied" }, "PATCH");
     await expectStatus(deniedTableUpdate, 403);
