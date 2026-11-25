@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       include: {
         lines: { select: { id: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true } },
         payments: { select: { id: true, method: true, status: true, amountMinor: true, currency: true } },
+        refund: { select: { kind: true, amountMinor: true, reason: true } },
         cashier: { select: { id: true, name: true } },
       },
     });
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     const page = hasMore ? orders.slice(0, limit) : orders;
     return NextResponse.json({
       orders: page,
+      currentRole: user.role,
       nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch {
