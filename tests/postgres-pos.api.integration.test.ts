@@ -37,6 +37,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   let createdTableId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
+  const ingredientId = `api-it-ingredient-${suffix}`;
   const shiftId = `api-it-shift-${suffix}`;
   const password = `Integration-${randomUUID()}-Pass`;
   let server: ChildProcess | undefined;
@@ -53,9 +54,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       passwordHash: passwordHash(password), role: "CASHIER",
     } });
     await prisma.category.create({ data: { id: categoryId, name: `API Integration ${suffix}` } });
+    await prisma.ingredient.create({ data: { id: ingredientId, name: "Private integration ingredient", unit: "ml" } });
     await prisma.product.create({ data: {
       id: productId, name: "API Integration Juice", priceMinor: 1000,
       currency: "AFN", categoryId,
+      variants: { create: { name: "Large", priceMinor: 1500, recipeItems: { create: { ingredientId, quantity: "250.000" } } } },
     } });
     await prisma.shift.create({ data: { id: shiftId, userId, openingCashMinor: 500 } });
 
@@ -65,6 +68,15 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       stdio: "ignore",
     });
     await waitForServer(server);
+
+    const publicCatalogue = await fetch(`${baseUrl}/api/products`);
+    await expectStatus(publicCatalogue, 200);
+    const publicCatalogueJson = await publicCatalogue.json() as { products: { id: string; variants: Record<string, unknown>[] }[] };
+    const exposedProduct = publicCatalogueJson.products.find((item) => item.id === productId);
+    assert.ok(exposedProduct);
+    assert.equal(exposedProduct.variants.length, 1);
+    assert.equal("recipeItems" in exposedProduct.variants[0], false);
+    assert.equal("ingredientId" in exposedProduct.variants[0], false);
 
     const origin = baseUrl;
     const login = await fetch(`${baseUrl}/api/auth/login`, {
@@ -182,6 +194,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
     await prisma.product.deleteMany({ where: { id: productId } });
+    await prisma.ingredient.deleteMany({ where: { id: ingredientId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
     await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId] } } });
     await prisma.$disconnect();
