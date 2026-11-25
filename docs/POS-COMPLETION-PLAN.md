@@ -217,3 +217,10 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Extended the inventory PostgreSQL integration test to assert recipe GET/POST/DELETE denial, permission grant, successful recipe upsert, invalid/non-finite/non-positive/over-limit quantities, nonexistent product/ingredient references, and no recipe/audit side effects on denied or rejected requests.
 - Test changes are committed on `feature/pos-foundation`; latest-head CI and isolated PostgreSQL execution are not yet confirmed. Audit-failure rollback injection remains open and is restricted to the isolated integration database.
 - No deployment, production database operation, production environment change, or `main` modification.
+
+
+## Verified progress — checkout idempotency and recovery boundary (2026-11-25)
+- Commit `7109833fca59a71dbdb4dad4e768a804c347613d` passed full CI run `45673923075` on the exact branch head.
+- Checkout idempotency fingerprints now include the saved draft ID when converting a draft into a completed sale. Ordinary non-draft fingerprints remain unchanged for compatibility; regression tests prove different drafts cannot share an equivalent fingerprint.
+- In-session uncertain checkout handling locks order/payment inputs and retries with the same idempotency key. Durable recovery after page reload or browser crash is still not implemented; do not describe this as offline checkout or reload-safe recovery.
+- No deployment, production database operation, production environment change, or `main` modification.
