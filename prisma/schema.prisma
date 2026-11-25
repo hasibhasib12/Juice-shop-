@@ -57,6 +57,7 @@ model User {
   shifts       Shift[]
   auditEvents  AuditEvent[]
   refundsProcessed Refund[]
+  cashMovements CashMovement[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -130,6 +131,7 @@ model Order {
   lines          OrderLine[]
   payments       Payment[]
   refund         Refund?
+  cashMovements  CashMovement[]
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
 
@@ -212,6 +214,11 @@ model PosSetting {
 }
 
 
+enum CashMovementType {
+  PAID_IN
+  PAID_OUT
+}
+
 enum RefundKind {
   REFUND
   VOID
@@ -233,4 +240,20 @@ model Refund {
   createdAt     DateTime   @default(now())
 
   @@index([processedById, createdAt])
+}
+
+
+model CashMovement {
+  id          String           @id @default(cuid())
+  shiftId     String
+  shift       Shift            @relation(fields: [shiftId], references: [id])
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  type        CashMovementType
+  amountMinor Int
+  reason      String
+  createdAt   DateTime         @default(now())
+
+  @@index([shiftId, createdAt])
+  @@index([userId, createdAt])
 }
