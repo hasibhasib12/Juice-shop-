@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,9 @@ async function managerOnly() {
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const access = await managerOnly();
   if (access.response) return access.response;
   const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
@@ -66,6 +70,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 }
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (!isAllowedMutationOrigin(_request.headers.get("origin"), _request.nextUrl.origin, _request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const access = await managerOnly();
   if (access.response) return access.response;
   const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
