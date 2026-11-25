@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: {
         ...(canViewAll ? {} : { cashierId: user.id }),
-        ...(cursor ? { id: cursor } : {}),
       },
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: "desc" },
       take: limit + 1,
       include: {
