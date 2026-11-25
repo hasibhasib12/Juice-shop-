@@ -301,6 +301,21 @@ export default function Home() {
     setNotice("You have signed out.");
   }
 
+  async function switchCashier() {
+    setNotice("Signing out so you can return to the cashier who started the saved checkout…");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Could not safely sign out. Please retry.");
+      setStaff(null);
+      setLoginEmail("");
+      setLoginPassword("");
+      setLoginOpen(true);
+      setNotice("Sign in with the cashier account that started the pending checkout. The saved payment request has been kept unchanged.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not switch cashier. Please retry.");
+    }
+  }
+
   async function requestDiscount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (discountBusy || cart.length === 0) return;
@@ -580,6 +595,11 @@ export default function Home() {
           </div>
           <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy || checkoutBusy || checkoutUncertain}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
+          {checkoutUncertain && !pendingCheckout && staff && notice.startsWith("A pending checkout belongs to another cashier.") && (
+            <button type="button" className="place-order" onClick={() => void switchCashier()} disabled={checkoutBusy}>
+              Switch cashier safely
+            </button>
+          )}
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
