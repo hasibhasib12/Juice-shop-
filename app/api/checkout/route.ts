@@ -45,7 +45,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
-  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId);\n\n  const quantities = new Map<string, number>();
+  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId);
+
+  const quantities = new Map<string, number>();
   for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
   if ([...quantities.values()].some((quantity) => quantity > 100)) {
     return NextResponse.json({ error: "A product quantity cannot exceed 100 per order." }, { status: 400 });
@@ -188,11 +190,33 @@ export async function POST(request: NextRequest) {
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
-    if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key belongs to another cashier." }, { status: 409 });
+    if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key was already used by a different cashier or a different checkout request." }, { status: 409 });
     if (message === "INVALID_PRICE" || message === "INVALID_TOTAL") return NextResponse.json({ error: "The order total is invalid." }, { status: 422 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const existing = await prisma.order.findUnique({ where: { idempotencyKey: key }, select: { id: true, orderNumber: true, status: true, totalMinor: true, currency: true } });
-      if (existing) return NextResponse.json({ order: existing }, { status: 200 });
+      const existing = await prisma.order.findUnique({
+        where: { idempotencyKey: key },
+        include: { lines: true, payments: true },
+      });
+      if (existing) {
+        if (existing.cashierId !== cashier.id || !existing.requestFingerprint || existing.requestFingerprint !== requestFingerprint) {
+          return NextResponse.json({ error: "This checkout key was already used by a different cashier or a different checkout request." }, { status: 409 });
+        }
+        return NextResponse.json({
+          order: {
+            id: existing.id,
+            orderNumber: existing.orderNumber,
+            status: existing.status,
+            subtotalMinor: existing.subtotalMinor,
+            discountMinor: existing.discountMinor,
+            taxMinor: existing.taxMinor,
+            totalMinor: existing.totalMinor,
+            currency: existing.currency,
+            lines: existing.lines,
+            payments: existing.payments,
+            completedAt: existing.completedAt,
+          },
+        }, { status: 200, headers: { "Cache-Control": "no-store" } });
+      }
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "Checkout conflicted with another update. Please retry." }, { status: 409 });
