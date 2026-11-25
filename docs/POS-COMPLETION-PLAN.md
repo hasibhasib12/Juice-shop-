@@ -77,3 +77,11 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Neon rejected manual snapshot creation on the development child branch because manual snapshots are restricted to root branches. No production branch or data was changed. A true backup/restore rehearsal remains open and must use a supported isolated restore path; do not snapshot or restore production as a workaround.
 - Responsive/accessibility code has keyboard focus-visible and reduced-motion support plus responsive breakpoints, but device/browser acceptance and screen-reader testing remain open.
 - Image upload/render, physical scanner/printer tests, multi-cashier failure recovery, full business acceptance and final release approval remain open.
+
+### Security review notes — 2026-11-25
+- Session tokens are HMAC-SHA256 signed, HttpOnly, SameSite=Strict cookies with a 12-hour expiry. Every authenticated request reloads the user and checks active status plus the current sessionVersion, so staff deactivation and session-version increments invalidate existing sessions.
+- Passwords use per-password random salts with scrypt; login attempts are rate limited.
+- Checkout, refund and item-return routes validate origin metadata before authentication, require an authenticated actor, apply database-backed rate limits, validate request payloads and write audit records in their transaction paths.
+- The origin helper rejects cross-origin and same-site browser requests when Fetch Metadata is present, rejects malformed/mismatched Origin values, and permits requests with both Origin and Fetch Metadata absent. This supports non-browser API clients; deployment must retain SameSite=Strict cookies and must not expose cookie-authenticated credentials to untrusted clients. Revisit before adding mobile or third-party API clients.
+- Current POS is single-store/single-tenant. Per-branch object ownership and branch-scoped data authorization are not implemented; they are a mandatory gate before multi-branch rollout, not a claim of current branch isolation.
+- This is a focused review of session handling and high-risk checkout/refund/return paths, not a completed endpoint-by-endpoint penetration test. Continue reviewing every mutation/read route, audit coverage and trusted-proxy host handling before production approval.
