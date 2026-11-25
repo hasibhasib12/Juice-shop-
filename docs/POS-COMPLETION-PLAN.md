@@ -52,7 +52,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Cash + manually confirmed external split tender with exact total validation and separate receipt lines (manual external payment is not a card gateway).
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
 - [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
-- [ ] Card-provider integration, failed/voided payments, refunds, reconciliation, and provider callback idempotency.
+- [ ] Card-provider integration, failed/voided payments, partial refunds, reconciliation, and provider callback idempotency.\n- [x] Manager/owner-only full-order refund or void with required reason, atomic payment/order status reversal, unique reversal record, and audit event.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
 
@@ -66,7 +66,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 5 — Staff, shifts, cash and reports
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
 - [x] Manager/owner staff directory, cashier creation, account activation/deactivation, and owner-controlled role assignment.
-- [ ] Fine-grained permissions and discount/refund/void approval rules; password reset/change workflow.
+- [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.\n- [ ] Fine-grained permissions, password reset/change workflow, and configurable approval thresholds.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [ ] Paid-in/out, shift-to-order association, and shift report export.
@@ -76,7 +76,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
-- [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
+- [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.\n- [ ] Refund stock-restock workflow with physical return inspection; reversals currently do not automatically increase ingredient stock.
 - [ ] Preview acceptance test with the owner using realistic sample data.
 - [ ] Production readiness checklist and explicit owner approval before any production release.
 
