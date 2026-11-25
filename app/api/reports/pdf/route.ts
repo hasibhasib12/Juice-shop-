@@ -48,28 +48,36 @@ export async function GET(request: NextRequest) {
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);
   const currencies = [...new Set([...orders.map(o => o.currency), ...refunds.map(r => r.currency)])];
-  const currency = currencies.length === 1 ? currencies[0] : (typeof currencySetting?.value === "string" ? currencySetting.value : "AFN");
-  const gross = orders.reduce((sum, order) => sum + order.totalMinor, 0);
-  const refundTotal = refunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
-  const tax = orders.reduce((sum, order) => sum + order.taxMinor, 0) - refunds.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
-  const discounts = orders.reduce((sum, order) => sum + order.discountMinor, 0);
-  const tenders = new Map<string, number>();
-  const products = new Map<string, { quantity: number; sales: number }>();
-  for (const order of orders) {
-    for (const payment of order.payments) tenders.set(payment.method, (tenders.get(payment.method) || 0) + payment.amountMinor);
-    for (const line of order.lines) { const current = products.get(line.productName) || { quantity: 0, sales: 0 }; current.quantity += line.quantity; current.sales += line.lineTotalMinor; products.set(line.productName, current); }
-  }
-  for (const refund of refunds) { tenders.set("CASH", (tenders.get("CASH") || 0) - refund.cashRefundMinor); tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor); }
-  const money = (minor: number) => (minor / 100).toFixed(2) + " " + currency;
   const lines = [
     "JUICE SHOP - SALES REPORT", "Period: " + period.toUpperCase() + " | Selected date: " + selected,
     "Business timezone: " + timezone, "Range: " + start.toISOString() + " to " + end.toISOString(), " ",
-    "ORDERS: " + orders.length, "GROSS SALES: " + money(gross), "REFUNDS: " + money(refundTotal),
-    "NET SALES: " + money(gross - refundTotal), "TAX NET: " + money(tax), "DISCOUNTS: " + money(discounts), " ",
-    "TENDER BREAKDOWN", ...[...tenders.entries()].map(([method, amount]) => method + ": " + money(amount)), " ",
-    "TOP PRODUCTS", ...[...products.entries()].sort((a,b) => b[1].quantity - a[1].quantity).slice(0,12).map(([name,v]) => name + " | Qty " + v.quantity + " | " + money(v.sales)),
-    " ", "Generated at: " + new Date().toISOString(),
   ];
+  const units = currencies.length ? currencies : [typeof currencySetting?.value === "string" ? currencySetting.value : "AFN"];
+  for (const unit of units) {
+    const unitOrders = orders.filter(order => order.currency === unit);
+    const unitRefunds = refunds.filter(refund => refund.currency === unit);
+    const gross = unitOrders.reduce((sum, order) => sum + order.totalMinor, 0);
+    const refundTotal = unitRefunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
+    const tax = unitOrders.reduce((sum, order) => sum + order.taxMinor, 0) - unitRefunds.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
+    const discounts = unitOrders.reduce((sum, order) => sum + order.discountMinor, 0);
+    const money = (minor: number) => (minor / 100).toFixed(2) + " " + unit;
+    const tenders = new Map<string, number>();
+    const products = new Map<string, { quantity: number; sales: number }>();
+    for (const order of unitOrders) {
+      for (const payment of order.payments) tenders.set(payment.method, (tenders.get(payment.method) || 0) + payment.amountMinor);
+      for (const line of order.lines) { const current = products.get(line.productName) || { quantity: 0, sales: 0 }; current.quantity += line.quantity; current.sales += line.lineTotalMinor; products.set(line.productName, current); }
+    }
+    for (const refund of unitRefunds) {
+      tenders.set("CASH", (tenders.get("CASH") || 0) - refund.cashRefundMinor);
+      tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
+    }
+    lines.push("CURRENCY: " + unit, "ORDERS: " + unitOrders.length, "GROSS SALES: " + money(gross),
+      "REFUNDS: " + money(refundTotal), "NET SALES: " + money(gross - refundTotal),
+      "TAX NET: " + money(tax), "DISCOUNTS: " + money(discounts), "TENDER BREAKDOWN",
+      ...[...tenders.entries()].map(([method, amount]) => method + ": " + money(amount)),
+      "TOP PRODUCTS", ...[...products.entries()].sort((a,b) => b[1].quantity - a[1].quantity).slice(0,8).map(([name,v]) => name + " | Qty " + v.quantity + " | " + money(v.sales)), " ");
+  }
+  lines.push("Generated at: " + new Date().toISOString());
   const pdf = createTextPdf(lines);
   return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="juice-shop-sales-' + selected + '.pdf"', "Cache-Control": "no-store" } });
 }
