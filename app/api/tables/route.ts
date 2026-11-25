@@ -9,19 +9,20 @@ import { isAllowedMutationOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const canManage = (role: string) => role === "OWNER" || role === "MANAGER";
-
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
+  const visibleOrderFilter = { status: "DRAFT" as const, ...(canViewAllOrders ? {} : { cashierId: user.id }) };
   try {
     const [tables, openOrders] = await Promise.all([
       prisma.diningTable.findMany({
         where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: { id: true, name: true, section: true, capacity: true, sortOrder: true,
-          orders: { where: { status: "DRAFT" }, take: 1, select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } } },
+          orders: { where: visibleOrderFilter, take: 1, select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } } },
       }),
-      prisma.order.findMany({ where: { status: "DRAFT", ...(canManage(user.role) ? {} : { cashierId: user.id }) },
+      prisma.order.findMany({ where: visibleOrderFilter,
         orderBy: { createdAt: "asc" }, take: 100,
         select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } }),
     ]);
