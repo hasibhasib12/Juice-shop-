@@ -62,10 +62,10 @@ export async function getCurrentUser() {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
   const [payload, signature, extra] = token.split(".");
-  if (!payload || !signature || extra || !timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(sign(payload)),
-  )) return null;
+  if (!payload || !signature || extra) return null;
+  const supplied = Buffer.from(signature);
+  const expected = Buffer.from(sign(payload));
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
 
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub: string; exp: number };
