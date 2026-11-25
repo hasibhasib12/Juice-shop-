@@ -4,8 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 
 type Shift = { id: string; openingCashMinor: number; openedAt: string; closingCashMinor: number | null; expectedCashMinor: number | null };
 type CashMovement = { id: string; type: "PAID_IN" | "PAID_OUT"; amountMinor: number; reason: string; createdAt: string };
-const money = (minor: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "AFN" }).format(minor / 100);
-
 export default function ShiftPage() {
   const [shift, setShift] = useState<Shift | null>(null);
   const [expected, setExpected] = useState(0);
