@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type DraftItem = { productId: string; quantity: number };
+type DraftItem = { productId: string; quantity: number; variantId?: string; modifierOptionIds?: string[] };
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -20,7 +20,7 @@ export async function GET() {
         id: true, orderNumber: true, customerName: true, notes: true, subtotalMinor: true,
         taxMinor: true, totalMinor: true, currency: true, createdAt: true,
         cashier: { select: { id: true, name: true } },
-        lines: { select: { id: true, productId: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true } },
+        lines: { select: { id: true, productId: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true, variantName: true, selectedModifiers: true } },
       },
     });
     return NextResponse.json({ drafts }, { headers: { "Cache-Control": "no-store" } });
@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
   }
   if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 50 ||
       !body.items.every((item) => item && typeof item.productId === "string" && item.productId.length <= 64 &&
-        Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100)) {
+        Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100 &&
+        (item.variantId === undefined || (typeof item.variantId === "string" && item.variantId.length <= 64)) &&
+        (item.modifierOptionIds === undefined || (Array.isArray(item.modifierOptionIds) && item.modifierOptionIds.length <= 30 && item.modifierOptionIds.every((id) => typeof id === "string" && id.length <= 64) && new Set(item.modifierOptionIds).size === item.modifierOptionIds.length)))) {
     return NextResponse.json({ error: "A draft must contain 1–50 valid product lines." }, { status: 400 });
   }
 
@@ -75,15 +77,31 @@ export async function POST(request: NextRequest) {
 
       const products = await tx.product.findMany({
         where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
-        select: { id: true, name: true, priceMinor: true, currency: true },
+        select: { id: true, name: true, priceMinor: true, currency: true,
+          variants: { where: { active: true }, select: { id: true, name: true, priceMinor: true } },
+          modifierGroups: { where: { active: true }, include: { options: { where: { active: true } } } },
+        },
       });
       if (products.length !== quantities.size) throw new Error("PRODUCT_UNAVAILABLE");
       if (new Set(products.map((product) => product.currency)).size !== 1) throw new Error("MIXED_CURRENCIES");
-      const lines = products.map((product) => {
-        const quantity = quantities.get(product.id)!;
-        const lineTotalMinor = product.priceMinor * quantity;
+      const lineMap = new Map<string, { productId: string; variantId?: string; modifierOptionIds: string[]; quantity: number }>();
+      for (const item of body.items!) {
+        const modifierOptionIds = [...(item.modifierOptionIds ?? [])].sort();
+        const key = JSON.stringify([item.productId, item.variantId ?? null, modifierOptionIds]);
+        const existing = lineMap.get(key);
+        if (existing) existing.quantity += item.quantity;
+        else lineMap.set(key, { productId: item.productId, ...(item.variantId ? { variantId: item.variantId } : {}), modifierOptionIds, quantity: item.quantity });
+      }
+      const lines = [...lineMap.values()].map((item) => {
+        const product = products.find((candidate) => candidate.id === item.productId)!;
+        const variant = item.variantId ? product.variants.find((candidate) => candidate.id === item.variantId) : null;
+        if (item.variantId && !variant) throw new Error("INVALID_VARIANT");
+        const selected = product.modifierGroups.flatMap((group) => group.options.filter((option) => item.modifierOptionIds.includes(option.id)).map((option) => ({ groupId: group.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
+        if (selected.length !== item.modifierOptionIds.length || product.modifierGroups.some((group) => { const count = selected.filter((option) => option.groupId === group.id).length; return count < group.minSelections || count > group.maxSelections; })) throw new Error("INVALID_MODIFIER");
+        const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selected.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
+        const lineTotalMinor = unitPriceMinor * item.quantity;
         if (!Number.isSafeInteger(lineTotalMinor) || lineTotalMinor < 0) throw new Error("INVALID_TOTAL");
-        return { productId: product.id, productName: product.name, quantity, unitPriceMinor: product.priceMinor, lineTotalMinor };
+        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selected.length ? selected.map(({ groupName, name, priceDeltaMinor }) => ({ groupName, name, priceDeltaMinor })) : undefined };
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor)) throw new Error("INVALID_TOTAL");
@@ -113,6 +131,8 @@ export async function POST(request: NextRequest) {
     if (message === "DRAFT_NOT_FOUND") return NextResponse.json({ error: "Draft not found." }, { status: 404 });
     if (message === "DRAFT_NOT_EDITABLE") return NextResponse.json({ error: "Only an open draft can be edited." }, { status: 409 });
     if (message === "DRAFT_FORBIDDEN") return NextResponse.json({ error: "You cannot edit another cashier's draft." }, { status: 403 });
+    if (message === "INVALID_VARIANT") return NextResponse.json({ error: "A selected size is no longer available." }, { status: 409 });
+    if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Selected extras are invalid or do not meet the required choices." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All draft items must use the same currency." }, { status: 409 });
     if (message === "INVALID_TOTAL") return NextResponse.json({ error: "The draft total is invalid." }, { status: 422 });
