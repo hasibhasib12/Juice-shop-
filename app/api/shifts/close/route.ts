@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const closed = await prisma.$transaction(async (tx) => {
+    const closed = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const shift = await tx.shift.findFirst({
         where: { userId: user.id, closedAt: null },
         orderBy: { openedAt: "desc" },
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
         },
       });
       return { ...updated, cashSalesMinor, cashRefundMinor, paidInMinor, paidOutMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ shift: closed });
   } catch (error) {
     if (error instanceof Error && error.message === "NO_OPEN_SHIFT") {
