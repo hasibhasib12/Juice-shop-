@@ -1,6 +1,8 @@
 CREATE TYPE "ReturnCondition" AS ENUM ('SEALED_UNUSED', 'OPENED', 'PREPARED', 'DAMAGED');
 CREATE TYPE "ReturnDisposition" AS ENUM ('WASTE', 'NOT_RESTOCKABLE');
 
+ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_id_orderId_key" UNIQUE ("id", "orderId");
+
 CREATE TABLE "OrderLineReturn" (
   "id" TEXT NOT NULL,
   "orderId" TEXT NOT NULL,
