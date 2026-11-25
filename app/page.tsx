@@ -240,7 +240,7 @@ export default function Home() {
               </button>
             ))}
           </nav>
-          {(staff?.role === "OWNER" || staff?.role === "MANAGER") && <><button className="side-settings" onClick={() => { window.location.href = "/catalog"; }}><span>⚙</span>Manage menu</button><button className="side-settings" onClick={() => { window.location.href = "/inventory"; }}><span>◉</span>Inventory</button><button className="side-settings" onClick={() => { window.location.href = "/reports"; }}><span>▥</span>Reports</button></>}
+          {(staff?.role === "OWNER" || staff?.role === "MANAGER") && <><button className="side-settings" onClick={() => { window.location.href = "/catalog"; }}><span>⚙</span>Manage menu</button><button className="side-settings" onClick={() => { window.location.href = "/inventory"; }}><span>◉</span>Inventory</button><button className="side-settings" onClick={() => { window.location.href = "/reports"; }}><span>▥</span>Reports</button><button className="side-settings" onClick={() => { window.location.href = "/staff"; }}><span>♙</span>Staff</button></>}
         </aside>
 
         <section className="menu-area">
