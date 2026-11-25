@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { FormEvent, useEffect, useState } from "react";
 
-type Shift = { id: string; openingCashMinor: number; openedAt: string; closingCashMinor: number | null; expectedCashMinor: number | null };
+type Shift = { id: string; openingCashMinor: number; openedAt: string; closingCashMinor: number | null; expectedCashMinor: number | null; branch?: { id: string; name: string; code: string; timezone: string; currency: string } };
 type CashMovement = { id: string; type: "PAID_IN" | "PAID_OUT"; amountMinor: number; reason: string; createdAt: string };
 export default function ShiftPage() {
   const [shift, setShift] = useState<Shift | null>(null);
@@ -72,7 +72,7 @@ export default function ShiftPage() {
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       <section className="shift-panel">
         {shift ? <>
-          <div className="shift-status"><span>SHIFT OPEN</span><strong>Started {new Date(shift.openedAt).toLocaleString()}</strong></div>
+          <div className="shift-status"><span>SHIFT OPEN · {shift.branch?.name ?? "Assigned branch"}</span><strong>Started {new Date(shift.openedAt).toLocaleString()}</strong></div>
           <div className="shift-metrics"><article><span>Opening float</span><b>{formatMoney(shift.openingCashMinor)}</b></article><article><span>Expected cash now</span><b>{formatMoney(expected)}</b></article></div>
           <form className="catalog-editor" onSubmit={(e) => void submit(e, "close")}><div className="catalog-section-head"><div><span>END OF SHIFT</span><h2>Close and reconcile</h2></div></div><label>Counted cash in drawer ({currency})<input required type="number" min="0" step="0.01" value={closing} onChange={(e) => setClosing(e.target.value)}/></label><p className="inventory-hint">Expected cash includes opening float, cash sales, refunds, and paid-in/paid-out movements. Non-cash tenders are excluded.</p><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Close shift"}</button></form>
           <form className="catalog-editor cash-movement-form" onSubmit={(e) => void submitMovement(e)}>
