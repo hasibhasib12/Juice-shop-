@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_CREATED", entityType: "Supplier", entityId: created.id, details: { name } } });
       return created;
     });
-    return NextResponse.json({ supplier }, { status: 201 });
+    return NextResponse.json({ supplier }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "Supplier could not be created." }, { status: 503 }); }
 }
 
