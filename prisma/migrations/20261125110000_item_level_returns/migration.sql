@@ -14,7 +14,7 @@ CREATE TABLE "OrderLineReturn" (
   CONSTRAINT "OrderLineReturn_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "OrderLineReturn_quantity_check" CHECK ("quantity" > 0),
   CONSTRAINT "OrderLineReturn_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "OrderLineReturn_orderLineId_fkey" FOREIGN KEY ("orderLineId") REFERENCES "OrderLine"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "OrderLineReturn_orderLineId_orderId_fkey" FOREIGN KEY ("orderLineId", "orderId") REFERENCES "OrderLine"("id", "orderId") ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "OrderLineReturn_processedById_fkey" FOREIGN KEY ("processedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 CREATE INDEX "OrderLineReturn_orderId_createdAt_idx" ON "OrderLineReturn"("orderId", "createdAt");
