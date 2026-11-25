@@ -8,6 +8,10 @@ on:
     branches:
       - feature/pos-foundation
 
+concurrency:
+  group: pos-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
