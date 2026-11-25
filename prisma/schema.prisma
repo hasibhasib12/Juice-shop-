@@ -102,7 +102,7 @@ model User {
 
 model Category {
   id        String    @id @default(cuid())
-  branchId  String
+  branchId  String    @default("main-branch")
   branch    Branch    @relation(fields: [branchId], references: [id])
   name      String
   sortOrder Int       @default(0)
@@ -117,7 +117,7 @@ model Category {
 
 model Product {
   id          String        @id @default(cuid())
-  branchId    String
+  branchId    String        @default("main-branch")
   branch      Branch        @relation(fields: [branchId], references: [id])
   name        String
   description String?
