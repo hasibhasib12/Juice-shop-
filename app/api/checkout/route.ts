@@ -83,8 +83,10 @@ export async function POST(request: NextRequest) {
       let discountApproval: { id: string; managerId: string; reason: string } | null = null;
       if (body.discountApprovalId !== undefined) {
         if (typeof body.discountApprovalId !== "string" || body.discountApprovalId.length > 64) throw new Error("INVALID_DISCOUNT_APPROVAL");
-        const approval = await tx.discountApproval.findFirst({ where: { id: body.discountApprovalId, cashierId: cashier.id, subtotalMinor, cartFingerprint: fingerprint(items), discountMinor: { gt: 0, lte: subtotalMinor }, expiresAt: { gt: new Date() }, usedAt: null }, select: { id: true, managerId: true, reason: true, discountMinor: true } });
+        const approval = await tx.discountApproval.findFirst({ where: { id: body.discountApprovalId, cashierId: cashier.id, subtotalMinor, cartFingerprint: fingerprint(items), discountMinor: { gt: 0, lt: subtotalMinor }, expiresAt: { gt: new Date() }, usedAt: null }, select: { id: true, managerId: true, reason: true, discountMinor: true } });
         if (!approval) throw new Error("INVALID_DISCOUNT_APPROVAL");
+        const approvingManager = await tx.user.findUnique({ where: { id: approval.managerId }, select: { active: true, role: true } });
+        if (!approvingManager?.active || (approvingManager.role !== "OWNER" && approvingManager.role !== "MANAGER")) throw new Error("INVALID_DISCOUNT_APPROVAL");
         discountMinor = approval.discountMinor;
         discountApproval = approval;
         const consumed = await tx.discountApproval.updateMany({ where: { id: approval.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
