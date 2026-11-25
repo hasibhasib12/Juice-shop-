@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       include: {
         lines: { select: { id: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true } },
         payments: { select: { id: true, method: true, status: true, amountMinor: true, currency: true } },
-        refund: { select: { kind: true, amountMinor: true, reason: true } },
+        refunds: { orderBy: { createdAt: "desc" }, select: { kind: true, amountMinor: true, reason: true, createdAt: true } },
         cashier: { select: { id: true, name: true } },
       },
     });
