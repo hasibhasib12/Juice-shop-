@@ -46,8 +46,8 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
     await prisma.recipeItem.create({ data: {
       id: `it-recipe-${suffix}`, productId, ingredientId, quantity: new Prisma.Decimal(1),
     } });
-    await prisma.shift.create({ data: { id: shiftId, userId, openingCashMinor: 500 } });
-    await prisma.shift.create({ data: { id: refundShiftId, userId: refundUserId, openingCashMinor: 1000 } });
+    await prisma.shift.create({ data: { id: shiftId, userId, branchId: "main-branch", openingCashMinor: 500 } });
+    await prisma.shift.create({ data: { id: refundShiftId, userId: refundUserId, branchId: "main-branch", openingCashMinor: 1000 } });
     
     const consumeStock = () => withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const changed = await tx.ingredient.updateMany({
