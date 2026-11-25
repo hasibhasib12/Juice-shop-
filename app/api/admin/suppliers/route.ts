@@ -96,6 +96,6 @@ export async function PATCH(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_UPDATED", entityType: "Supplier", entityId: updated.id, details: data } });
       return updated;
     });
-    return NextResponse.json({ supplier });
+    return NextResponse.json({ supplier }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "Supplier could not be updated." }, { status: 404 }); }
 }
