@@ -73,7 +73,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [ ] Paid-in/out, shift-to-order association, and shift report export.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
-- [ ] Tax, refunds, stock valuation, staff performance reports and CSV/PDF export.
+- [x] Report net sales and tax by subtracting full refund/void amounts in the refund processing period, including tender-level cash/other reductions.
+- [ ] Stock valuation, staff performance reports and CSV/PDF export.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
