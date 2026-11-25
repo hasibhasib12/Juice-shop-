@@ -227,6 +227,8 @@ model Refund {
   amountMinor   Int
   currency      String
   reason        String
+  cashRefundMinor Int        @default(0)
+  otherRefundMinor Int       @default(0)
   createdAt     DateTime   @default(now())
 
   @@index([processedById, createdAt])
