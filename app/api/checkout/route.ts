@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -8,12 +9,13 @@ export const dynamic = "force-dynamic";
 
 type CheckoutItem = { productId: string; quantity: number };
 type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
+const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
 
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string };
   try {
     body = await request.json();
   } catch {
@@ -77,8 +79,20 @@ export async function POST(request: NextRequest) {
       const currency = products[0].currency;
       const taxSetting = await tx.posSetting.findUnique({ where: { key: "store.taxRateBps" }, select: { value: true } });
       const taxRateBps = typeof taxSetting?.value === "number" && Number.isSafeInteger(taxSetting.value) && taxSetting.value >= 0 && taxSetting.value <= 10000 ? taxSetting.value : 0;
-      const taxMinor = new Prisma.Decimal(subtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
-      const totalMinor = subtotalMinor + taxMinor;
+      let discountMinor = 0;
+      let discountApproval: { id: string; managerId: string; reason: string } | null = null;
+      if (body.discountApprovalId !== undefined) {
+        if (typeof body.discountApprovalId !== "string" || body.discountApprovalId.length > 64) throw new Error("INVALID_DISCOUNT_APPROVAL");
+        const approval = await tx.discountApproval.findFirst({ where: { id: body.discountApprovalId, cashierId: cashier.id, subtotalMinor, cartFingerprint: fingerprint(items), discountMinor: { gt: 0, lte: subtotalMinor }, expiresAt: { gt: new Date() }, usedAt: null }, select: { id: true, managerId: true, reason: true, discountMinor: true } });
+        if (!approval) throw new Error("INVALID_DISCOUNT_APPROVAL");
+        discountMinor = approval.discountMinor;
+        discountApproval = approval;
+        const consumed = await tx.discountApproval.updateMany({ where: { id: approval.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+        if (consumed.count !== 1) throw new Error("INVALID_DISCOUNT_APPROVAL");
+      }
+      const taxableSubtotalMinor = subtotalMinor - discountMinor;
+      const taxMinor = new Prisma.Decimal(taxableSubtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
+      const totalMinor = taxableSubtotalMinor + taxMinor;
       if (!Number.isSafeInteger(taxMinor) || !Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("INVALID_TOTAL");
       const normalizedTenders = tenders.map((tender) => ({ ...tender, amountMinor: tender.amountMinor || totalMinor }));
       const tenderTotal = normalizedTenders.reduce((sum, tender) => sum + tender.amountMinor, 0);
@@ -106,7 +120,7 @@ export async function POST(request: NextRequest) {
           cashierId: cashier.id,
           shiftId: activeShift.id,
           subtotalMinor,
-          discountMinor: 0,
+          discountMinor,
           taxMinor,
           totalMinor,
           currency,
@@ -135,7 +149,7 @@ export async function POST(request: NextRequest) {
           action: "ORDER_COMPLETED",
           entityType: "Order",
           entityId: order.id,
-          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, payments: normalizedTenders.map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })), cashReceivedMinor, changeDueMinor },
+          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, discountMinor, discountApprovedBy: discountApproval?.managerId ?? null, discountReason: discountApproval?.reason ?? null, taxMinor, taxRateBps, currency, payments: normalizedTenders.map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })), cashReceivedMinor, changeDueMinor },
         },
       });
       return order;
@@ -158,6 +172,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
+    if (message === "INVALID_DISCOUNT_APPROVAL") return NextResponse.json({ error: "Discount approval is invalid, expired, already used, or no longer matches this order. Request approval again." }, { status: 409 });
     if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must cover the cash portion." }, { status: 400 });
     if (message === "TENDER_TOTAL_MISMATCH") return NextResponse.json({ error: "Payment amounts must add up exactly to the order total." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
