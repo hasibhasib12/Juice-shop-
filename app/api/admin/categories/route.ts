@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function catalogAccess() {
+  const user = await getCurrentUser();
+  if (!user) return { response: NextResponse.json({ error: "Sign-in required." }, { status: 401 }) };
+  const state = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, state?.permissionOverrides, "MANAGE_CATALOG")) {
+    return { response: NextResponse.json({ error: "Catalogue management access required." }, { status: 403 }) };
+  }
+  return { user };
+}
 
 async function categoryWriteLimit(userId: string) {
   const rate = await checkActionRateLimit("catalog-write", userId, 60, 900);
@@ -17,9 +28,9 @@ export async function POST(request: NextRequest) {
   if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
     return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
   }
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
-  if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
+  const access = await catalogAccess();
+  if (access.response) return access.response;
+  const user = access.user!;
   const rateResponse = await categoryWriteLimit(user.id);
   if (rateResponse) return rateResponse;
   let parsed: unknown;
