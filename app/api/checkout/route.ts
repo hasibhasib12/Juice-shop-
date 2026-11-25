@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string };
   try {
     body = await request.json();
   } catch {
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
 
   if (body.customerName !== undefined && (typeof body.customerName !== "string" || body.customerName.trim().length > 120)) return NextResponse.json({ error: "Customer name must be 120 characters or fewer." }, { status: 400 });
   if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 1000)) return NextResponse.json({ error: "Order notes must be 1,000 characters or fewer." }, { status: 400 });
+  if (body.draftId !== undefined && (typeof body.draftId !== "string" || body.draftId.length > 64)) return NextResponse.json({ error: "Invalid draft ID." }, { status: 400 });
 
   const items = body.items;
   const key = body.idempotencyKey;
@@ -127,25 +128,24 @@ export async function POST(request: NextRequest) {
         if (!ingredient || ingredient.quantityOnHand.lt(required)) throw new Error("INSUFFICIENT_STOCK");
       }
 
-      const order = await tx.order.create({
-        data: {
-          status: "COMPLETED",
-          cashierId: cashier.id,
-          shiftId: activeShift.id,
-          customerName: body.customerName?.trim() || null,
-          notes: body.notes?.trim() || null,
-          subtotalMinor,
-          discountMinor,
-          taxMinor,
-          totalMinor,
-          currency,
-          idempotencyKey: key,
-          completedAt: new Date(),
-          lines: { create: lines },
-          payments: { create: normalizedTenders.map((tender) => ({ method: tender.method, status: "COMPLETED" as const, amountMinor: tender.amountMinor, currency, ...(tender.method === "CASH" ? { cashReceivedMinor, changeDueMinor } : {}) })) },
-        },
-        include: { lines: true, payments: true },
-      });
+      let order;
+      const paymentCreates = normalizedTenders.map((tender) => ({ method: tender.method, status: "COMPLETED" as const, amountMinor: tender.amountMinor, currency, ...(tender.method === "CASH" ? { cashReceivedMinor, changeDueMinor } : {}) }));
+      const orderFields = {
+        status: "COMPLETED" as const, cashierId: cashier.id, shiftId: activeShift.id,
+        customerName: body.customerName?.trim() || null, notes: body.notes?.trim() || null,
+        subtotalMinor, discountMinor, taxMinor, totalMinor, currency,
+        idempotencyKey: key, requestFingerprint, completedAt: new Date(),
+      };
+      if (body.draftId) {
+        const draft = await tx.order.findUnique({ where: { id: body.draftId }, select: { id: true, status: true, cashierId: true } });
+        if (!draft || draft.status !== "DRAFT") throw new Error("DRAFT_NOT_FOUND");
+        if (draft.cashierId !== cashier.id && cashier.role !== "OWNER" && cashier.role !== "MANAGER") throw new Error("DRAFT_FORBIDDEN");
+        const changed = await tx.order.updateMany({ where: { id: body.draftId, status: "DRAFT" }, data: orderFields });
+        if (changed.count !== 1) throw new Error("DRAFT_NOT_FOUND");
+        order = await tx.order.update({ where: { id: body.draftId }, data: { lines: { deleteMany: {}, create: lines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
+      } else {
+        order = await tx.order.create({ data: { ...orderFields, lines: { create: lines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
+      }
 
       for (const [ingredientId, required] of ingredientDemand) {
         const changed = await tx.ingredient.updateMany({
@@ -195,6 +195,8 @@ export async function POST(request: NextRequest) {
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
+    if (message === "DRAFT_NOT_FOUND") return NextResponse.json({ error: "The saved draft no longer exists or has already been completed." }, { status: 409 });
+    if (message === "DRAFT_FORBIDDEN") return NextResponse.json({ error: "You cannot complete this draft." }, { status: 403 });
     if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key was already used by a different cashier or a different checkout request." }, { status: 409 });
     if (message === "INVALID_PRICE" || message === "INVALID_TOTAL") return NextResponse.json({ error: "The order total is invalid." }, { status: 422 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
