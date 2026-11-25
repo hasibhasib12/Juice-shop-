@@ -16,7 +16,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
 - Checkout supports cash and cash plus a manually confirmed external tender (no gateway). It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
 - Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; item-level return/restock handling, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Partial monetary refunds are now implemented. Manager-authorized discounts are now implemented.
+- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; finished-product restocking (no finished-product inventory model yet), direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Partial monetary refunds are now implemented. Manager-authorized discounts are now implemented.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -84,7 +84,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
 - [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
-- [ ] Item-level return quantities, physical return inspection and eligible ingredient restocking; monetary refunds do not automatically increase stock.
+- [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Finished-product inventory is not yet modeled, so sealed returns are recorded as not restockable rather than incorrectly increasing ingredient stock.
 - [ ] Preview acceptance test with the owner using realistic sample data.
 - [ ] Production readiness checklist and explicit owner approval before any production release.
 
