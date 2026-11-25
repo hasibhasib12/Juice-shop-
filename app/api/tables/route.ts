@@ -18,7 +18,7 @@ export async function GET() {
         select: { id: true, name: true, section: true, capacity: true, sortOrder: true,
           orders: { where: { status: "DRAFT" }, take: 1, select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } } },
       }),
-      prisma.order.findMany({ where: { status: "DRAFT", tableId: null, ...(canManage(user.role) ? {} : { cashierId: user.id }) },
+      prisma.order.findMany({ where: { status: "DRAFT", ...(canManage(user.role) ? {} : { cashierId: user.id }) },
         orderBy: { createdAt: "asc" }, take: 100,
         select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } }),
     ]);
