@@ -454,7 +454,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       id: otherBranchManagerId, name: "Other Branch Manager",
       email: otherBranchManagerEmail, passwordHash: passwordHash(password),
       role: "MANAGER", branchId: otherBranch.id,
-      permissionOverrides: { VIEW_ALL_ORDERS: true, PROCESS_REFUNDS: true, MANAGE_INVENTORY: true },
+      permissionOverrides: { VIEW_ALL_ORDERS: true, PROCESS_REFUNDS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true },
     } });
     const otherBranchLogin = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
@@ -482,6 +482,21 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       body: JSON.stringify({ productId, ingredientId, quantity: "1" }),
     });
     await expectStatus(foreignRecipeWrite, 404);
+    const foreignSuppliers = await fetch(`${baseUrl}/api/admin/suppliers`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignSuppliers, 200);
+    const foreignSuppliersJson = await foreignSuppliers.json() as { suppliers: { id: string }[] };
+    assert.equal(foreignSuppliersJson.suppliers.some((item) => item.id === supplierId), false);
+    const foreignPurchaseOrders = await fetch(`${baseUrl}/api/admin/purchase-orders`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignPurchaseOrders, 200);
+    const foreignPurchaseOrdersJson = await foreignPurchaseOrders.json() as { orders: { id: string }[]; suppliers: { id: string }[]; ingredients: { id: string }[] };
+    assert.equal(foreignPurchaseOrdersJson.orders.some((item) => item.id === purchaseOrderId), false);
+    assert.equal(foreignPurchaseOrdersJson.suppliers.some((item) => item.id === supplierId), false);
+    assert.equal(foreignPurchaseOrdersJson.ingredients.some((item) => item.id === ingredientId), false);
+    const foreignPurchaseOrderCreate = await fetch(`${baseUrl}/api/admin/purchase-orders`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ supplierId, currency: "AFN", lines: [{ ingredientId, quantity: "1", unitCostMinor: 100 }] }),
+    });
+    await expectStatus(foreignPurchaseOrderCreate, 404);
     const otherBranchOrders = await fetch(`${baseUrl}/api/orders`, { headers: { cookie: otherBranchCookie } });
     await expectStatus(otherBranchOrders, 200);
     const otherBranchOrdersJson = await otherBranchOrders.json() as { orders: { id: string }[] };
