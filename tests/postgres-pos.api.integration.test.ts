@@ -547,6 +547,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       cashierRequest("/api/shifts/close", { closingCashMinor: 20 }),
     ]);
     assert.deepEqual(concurrentShiftCloses.map((response) => response.status).sort(), [200, 409]);
+    assert.equal(concurrentShiftCloses.find((response) => response.status === 200)?.headers.get("cache-control"), "no-store");
     const closedCashierShift = await prisma.shift.findUniqueOrThrow({ where: { id: createdCashierShiftId } });
     assert.ok(closedCashierShift.closedAt);
     assert.equal(closedCashierShift.expectedCashMinor, 20);
