@@ -27,9 +27,22 @@ export default function OrdersPage() {
   }
   useEffect(() => { void load(null, true); }, []);
   async function reverseOrder(order: Order, kind: "REFUND" | "VOID") {
+    const alreadyRefunded = order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
+    const remainingMinor = order.totalMinor - alreadyRefunded;
+    if (remainingMinor <= 0) return;
+    const defaultAmount = (remainingMinor / 100).toFixed(2);
+    const amountInput = kind === "VOID"
+      ? defaultAmount
+      : window.prompt(`Refund amount in ${order.currency} (maximum ${money(remainingMinor, order.currency)}):`, defaultAmount);
+    if (amountInput === null) return;
+    const amountMinor = Math.round(Number(amountInput) * 100);
+    if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0 || amountMinor > remainingMinor) {
+      setNotice("Enter a valid refund amount within the remaining refundable balance.");
+      return;
+    }
     const reason = window.prompt(`Reason for ${kind.toLowerCase()} of order #${order.orderNumber}:`);
     if (!reason || reason.trim().length < 3) return;
-    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} the full ${money(order.totalMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone. Any non-cash portion must also be returned outside the POS.`)) return;
+    if (!window.confirm(`${kind === "VOID" ? "Void" : "Refund"} ${money(amountMinor, order.currency)} for order #${order.orderNumber}? This cannot be undone. Any non-cash portion must also be returned outside the POS.`)) return;
     setReversalBusy(order.id); setNotice("");
     try {
       const response = await fetch(`/api/orders/${order.id}/refund`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, reason, amountMinor }) });
