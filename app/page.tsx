@@ -194,6 +194,7 @@ export default function Home() {
         body: JSON.stringify({
           items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
           paymentMethod: "CASH",
+          cashReceivedMinor: total,
           idempotencyKey: requestKey,
         }),
       });
