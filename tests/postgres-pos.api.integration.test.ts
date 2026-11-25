@@ -185,6 +185,28 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       method, headers: { "content-type": "application/json", cookie: cashierCookie },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
+
+    const deniedPurchasingRead = await cashierRequest("/api/admin/supplier-invoices", undefined, "GET");
+    await expectStatus(deniedPurchasingRead, 403);
+    const deniedPurchasingWrite = await cashierRequest("/api/admin/supplier-invoices", {
+      action: "payment", invoiceId: "not-authorized", amountMinor: 1, method: "OTHER",
+    });
+    await expectStatus(deniedPurchasingWrite, 403);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_PURCHASING: true } } });
+    const grantedPurchasingRead = await cashierRequest("/api/admin/supplier-invoices", undefined, "GET");
+    await expectStatus(grantedPurchasingRead, 200);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_PURCHASING: false } } });
+    const revokedPurchasingRead = await cashierRequest("/api/admin/supplier-invoices", undefined, "GET");
+    await expectStatus(revokedPurchasingRead, 403);
+    const crossOriginSupplierWrite = await fetch(`${baseUrl}/api/admin/suppliers`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json", cookie,
+        origin: "https://attacker.invalid", "sec-fetch-site": "cross-site",
+      },
+      body: JSON.stringify({ name: "Cross-origin attempt" }),
+    });
+    await expectStatus(crossOriginSupplierWrite, 403);
     const malformedDiscountEmail = await cashierRequest("/api/discounts/authorize", {
       managerEmail: 123, managerPassword: password, discountMinor: 1, reason: "Test", items: [],
     });
