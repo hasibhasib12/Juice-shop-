@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
         where: { id: { in: [...quantities.keys()] }, branchId: cashier.branchId, status: "ACTIVE", available: true, category: { active: true } },
         select: {
           id: true, name: true, priceMinor: true, currency: true,
-          recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } },
-          variants: { where: { active: true }, include: { recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } } } },
+          recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { branchId: true, name: true, unit: true, quantityOnHand: true } } } },
+          variants: { where: { active: true }, include: { recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { branchId: true, name: true, unit: true, quantityOnHand: true } } } } } },
           modifierGroups: { where: { active: true }, include: { options: { where: { active: true } } } },
         },
       });
@@ -159,7 +159,8 @@ export async function POST(request: NextRequest) {
       }
       for (const [ingredientId, required] of ingredientDemand) {
         const ingredient = [...products.flatMap((product) => product.recipeItems), ...products.flatMap((product) => product.variants.flatMap((variant) => variant.recipeItems))].find((item) => item.ingredientId === ingredientId)?.ingredient;
-        if (!ingredient || ingredient.quantityOnHand.lt(required)) throw new Error("INSUFFICIENT_STOCK");
+        if (!ingredient || ingredient.branchId !== cashier.branchId) throw new Error("BRANCH_INVENTORY_MISMATCH");
+        if (ingredient.quantityOnHand.lt(required)) throw new Error("INSUFFICIENT_STOCK");
       }
 
       let order;
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
 
       for (const [ingredientId, required] of ingredientDemand) {
         const changed = await tx.ingredient.updateMany({
-          where: { id: ingredientId, quantityOnHand: { gte: required } },
+          where: { id: ingredientId, branchId: cashier.branchId, quantityOnHand: { gte: required } },
           data: { quantityOnHand: { decrement: required } },
         });
         if (changed.count !== 1) throw new Error("INSUFFICIENT_STOCK");
@@ -234,6 +235,7 @@ export async function POST(request: NextRequest) {
     if (message === "INVALID_MODIFIER" || message === "INVALID_MODIFIER_SELECTION") return NextResponse.json({ error: "Selected extras are invalid or do not meet the required choices." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
+    if (message === "BRANCH_INVENTORY_MISMATCH") return NextResponse.json({ error: "A recipe ingredient is not assigned to this branch. Ask a manager to correct the recipe before selling this item." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
     if (message === "DRAFT_NOT_FOUND") return NextResponse.json({ error: "The saved draft no longer exists or has already been completed." }, { status: 409 });
