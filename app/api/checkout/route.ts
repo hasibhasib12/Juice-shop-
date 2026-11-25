@@ -7,12 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type CheckoutItem = { productId: string; quantity: number };
+type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
 
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; idempotencyKey?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string };
   try {
     body = await request.json();
   } catch {
@@ -30,8 +31,9 @@ export async function POST(request: NextRequest) {
   if (typeof key !== "string" || key.length < 12 || key.length > 100) {
     return NextResponse.json({ error: "A valid checkout idempotency key is required." }, { status: 400 });
   }
-  if (body.paymentMethod !== "CASH") {
-    return NextResponse.json({ error: "Only cash checkout is enabled. Card payments require a configured payment provider." }, { status: 422 });
+  const tenders = body.paymentTenders ?? (body.paymentMethod === "CASH" ? [{ method: "CASH" as const, amountMinor: 0 }] : null);
+  if (!tenders || !Array.isArray(tenders) || tenders.length < 1 || tenders.length > 2 || !tenders.every((tender) => tender && (tender.method === "CASH" || tender.method === "OTHER") && Number.isSafeInteger(tender.amountMinor) && tender.amountMinor > 0 && tender.amountMinor <= 2_000_000_000) || new Set(tenders.map((tender) => tender.method)).size !== tenders.length) {
+    return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
   const quantities = new Map<string, number>();
@@ -78,9 +80,13 @@ export async function POST(request: NextRequest) {
       const taxMinor = new Prisma.Decimal(subtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
       const totalMinor = subtotalMinor + taxMinor;
       if (!Number.isSafeInteger(taxMinor) || !Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("INVALID_TOTAL");
-      const cashReceivedMinor = body.cashReceivedMinor ?? totalMinor;
-      if (!Number.isSafeInteger(cashReceivedMinor) || cashReceivedMinor < totalMinor || cashReceivedMinor > 2_000_000_000) throw new Error("INSUFFICIENT_TENDER");
-      const changeDueMinor = cashReceivedMinor - totalMinor;
+      const normalizedTenders = tenders.map((tender) => ({ ...tender, amountMinor: tender.amountMinor || totalMinor }));
+      const tenderTotal = normalizedTenders.reduce((sum, tender) => sum + tender.amountMinor, 0);
+      if (!Number.isSafeInteger(tenderTotal) || tenderTotal !== totalMinor) throw new Error("TENDER_TOTAL_MISMATCH");
+      const cashPayment = normalizedTenders.find((tender) => tender.method === "CASH");
+      const cashReceivedMinor = cashPayment ? (normalizedTenders.length === 1 ? (body.cashReceivedMinor ?? cashPayment.amountMinor) : cashPayment.amountMinor) : null;
+      if (cashReceivedMinor !== null && (!Number.isSafeInteger(cashReceivedMinor) || cashReceivedMinor < cashPayment!.amountMinor || cashReceivedMinor > 2_000_000_000)) throw new Error("INSUFFICIENT_TENDER");
+      const changeDueMinor = cashReceivedMinor === null ? null : cashReceivedMinor - cashPayment!.amountMinor;
       const ingredientDemand = new Map<string, Prisma.Decimal>();
       for (const product of products) {
         const soldQuantity = quantities.get(product.id)!;
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
           idempotencyKey: key,
           completedAt: new Date(),
           lines: { create: lines },
-          payments: { create: { method: "CASH", status: "COMPLETED", amountMinor: totalMinor, currency, cashReceivedMinor, changeDueMinor } },
+          payments: { create: normalizedTenders.map((tender) => ({ method: tender.method, status: "COMPLETED" as const, amountMinor: tender.amountMinor, currency, ...(tender.method === "CASH" ? { cashReceivedMinor, changeDueMinor } : {}) })) },
         },
         include: { lines: true, payments: true },
       });
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest) {
           action: "ORDER_COMPLETED",
           entityType: "Order",
           entityId: order.id,
-          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, paymentMethod: "CASH", cashReceivedMinor, changeDueMinor },
+          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, taxMinor, taxRateBps, currency, payments: normalizedTenders.map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })), cashReceivedMinor, changeDueMinor },
         },
       });
       return order;
@@ -151,7 +157,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must be at least the order total and within the supported amount." }, { status: 400 });
+    if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must cover the cash portion." }, { status: 400 });
+    if (message === "TENDER_TOTAL_MISMATCH") return NextResponse.json({ error: "Payment amounts must add up exactly to the order total." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
