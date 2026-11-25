@@ -265,3 +265,29 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .cash-movement-form{margin-top:16px}.cash-movement-list{margin-top:16px}.cash-movement-list .report-row span{flex:1;min-width:0;overflow-wrap:anywhere}
 
 .cash-movement-form{margin-top:16px}.cash-movement-list{margin-top:16px}.cash-movement-list .report-row span{flex:1;min-width:0;overflow-wrap:anywhere}
+
+
+/* Compact order tools and keep checkout controls together in the right rail */
+.order-card{max-height:calc(100vh - 150px);align-self:stretch}
+.order-quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px 10px;background:#f5f5f6;border-bottom:1px solid #e1dfe2}
+.order-quick-actions button{min-width:0;height:36px;padding:4px 3px;border:1px solid #e5dce1;border-radius:8px;background:#fff;color:#70213e;display:flex;align-items:center;justify-content:center;gap:5px;font-size:10px;font-weight:800;white-space:nowrap}
+.order-quick-actions button span{font-size:14px;color:#b37a18;line-height:1}
+.order-quick-actions button:hover{background:#fff5f8;border-color:#c58a9f}
+.order-items{flex:1 1 auto;min-height:72px;max-height:none;padding:0 10px}
+.order-item{min-height:64px;padding-top:6px;padding-bottom:6px}
+.order-item>img{width:40px;height:40px;flex-basis:40px}
+.order-summary{padding:8px 14px 6px;gap:5px}
+.order-total{height:44px;flex:0 0 44px;font-size:15px}
+.order-total strong{font-size:17px}
+.cash-tender-panel{padding:8px 12px 7px;gap:5px}
+.cash-tender-panel>input{height:37px;font-size:15px}
+.cash-tender-presets button{padding:5px 7px}
+.payment-actions{padding:7px 10px 6px;gap:7px}
+.payment-actions button{height:43px;font-size:12px}
+.pay-button{font-size:14px!important}
+.place-order{height:40px;margin:0 10px 7px;font-size:13px;gap:7px}
+.place-order span{font-size:16px}
+.pos-notice{margin-bottom:5px;padding:7px 9px}
+.preview-note{padding:5px}
+@media(max-width:850px){.order-card{max-height:none;min-height:430px}.order-items{max-height:190px;flex:1 1 150px}}
+@media(max-width:580px){.order-card{min-height:0;max-height:none}.order-quick-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:7px}.order-quick-actions button{height:34px;font-size:9px}.order-items{max-height:180px;min-height:65px;flex:1 1 120px}.order-item{min-height:60px}.order-summary{padding:7px 12px 5px}.order-total{height:42px;flex-basis:42px}.cash-tender-panel{padding:7px 10px 6px}.payment-actions button{height:41px}.place-order{height:38px}}

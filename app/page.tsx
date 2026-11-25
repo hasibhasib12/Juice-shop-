@@ -398,18 +398,18 @@ export default function Home() {
             ))}
             {!loadingProducts && visibleProducts.length === 0 && <div className="no-products">No products found in this category.</div>}
           </div>
-          <div className="quick-actions">
+        </section>
+
+        <aside className="order-card">
+          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
+          <div className="order-quick-actions" aria-label="Order tools">
             <button onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
             <button onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
             <button onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
             <button onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
-            <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
+            <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Receipt</button>
           </div>
-        </section>
-
-        <aside className="order-card">
-          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
           <div className="order-items">
             {cart.length === 0 ? (
               <div className="cart-empty"><span>🛍</span><b>Your order is empty</b><small>Add a drink to get started</small></div>
