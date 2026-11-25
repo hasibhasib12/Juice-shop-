@@ -107,8 +107,11 @@ export async function PUT(request: NextRequest) {
       const currentCurrencyRow = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
       const currentCurrency = typeof currentCurrencyRow?.value === "string" ? currentCurrencyRow.value.toUpperCase() : defaults.currency;
       if (settings.currency !== currentCurrency) {
-        const openShifts = await tx.shift.count({ where: { closedAt: null } });
-        if (openShifts > 0) throw new Error("STORE_CURRENCY_SHIFT_OPEN");
+        const [openShifts, openPurchaseOrders] = await Promise.all([
+          tx.shift.count({ where: { closedAt: null } }),
+          tx.purchaseOrder.count({ where: { status: { in: ["DRAFT", "PARTIALLY_RECEIVED"] } } }),
+        ]);
+        if (openShifts > 0 || openPurchaseOrders > 0) throw new Error("STORE_CURRENCY_IN_USE");
       }
       for (const [field, value] of Object.entries(settings)) {
         if (typeof value !== "string" && typeof value !== "number") continue;
@@ -124,8 +127,8 @@ export async function PUT(request: NextRequest) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ settings }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    if (error instanceof Error && error.message === "STORE_CURRENCY_SHIFT_OPEN") {
-      return NextResponse.json({ error: "Close all active cashier shifts before changing the store currency. This prevents mixed-currency cash reconciliation." }, { status: 409 });
+    if (error instanceof Error && error.message === "STORE_CURRENCY_IN_USE") {
+      return NextResponse.json({ error: "Close all active cashier shifts and finish or cancel open purchase orders before changing the store currency. This prevents mixed-currency cash reconciliation and inventory valuation." }, { status: 409 });
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "Store activity changed while settings were being saved. Reload and retry." }, { status: 409 });
