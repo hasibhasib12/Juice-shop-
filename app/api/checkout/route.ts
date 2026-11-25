@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
-  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId);
+  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId, { customerName: body.customerName, notes: body.notes });
 
   const quantities = new Map<string, number>();
   for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
