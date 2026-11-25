@@ -59,10 +59,13 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Milestone 5 — Staff, shifts, cash and reports
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
-- [ ] Complete role/permission management and discount/refund/void approval rules.
+- [x] Manager/owner staff directory, cashier creation, account activation/deactivation, and owner-controlled role assignment.
+- [ ] Fine-grained permissions and discount/refund/void approval rules; password reset/change workflow.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
-- [ ] Paid-in/out, shift management UI and shift-to-order association.
-- [ ] Daily/weekly/monthly sales, product mix, tax, tender, refunds, stock and staff reports.
+- [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
+- [ ] Paid-in/out, shift-to-order association, and shift report export.
+- [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
+- [ ] Tax, refunds, stock valuation, staff performance reports and CSV/PDF export.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
