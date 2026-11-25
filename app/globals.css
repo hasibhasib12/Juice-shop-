@@ -189,7 +189,7 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .report-controls label{display:flex;flex-direction:column;gap:6px;color:#f7e8ee;font-size:11px;font-weight:700}
 .report-controls input,.report-controls select{height:40px;min-width:150px;border:1px solid #82405a;border-radius:9px;background:#260713;color:#fff;padding:0 10px}
 .report-controls button{height:40px;padding:0 16px;border:0;border-radius:9px;background:#20c51d;color:#fff;font-weight:800}
-.report-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.report-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}
 .report-metrics article{display:flex;flex-direction:column;gap:8px;padding:19px;border:1px solid #713047;border-radius:14px;background:linear-gradient(160deg,#50152b,#310b1b)}
 .report-metrics span,.report-metrics article>span{font-size:10px;letter-spacing:.12em;font-weight:800;color:#f1a8bd}
 .report-metrics strong{font-size:clamp(18px,2.2vw,27px);letter-spacing:-.04em}
