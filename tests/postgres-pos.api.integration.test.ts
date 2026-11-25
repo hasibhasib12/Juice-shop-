@@ -33,6 +33,8 @@ async function waitForServer(child: ChildProcess) {
 test("POS HTTP API integration: login, checkout, refund and item return", { skip: !enabled, timeout: 180_000 }, async () => {
   const suffix = randomUUID();
   const userId = `api-it-user-${suffix}`;
+  const cashierId = `api-it-cashier-${suffix}`;
+  const tableId = `api-it-table-${suffix}`;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const shiftId = `api-it-shift-${suffix}`;
@@ -44,6 +46,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       id: userId, name: "POS API Integration Owner",
       email: `${suffix}@api-integration.invalid`,
       passwordHash: passwordHash(password), role: "OWNER",
+    } });
+    await prisma.user.create({ data: {
+      id: cashierId, name: "POS API Integration Cashier",
+      email: `cashier-${suffix}@api-integration.invalid`,
+      passwordHash: passwordHash(password), role: "CASHIER",
     } });
     await prisma.category.create({ data: { id: categoryId, name: `API Integration ${suffix}` } });
     await prisma.product.create({ data: {
@@ -73,6 +80,27 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify(body),
     });
+
+    const cashierLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: `cashier-${suffix}@api-integration.invalid`, password }),
+    });
+    await expectStatus(cashierLogin, 200);
+    const cashierCookie = cashierLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const cashierRequest = (path: string, body: unknown, method = "POST") => fetch(`${baseUrl}${path}`, {
+      method, headers: { "content-type": "application/json", cookie: cashierCookie },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
+    await expectStatus(deniedTableCreate, 403);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
+    const allowedTableCreate = await cashierRequest("/api/tables", { name: `API table ${suffix}` });
+    await expectStatus(allowedTableCreate, 201);
+    const tableJson = await allowedTableCreate.json() as { table: { id: string } };
+    assert.ok(tableJson.table.id);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: false } } });
+    const deniedTableUpdate = await cashierRequest("/api/tables", { id: tableJson.table.id, name: "Should be denied" }, "PATCH");
+    await expectStatus(deniedTableUpdate, 403);
 
     const checkoutBody = {
       items: [{ productId, quantity: 1 }],
@@ -136,12 +164,14 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.orderLineReturn.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.order.deleteMany({ where: { cashierId: userId } });
-    await prisma.auditEvent.deleteMany({ where: { userId } });
+    await prisma.auditEvent.deleteMany({ where: { userId: { in: [userId, cashierId] } } });
+    await prisma.diningTable.deleteMany({ where: { name: { startsWith: "API table " } } });
+    await prisma.auditEvent.deleteMany({ where: { entityId: tableId } });
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId] } } });
     await prisma.$disconnect();
   }
 });
