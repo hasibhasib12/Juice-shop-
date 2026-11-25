@@ -542,7 +542,7 @@ export default function Home() {
         <aside className="order-card">
           <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" disabled={checkoutBusy || checkoutUncertain} onClick={() => setCart([])}>×</button></div>
           <div className="order-quick-actions" aria-label="Order tools">
-            <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
+            <button type="button" disabled={checkoutBusy} onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
             <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
             <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
