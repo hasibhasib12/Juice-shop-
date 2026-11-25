@@ -41,13 +41,15 @@ export async function POST(request: NextRequest) {
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   const body = parsed as { name?: string; description?: string; imageUrl?: string; sku?: string; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean };
-  const name = body.name?.trim();
-  const currency = body.currency?.trim().toUpperCase();
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const currency = typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "";
   if (!name || name.length > 100 || !body.categoryId || !Number.isSafeInteger(body.priceMinor) || (body.priceMinor ?? 0) < 1 || !currency || !/^[A-Z]{3}$/.test(currency)) {
     return NextResponse.json({ error: "Name, category, positive price in minor units and ISO currency are required." }, { status: 400 });
   }
-  if (body.description && body.description.length > 500) return NextResponse.json({ error: "Description is too long." }, { status: 400 });
-  if (body.imageUrl && (body.imageUrl.length > 1000 || !/^https:\/\//i.test(body.imageUrl))) return NextResponse.json({ error: "Product image must be an HTTPS URL." }, { status: 400 });
+  if (body.description !== undefined && (typeof body.description !== "string" || body.description.length > 500)) return NextResponse.json({ error: "Description is too long or invalid." }, { status: 400 });
+  if (body.imageUrl !== undefined && (typeof body.imageUrl !== "string" || body.imageUrl.length > 1000 || !/^https:\/\//i.test(body.imageUrl))) return NextResponse.json({ error: "Product image must be an HTTPS URL." }, { status: 400 });
+  if (body.sku !== undefined && (typeof body.sku !== "string" || body.sku.length > 100)) return NextResponse.json({ error: "SKU must be 100 characters or fewer." }, { status: 400 });
+  if (body.available !== undefined && typeof body.available !== "boolean") return NextResponse.json({ error: "Availability must be true or false." }, { status: 400 });
   try {
     const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
     if (!category || !category.active) return NextResponse.json({ error: "Choose an active category." }, { status: 400 });
