@@ -10,7 +10,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Next.js 15 / React 19 / TypeScript application with the approved pomegranate POS layout.
 - PostgreSQL/Neon is connected to the application, but the current Vercel Preview and Production database environment variables share the same integration values. No migration or seed has been run because a separate Preview database branch has not yet been verified.
 - Prisma schema, initial SQL migration, repeatable catalogue seed, and database health endpoint are committed.
-- Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards while tables are missing.
+- Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards only if the live catalogue cannot be loaded.
+- Manager/owner catalogue APIs and a branded `/catalog` management screen now support creating, editing, hiding, and archiving products, adding categories, HTTPS image URLs, SKU, currency and price updates. Writes are audited.
 - Store country, currency, timezone and locale have Afghanistan / AFN / Asia-Kabul defaults and an owner-only settings API.
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
 - Checkout API currently supports cash only. It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
@@ -31,13 +32,14 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 1 — Data and business foundation
 - [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
-- [ ] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; current Preview/Production variables are shared, so migration/seed is blocked.
+- [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
 - [ ] Expand schema for variants, modifiers, refunds, cash movements, discounts and customers.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
 ## Milestone 2 — Catalogue and checkout
-- [ ] Admin product/category CRUD, image management, availability, sizes, variants, extras, and price rules.
+- [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
+- [ ] Category rename/archive, image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, configurable tax and totals.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
