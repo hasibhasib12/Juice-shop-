@@ -4,9 +4,9 @@ import Link from "next/link";
 
 import { FormEvent, useEffect, useState } from "react";
 
-type PermissionKey = "VIEW_REPORTS" | "MANAGE_INVENTORY" | "MANAGE_PURCHASING" | "PROCESS_REFUNDS" | "MANAGE_TABLES";
+type PermissionKey = "VIEW_REPORTS" | "VIEW_ALL_ORDERS" | "MANAGE_INVENTORY" | "MANAGE_PURCHASING" | "PROCESS_REFUNDS" | "MANAGE_TABLES";
 type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string; permissions?: Record<PermissionKey, boolean> };
-const permissionLabels: Record<PermissionKey, string> = { VIEW_REPORTS: "Reports", MANAGE_INVENTORY: "Inventory", MANAGE_PURCHASING: "Purchasing", PROCESS_REFUNDS: "Refunds", MANAGE_TABLES: "Tables" };
+const permissionLabels: Record<PermissionKey, string> = { VIEW_REPORTS: "Reports", VIEW_ALL_ORDERS: "All orders", MANAGE_INVENTORY: "Inventory", MANAGE_PURCHASING: "Purchasing", PROCESS_REFUNDS: "Refunds", MANAGE_TABLES: "Tables" };
 export default function StaffPage() {
   const [users, setUsers] = useState<Staff[]>([]);
   const [currentRole, setCurrentRole] = useState("CASHIER");
