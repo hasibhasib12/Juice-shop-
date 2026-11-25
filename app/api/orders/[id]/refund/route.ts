@@ -27,7 +27,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const completedPayments = order.payments.filter((payment) => payment.status === "COMPLETED");
       const paidMinor = completedPayments.reduce((sum, payment) => sum + payment.amountMinor, 0);
       if (!completedPayments.length || paidMinor !== order.totalMinor) throw new Error("PAYMENT_TOTAL_MISMATCH");
-      const refund = await tx.refund.create({ data: { orderId: order.id, processedById: actor.id, kind, amountMinor: order.totalMinor, currency: order.currency, reason } });
+      const cashRefundMinor = completedPayments.filter((payment) => payment.method === "CASH").reduce((sum, payment) => sum + payment.amountMinor, 0);
+      const otherRefundMinor = completedPayments.filter((payment) => payment.method !== "CASH").reduce((sum, payment) => sum + payment.amountMinor, 0);
+      if (cashRefundMinor > 0) {
+        const activeShift = await tx.shift.findFirst({ where: { userId: actor.id, closedAt: null }, select: { id: true } });
+        if (!activeShift) throw new Error("NO_OPEN_SHIFT_FOR_CASH_REFUND");
+      }
+      const refund = await tx.refund.create({ data: { orderId: order.id, processedById: actor.id, kind, amountMinor: order.totalMinor, currency: order.currency, reason, cashRefundMinor, otherRefundMinor } });
       await tx.payment.updateMany({ where: { orderId: order.id, status: "COMPLETED" }, data: { status: "REFUNDED" } });
       const updatedOrder = await tx.order.update({ where: { id: order.id }, data: { status: kind === "VOID" ? "VOIDED" : "REFUNDED" }, select: { id: true, orderNumber: true, status: true, totalMinor: true, currency: true } });
       await tx.auditEvent.create({ data: { userId: actor.id, action: kind === "VOID" ? "ORDER_VOIDED" : "ORDER_REFUNDED", entityType: "Order", entityId: order.id, details: { refundId: refund.id, amountMinor: refund.amountMinor, currency: refund.currency, reason } } });
@@ -39,6 +45,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (message === "ORDER_NOT_FOUND") return NextResponse.json({ error: "Order not found." }, { status: 404 });
     if (message === "ORDER_ALREADY_REVERSED") return NextResponse.json({ error: "This order has already been refunded, voided or otherwise closed." }, { status: 409 });
     if (message === "PAYMENT_TOTAL_MISMATCH") return NextResponse.json({ error: "The completed payment ledger does not match the order total. Contact the owner; no reversal was recorded." }, { status: 409 });
+    if (message === "NO_OPEN_SHIFT_FOR_CASH_REFUND") return NextResponse.json({ error: "Open your cash shift before refunding a cash payment so the cash drawer can be reconciled." }, { status: 409 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2002" || error.code === "P2034")) return NextResponse.json({ error: "Another reversal was processed at the same time. Refresh the order history." }, { status: 409 });
     return NextResponse.json({ error: "The refund or void could not be completed." }, { status: 503 });
   }
