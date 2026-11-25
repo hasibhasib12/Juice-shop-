@@ -30,9 +30,16 @@ export default function Home() {
   const [customer, setCustomer] = useState("Walk-in customer");
   const [discount, setDiscount] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN" });
 
   useEffect(() => {
     let active = true;
+    fetch("/api/settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (active && data.settings) setStoreInfo(data.settings);
+      })
+      .catch(() => undefined);
     fetch("/api/products", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Products unavailable");
@@ -138,7 +145,7 @@ export default function Home() {
           <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products..." />
         </label>
-        <div className="header-date"><span>Afghanistan · Kabul</span><strong>AFN · Afghan Afghani</strong></div>
+        <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className="online-state"><span className="wifi">⌁</span><i/>Database</div>
         <button className="cashier"><span className="cashier-photo">A</span><span><b>Staff preview</b><small>Not signed in</small></span><span className="chevron">⌄</span></button>
       </header>
