@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         where: {
           method: "CASH",
           status: { in: ["COMPLETED", "REFUNDED"] },
-          order: { cashierId: user.id, createdAt: { gte: shift.openedAt, lte: closedAt } },
+          order: { shiftId: shift.id },
         },
         _sum: { amountMinor: true },
       });
