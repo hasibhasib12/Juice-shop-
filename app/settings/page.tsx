@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useState } from "react";
 
 type Settings = { countryCode: string; countryName: string; currency: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string; maxDiscountPercentBps: number };
@@ -37,7 +39,7 @@ export default function SettingsPage() {
   function field<K extends keyof Settings>(key: K, value: Settings[K]) { setSettings((current) => ({ ...current, [key]: value })); }
   return (
     <main className="catalog-admin">
-      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · OWNER SETTINGS</span><h1>Store settings</h1><p>Configure the store region, currency, time zone and tax rule.</p></div></header>
+      <header className="catalog-admin-header"><Link href="/" className="catalog-back">← Back to POS</Link><div><span>JUICE SHOP · OWNER SETTINGS</span><h1>Store settings</h1><p>Configure the store region, currency, time zone and tax rule.</p></div></header>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       <form className="catalog-editor settings-editor" onSubmit={save}>
         <div className="catalog-section-head"><div><span>REGIONAL SETTINGS</span><h2>Store location & currency</h2></div></div>
