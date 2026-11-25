@@ -22,6 +22,7 @@ export async function GET() {
   const access = await managerOnly();
   if (access.response) return access.response;
   const ingredients = await prisma.ingredient.findMany({
+    where: { branchId: access.user!.branchId },
     orderBy: { name: "asc" },
     include: { recipeItems: { include: { product: { select: { id: true, name: true } } } } },
   });
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Provide a name, unit and valid non-negative stock quantities." }, { status: 400 });
       }
       const ingredient = await prisma.$transaction(async (tx) => {
-        const created = await tx.ingredient.create({ data: { name, unit, quantityOnHand: opening, reorderLevel: reorder } });
+        const created = await tx.ingredient.create({ data: { branchId: access.user!.branchId, name, unit, quantityOnHand: opening, reorderLevel: reorder } });
         if (opening.gt(0)) await tx.stockMovement.create({ data: { ingredientId: created.id, type: "PURCHASE", quantity: opening, reason: "Opening stock" } });
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "INGREDIENT_CREATED", entityType: "Ingredient", entityId: created.id, details: { name, unit, openingQuantity: opening.toString() } } });
         return created;
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       }
       if (!quantity.isFinite() || quantity.lte(0) || quantity.gt(100000000)) return NextResponse.json({ error: "Quantity must be greater than zero." }, { status: 400 });
       const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-        const ingredient = await tx.ingredient.findUnique({ where: { id: body.ingredientId } });
+        const ingredient = await tx.ingredient.findFirst({ where: { id: body.ingredientId, branchId: access.user!.branchId } });
         if (!ingredient) throw new Error("INGREDIENT_NOT_FOUND");
         let delta = quantity;
         if (body.type === "WASTE") delta = quantity.negated();
