@@ -126,3 +126,11 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Commit `b2d699ad9f407547f210946fa8e6d8371d54ba24` passed CI run `45637110572`, including Prisma validation, development migrations, lint, tests, TypeScript and production build. It verifies concurrent purchase receiving, duplicate supplier invoice quantity protection, and concurrent supplier payment overpayment protection.
 - Commit `89461616847f51816d0c6c1a570096cb6d579976` passed CI run `45637573377`, including the same complete workflow. API integration tests now verify purchasing permission denial, permission grant and revocation, and cross-origin supplier mutation rejection.
 - Neon recovery review: the isolated development branch is a child branch of production. A clone/branch rehearsal has been verified, but it is not a PITR restore. The available branch/snapshot tools do not expose the required self-history restore operation for a controlled rehearsal; the Neon API/Console restore workflow must be exercised by an authorized operator on the disposable development branch. Production remains untouched.
+
+
+## Additional authorization work — 2026-11-25 (CI pending)
+- Added the explicit `VIEW_ALL_ORDERS` staff permission. Owner and manager retain all-order access by default; cashiers remain restricted to their own orders unless the owner grants the permission.
+- Order history and order-detail API routes now use the same effective-permission check, preventing inconsistent access decisions between list and detail views.
+- Added the permission to the owner-facing staff permissions screen.
+- Added unit coverage for role defaults and permission overrides, plus PostgreSQL/API integration coverage for cashier denial, explicit grant, and revocation across both order list and detail endpoints.
+- Changes are committed on `feature/pos-foundation`; CI verification on the latest head is pending. Vercel's status context reports the existing Hobby build-rate limit; no deployment was attempted.
