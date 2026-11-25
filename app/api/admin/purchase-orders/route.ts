@@ -106,27 +106,54 @@ export async function PATCH(request: NextRequest) {
   let parsed: unknown;
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  const body = parsed as { id?: unknown; action?: unknown };
+  const body = parsed as { id?: unknown; action?: unknown; receipts?: unknown };
   if (typeof body.id !== "string" || !body.id || (body.action !== "receive" && body.action !== "cancel")) return NextResponse.json({ error: "Choose a purchase order and valid action." }, { status: 400 });
+
+  const receiptInputs: { lineId: string; quantity: Prisma.Decimal }[] = [];
+  if (body.action === "receive") {
+    if (!Array.isArray(body.receipts) || body.receipts.length < 1 || body.receipts.length > 100) {
+      return NextResponse.json({ error: "Provide at least one line with a positive received quantity." }, { status: 400 });
+    }
+    try {
+      const seen = new Set<string>();
+      for (const raw of body.receipts) {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_RECEIPT");
+        const item = raw as { lineId?: unknown; quantity?: unknown };
+        if (typeof item.lineId !== "string" || !item.lineId || seen.has(item.lineId)) throw new Error("INVALID_RECEIPT");
+        const quantity = new Prisma.Decimal(String(item.quantity));
+        if (!quantity.isFinite() || quantity.lte(0) || quantity.gt(1000000) || quantity.decimalPlaces() > 3) throw new Error("INVALID_RECEIPT");
+        seen.add(item.lineId);
+        receiptInputs.push({ lineId: item.lineId, quantity });
+      }
+    } catch {
+      return NextResponse.json({ error: "Each received line needs a unique line ID and a positive quantity (up to 3 decimals)." }, { status: 400 });
+    }
+  }
 
   try {
     const order = await prisma.$transaction(async (tx) => {
       const current = await tx.purchaseOrder.findUnique({ where: { id: body.id as string }, include: { lines: true } });
       if (!current) throw new Error("ORDER_NOT_FOUND");
-      if (current.status !== "DRAFT") throw new Error("ORDER_NOT_DRAFT");
       if (body.action === "cancel") {
+        if (current.status !== "DRAFT" && current.status !== "PARTIALLY_RECEIVED") throw new Error("ORDER_NOT_OPEN");
         const cancelled = await tx.purchaseOrder.update({ where: { id: current.id }, data: { status: "CANCELLED" }, include: { supplier: { select: { id: true, name: true } }, lines: true } });
-        await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_CANCELLED", entityType: "PurchaseOrder", entityId: current.id, details: { orderNumber: current.orderNumber } } });
+        await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_CANCELLED", entityType: "PurchaseOrder", entityId: current.id, details: { orderNumber: current.orderNumber, alreadyReceived: current.lines.some((line) => line.receivedQuantity.gt(0)) } } });
         return cancelled;
       }
+      if (current.status !== "DRAFT" && current.status !== "PARTIALLY_RECEIVED") throw new Error("ORDER_NOT_OPEN");
 
-      for (const line of current.lines) {
+      const lineById = new Map(current.lines.map((line) => [line.id, line]));
+      const applied: { lineId: string; ingredientId: string; quantity: string }[] = [];
+      for (const receipt of receiptInputs) {
+        const line = lineById.get(receipt.lineId);
+        if (!line) throw new Error("RECEIPT_LINE_NOT_FOUND");
+        const outstanding = line.quantity.minus(line.receivedQuantity);
+        if (outstanding.lte(0) || receipt.quantity.gt(outstanding)) throw new Error("RECEIPT_EXCEEDS_OUTSTANDING");
         const ingredient = await tx.ingredient.findUnique({ where: { id: line.ingredientId } });
         if (!ingredient) throw new Error("INGREDIENT_NOT_FOUND");
-        const received = line.quantity;
         const previousValue = ingredient.quantityOnHand.mul(ingredient.averageCostMinor);
-        const receivedValue = received.mul(line.unitCostMinor);
-        const nextQuantity = ingredient.quantityOnHand.plus(received);
+        const receivedValue = receipt.quantity.mul(line.unitCostMinor);
+        const nextQuantity = ingredient.quantityOnHand.plus(receipt.quantity);
         const nextAverage = nextQuantity.gt(0)
           ? previousValue.plus(receivedValue).div(nextQuantity).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
           : new Prisma.Decimal(0);
@@ -136,22 +163,33 @@ export async function PATCH(request: NextRequest) {
           data: { quantityOnHand: nextQuantity, averageCostMinor: nextAverage.toNumber() },
         });
         await tx.stockMovement.create({
-          data: { ingredientId: ingredient.id, type: "PURCHASE", quantity: received, reason: `Purchase order #${current.orderNumber}` },
+          data: { ingredientId: ingredient.id, type: "PURCHASE", quantity: receipt.quantity, reason: `Purchase order #${current.orderNumber}` },
         });
-        await tx.purchaseOrderLine.update({ where: { id: line.id }, data: { receivedQuantity: received } });
+        await tx.purchaseOrderLine.update({
+          where: { id: line.id },
+          data: { receivedQuantity: line.receivedQuantity.plus(receipt.quantity) },
+        });
+        applied.push({ lineId: line.id, ingredientId: ingredient.id, quantity: receipt.quantity.toString() });
       }
+
+      const fullyReceived = current.lines.every((line) => {
+        const incoming = receiptInputs.find((receipt) => receipt.lineId === line.id)?.quantity ?? new Prisma.Decimal(0);
+        return line.receivedQuantity.plus(incoming).gte(line.quantity);
+      });
       const receivedOrder = await tx.purchaseOrder.update({
         where: { id: current.id },
-        data: { status: "RECEIVED", receivedAt: new Date() },
+        data: { status: fullyReceived ? "RECEIVED" : "PARTIALLY_RECEIVED", ...(fullyReceived ? { receivedAt: new Date() } : {}) },
         include: { supplier: { select: { id: true, name: true } }, lines: true },
       });
-      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_RECEIVED", entityType: "PurchaseOrder", entityId: current.id, details: { orderNumber: current.orderNumber, subtotalMinor: current.subtotalMinor, currency: current.currency } } });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_RECEIVED", entityType: "PurchaseOrder", entityId: current.id, details: { orderNumber: current.orderNumber, partial: !fullyReceived, receipts: applied } } });
       return receivedOrder;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json({ order }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message === "ORDER_NOT_FOUND") return NextResponse.json({ error: "Purchase order not found." }, { status: 404 });
-    if (error instanceof Error && error.message === "ORDER_NOT_DRAFT") return NextResponse.json({ error: "Only draft purchase orders can be received or cancelled." }, { status: 409 });
+    if (error instanceof Error && error.message === "ORDER_NOT_OPEN") return NextResponse.json({ error: "Only open purchase orders can be received or cancelled." }, { status: 409 });
+    if (error instanceof Error && error.message === "RECEIPT_LINE_NOT_FOUND") return NextResponse.json({ error: "A received line does not belong to this purchase order." }, { status: 400 });
+    if (error instanceof Error && error.message === "RECEIPT_EXCEEDS_OUTSTANDING") return NextResponse.json({ error: "A received quantity exceeds the outstanding quantity." }, { status: 400 });
     if (error instanceof Error && error.message === "INGREDIENT_NOT_FOUND") return NextResponse.json({ error: "A purchase order ingredient no longer exists." }, { status: 409 });
     if (error instanceof Error && error.message === "COST_TOO_LARGE") return NextResponse.json({ error: "Average stock cost is too large." }, { status: 400 });
     return NextResponse.json({ error: "Purchase order could not be processed." }, { status: 409 });
