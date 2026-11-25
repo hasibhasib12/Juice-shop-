@@ -14,7 +14,7 @@ function loginAttemptKey(email: string) {
 
 export async function checkLoginRateLimit(email: string) {
   const key = loginAttemptKey(email);
-  const rows = await prisma.$queryRaw<{ attempts: number; windowStartedAt: Date }>`
+  const rows = await prisma.$queryRaw<{ attempts: number; windowStartedAt: Date }[]>`
     INSERT INTO "LoginAttempt" ("key", "attempts", "windowStartedAt", "updatedAt")
     VALUES (${key}, 1, NOW(), NOW())
     ON CONFLICT ("key") DO UPDATE SET
