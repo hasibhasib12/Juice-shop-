@@ -49,6 +49,9 @@ export default function Home() {
   const [otherPaymentConfirmed, setOtherPaymentConfirmed] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState("");
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
@@ -249,6 +252,8 @@ export default function Home() {
           cashReceivedMinor,
           paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
           idempotencyKey: requestKey,
+          customerName,
+          notes: orderNotes,
           ...(discountApprovalId ? { discountApprovalId } : {}),
         }),
       });
@@ -262,6 +267,8 @@ export default function Home() {
       setCashTender("0.00");
       setSplitPayment(false);
       setOtherPaymentConfirmed(false);
+      setCustomerName("");
+      setOrderNotes("");
       setCheckoutKey("");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Checkout failed.");
@@ -329,7 +336,7 @@ export default function Home() {
             <button onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
             <button onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
-            <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
+            <button onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
             <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
           </div>
         </section>
@@ -383,6 +390,19 @@ export default function Home() {
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
+      {notesOpen && (
+        <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setNotesOpen(false); }}>
+          <form className="login-panel" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
+            <button className="login-close" type="button" aria-label="Close order notes" onClick={() => setNotesOpen(false)}>×</button>
+            <span className="login-kicker">CURRENT ORDER</span>
+            <h2>Customer & order notes</h2>
+            <p>Optional details are saved with the completed sale and shown on its receipt.</p>
+            <label>Customer name<input maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Walk-in customer"/></label>
+            <label>Order notes<textarea maxLength={1000} rows={4} value={orderNotes} onChange={(event) => setOrderNotes(event.target.value)} placeholder="Preparation requests or staff notes"/></label>
+            <button className="login-submit" type="submit">Save details</button>
+          </form>
+        </div>
+      )}
       {discountOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !discountBusy) setDiscountOpen(false); }}>
           <form className="login-panel" onSubmit={requestDiscount}>
