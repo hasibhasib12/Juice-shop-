@@ -23,6 +23,7 @@ export async function GET() {
   if (access.response) return access.response;
   const [invoices, orders] = await Promise.all([
     prisma.supplierInvoice.findMany({
+      where: { purchaseOrder: { branchId: access.user!.branchId } },
       orderBy: { createdAt: "desc" }, take: 200,
       include: {
         supplier: { select: { id: true, name: true } },
@@ -32,7 +33,7 @@ export async function GET() {
       },
     }),
     prisma.purchaseOrder.findMany({
-      where: { status: { in: ["RECEIVED", "PARTIALLY_RECEIVED"] } },
+      where: { branchId: access.user!.branchId, status: { in: ["RECEIVED", "PARTIALLY_RECEIVED"] } },
       orderBy: { createdAt: "desc" }, take: 100,
       include: {
         supplier: { select: { id: true, name: true } },
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     } catch { return NextResponse.json({ error: "Invoice lines need unique purchase-order lines, positive quantities and non-negative unit costs." }, { status: 400 }); }
     try {
       const invoice = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-        const order = await tx.purchaseOrder.findUnique({ where: { id: body.purchaseOrderId as string }, include: { lines: true } });
+        const order = await tx.purchaseOrder.findFirst({ where: { id: body.purchaseOrderId as string, branchId: access.user!.branchId }, include: { lines: true } });
         if (!order || !["RECEIVED", "PARTIALLY_RECEIVED"].includes(order.status)) throw new Error("ORDER_NOT_RECEIVED");
         const byId = new Map(order.lines.map((line) => [line.id, line]));
         for (const line of lines) {
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(paidAt.getTime())) return NextResponse.json({ error: "Enter a valid payment date." }, { status: 400 });
     try {
       const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-        const invoice = await tx.supplierInvoice.findUnique({ where: { id: body.invoiceId as string }, include: { payments: true } });
+        const invoice = await tx.supplierInvoice.findFirst({ where: { id: body.invoiceId as string, purchaseOrder: { branchId: access.user!.branchId } }, include: { payments: true } });
         if (!invoice || invoice.status === "VOIDED") throw new Error("INVOICE_UNAVAILABLE");
         const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountMinor, 0);
         const balance = invoice.totalMinor - paid;
