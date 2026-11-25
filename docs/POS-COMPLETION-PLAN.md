@@ -16,7 +16,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
 - Checkout supports cash and cash plus a manually confirmed external tender (no gateway). It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
 - Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; manager discounts, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete.
+- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; partial refunds, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete. Manager-authorized discounts are now implemented.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -34,7 +34,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
 - [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
 - [x] Expand schema for full-order refund/void records, payment tender allocation and cash movement ledger.
-- [ ] Expand schema for variants, modifiers, discounts and customers.
+- [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
@@ -43,10 +43,10 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Category rename/archive, image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
-- [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
+- [ ] Server-created draft orders, tables/customer/order notes, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.\n- [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement and order-to-shift migrations on the isolated Neon development branch.
+- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift and manager-discount migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
@@ -69,7 +69,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
 - [x] Manager/owner staff directory, cashier creation, account activation/deactivation, and owner-controlled role assignment.
 - [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
-- [ ] Fine-grained permissions, password reset/change workflow, and configurable approval thresholds.
+- [ ] Fine-grained permissions, password reset/change workflow, configurable discount approval thresholds and rate limiting.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
