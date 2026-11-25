@@ -307,8 +307,12 @@ export default function Home() {
       try {
         const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
         const shiftData = await shiftResponse.json();
-        if (data.user.role === "CASHIER" && shiftResponse.ok && !shiftData.shift) {
-          window.location.assign("/shift?welcome=1");
+        if (shiftResponse.ok && !shiftData.shift) {
+          if (data.user.role === "CASHIER") {
+            window.location.assign("/shift?welcome=1");
+            return;
+          }
+          setNotice(`Welcome, ${data.user.name}! Open a cash shift whenever you are ready to take sales.`);
           return;
         }
       } catch {
