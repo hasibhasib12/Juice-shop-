@@ -89,6 +89,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
 
+    const settingsResponse = await fetch(`${baseUrl}/api/settings`);
+    await expectStatus(settingsResponse, 200);
+    const settingsJson = await settingsResponse.json() as { settings: { currency: string; countryCode: string; countryName: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string; maxDiscountPercentBps: number } };
+    const requestedCurrency = settingsJson.settings.currency === "USD" ? "AFN" : "USD";
+    const blockedCurrencyChange = await fetch(`${baseUrl}/api/settings`, {
+      method: "PUT", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ ...settingsJson.settings, currency: requestedCurrency }),
+    });
+    await expectStatus(blockedCurrencyChange, 409);
+
     const categoryCreate = await fetch(`${baseUrl}/api/admin/categories`, {
       method: "POST", headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ name: `Audit Integration ${suffix}`, sortOrder: 17 }),
@@ -147,6 +157,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const openedShiftJson = await openedShiftResponse.json() as { shift: { id: string } };
     createdCashierShiftId = openedShiftJson.shift.id;
     assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCashierShiftId, action: "SHIFT_OPENED", userId: cashierId } }), 1);
+    const shiftOpenedEvent = await prisma.auditEvent.findFirstOrThrow({
+      where: { entityId: createdCashierShiftId, action: "SHIFT_OPENED", userId: cashierId },
+      select: { details: true },
+    });
+    assert.equal((shiftOpenedEvent.details as { currency?: string } | null)?.currency, settingsJson.settings.currency);
     const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
     await expectStatus(deniedTableCreate, 403);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
