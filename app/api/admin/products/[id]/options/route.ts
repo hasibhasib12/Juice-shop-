@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   const access = await catalogAccess();
   if (access.response) return access.response;
   const { id } = await context.params;
-  const product = await prisma.product.findUnique({ where: { id }, select: {
+  const product = await prisma.product.findFirst({ where: { id, branchId: access.user!.branchId }, select: {
     id: true, name: true,
     variants: { orderBy: { sortOrder: "asc" }, include: { recipeItems: { select: { ingredientId: true, quantity: true } } } },
     modifierGroups: { orderBy: { sortOrder: "asc" }, include: { options: { orderBy: { sortOrder: "asc" } } } },
@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
   try {
     const saved = await prisma.$transaction(async tx => {
-      const product = await tx.product.findUnique({ where: { id }, select: { id: true } });
+      const product = await tx.product.findFirst({ where: { id, branchId: access.user!.branchId }, select: { id: true } });
       if (!product) throw new Error("PRODUCT_NOT_FOUND");
       const ingredientIds = [...new Set(variants.flatMap(v => ((v.recipeItems ?? []) as {ingredientId:string}[]).map(r => r.ingredientId)))];
       const ingredients = ingredientIds.length ? await tx.ingredient.findMany({ where: { id: { in: ingredientIds } }, select: { id: true } }) : [];
