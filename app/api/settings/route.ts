@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";\nimport { getCurrentUser } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -82,6 +83,7 @@ export async function PUT(request: NextRequest) {
   try {
     await prisma.$transaction(async (tx) => {
       for (const [field, value] of Object.entries(settings)) {
+        if (typeof value !== "string") continue;
         await tx.posSetting.upsert({
           where: { key: `store.${field}` },
           update: { value },
