@@ -350,6 +350,19 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(forbiddenDraftDelete, 404);
 
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const deniedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: createdTableId });
+    await expectStatus(deniedForeignTableAssignment, 403);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true } } });
+    const grantedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: createdTableId });
+    await expectStatus(grantedForeignTableAssignment, 200);
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: draftId }, select: { tableId: true } })).tableId, createdTableId);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const revokedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: null });
+    await expectStatus(revokedForeignTableAssignment, 403);
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: draftId }, select: { tableId: true } })).tableId, createdTableId);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: {} } });
+
     const draftUpdate = await request("/api/orders/drafts", {
       id: draftId, items: checkoutItems, customerName: "Updated Draft Customer", notes: "Reviewed before checkout",
     });
