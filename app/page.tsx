@@ -27,7 +27,6 @@ export default function Home() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const [customer, setCustomer] = useState("Walk-in customer");
   const [discount, setDiscount] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "demo">("loading");
