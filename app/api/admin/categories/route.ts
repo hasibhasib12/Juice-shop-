@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   if (!name || name.length > 60) return NextResponse.json({ error: "Category name must be 1–60 characters." }, { status: 400 });
   try {
     const category = await prisma.$transaction(async (tx) => {
-      const created = await tx.category.create({ data: { name, sortOrder: Number.isSafeInteger(body.sortOrder) ? body.sortOrder! : 0 } });
+      const created = await tx.category.create({ data: { branchId: user.branchId, name, sortOrder: Number.isSafeInteger(body.sortOrder) ? body.sortOrder! : 0 } });
       await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_CREATED", entityType: "Category", entityId: created.id, details: { name } } });
       return created;
     });
@@ -85,7 +85,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const category = await prisma.$transaction(async (tx) => {
-      const updated = await tx.category.update({ where: { id: body.id as string }, data });
+      const updated = await tx.category.update({ where: { id: body.id as string, branchId: user.branchId }, data });
       await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_UPDATED", entityType: "Category", entityId: updated.id, details: data } });
       return updated;
     });
@@ -114,7 +114,7 @@ export async function DELETE(request: NextRequest) {
   const id = (parsed as { id: string }).id;
   try {
     const category = await prisma.$transaction(async (tx) => {
-      const archived = await tx.category.update({ where: { id }, data: { active: false } });
+      const archived = await tx.category.update({ where: { id, branchId: user.branchId }, data: { active: false } });
       await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_ARCHIVED", entityType: "Category", entityId: id, details: { name: archived.name } } });
       return archived;
     });
