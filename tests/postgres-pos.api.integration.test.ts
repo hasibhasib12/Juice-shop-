@@ -34,7 +34,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   const suffix = randomUUID();
   const userId = `api-it-user-${suffix}`;
   const cashierId = `api-it-cashier-${suffix}`;
-  const tableId = `api-it-table-${suffix}`;
+  let createdTableId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const shiftId = `api-it-shift-${suffix}`;
@@ -98,6 +98,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(allowedTableCreate, 201);
     const tableJson = await allowedTableCreate.json() as { table: { id: string } };
     assert.ok(tableJson.table.id);
+    createdTableId = tableJson.table.id;
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: false } } });
     const deniedTableUpdate = await cashierRequest("/api/tables", { id: tableJson.table.id, name: "Should be denied" }, "PATCH");
     await expectStatus(deniedTableUpdate, 403);
@@ -165,8 +166,10 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.order.deleteMany({ where: { cashierId: userId } });
     await prisma.auditEvent.deleteMany({ where: { userId: { in: [userId, cashierId] } } });
-    await prisma.diningTable.deleteMany({ where: { name: { startsWith: "API table " } } });
-    await prisma.auditEvent.deleteMany({ where: { entityId: tableId } });
+    if (createdTableId) {
+      await prisma.auditEvent.deleteMany({ where: { entityId: createdTableId } });
+      await prisma.diningTable.deleteMany({ where: { id: createdTableId } });
+    }
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
     await prisma.product.deleteMany({ where: { id: productId } });
