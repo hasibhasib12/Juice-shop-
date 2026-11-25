@@ -2,12 +2,25 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type Ingredient = { id: string; name: string; unit: string; quantityOnHand: string; reorderLevel: string; recipeItems: { product: { id: string; name: string } }[] };
+type Ingredient = { id: string; name: string; unit: string; quantityOnHand: string; reorderLevel: string; averageCostMinor: number; recipeItems: { product: { id: string; name: string } }[] };
+type Supplier = { id: string; name: string; active: boolean; phone?: string | null; email?: string | null };
+type PurchaseOrder = { id: string; orderNumber: number; status: "DRAFT" | "RECEIVED" | "CANCELLED"; currency: string; subtotalMinor: number; supplier: { name: string }; lines: { id: string; ingredientName: string; quantity: string; receivedQuantity: string; unitCostMinor: number; lineTotalMinor: number }[] };
 type Product = { id: string; name: string; recipeItems: { id: string; quantity: string; ingredient: { id: string; name: string; unit: string } }[] };
 
 export default function InventoryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [supplierEmail, setSupplierEmail] = useState("");
+  const [poSupplierId, setPoSupplierId] = useState("");
+  const [poIngredientId, setPoIngredientId] = useState("");
+  const [poQuantity, setPoQuantity] = useState("1");
+  const [poUnitCost, setPoUnitCost] = useState("0");
+  const [poNotes, setPoNotes] = useState("");
+  const [poLines, setPoLines] = useState<{ ingredientId: string; quantity: string; unitCostMinor: number; name: string; unit: string }[]>([]);
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("ml");
   const [opening, setOpening] = useState("0");
@@ -23,16 +36,22 @@ export default function InventoryPage() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [stockResponse, recipeResponse] = await Promise.all([fetch("/api/admin/inventory", { cache: "no-store" }), fetch("/api/admin/recipes", { cache: "no-store" })]);
+    const [stockResponse, recipeResponse, purchasingResponse] = await Promise.all([fetch("/api/admin/inventory", { cache: "no-store" }), fetch("/api/admin/recipes", { cache: "no-store" }), fetch("/api/admin/purchase-orders", { cache: "no-store" })]);
     const stockData = await stockResponse.json();
     const recipeData = await recipeResponse.json();
+    const purchasingData = await purchasingResponse.json();
     if (!stockResponse.ok) throw new Error(stockData.error || "Could not load inventory.");
     if (!recipeResponse.ok) throw new Error(recipeData.error || "Could not load recipes.");
+    if (!purchasingResponse.ok) throw new Error(purchasingData.error || "Could not load purchasing records.");
     setIngredients(stockData.ingredients);
     setProducts(recipeData.products);
+    setSuppliers(purchasingData.suppliers);
+    setPurchaseOrders(purchasingData.orders);
     setIngredientId((current) => current || stockData.ingredients[0]?.id || "");
     setProductId((current) => current || recipeData.products[0]?.id || "");
     setRecipeIngredientId((current) => current || stockData.ingredients[0]?.id || "");
+    setPoIngredientId((current) => current || stockData.ingredients[0]?.id || "");
+    setPoSupplierId((current) => current || purchasingData.suppliers[0]?.id || "");
   }
 
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
@@ -62,6 +81,55 @@ export default function InventoryPage() {
   function saveRecipe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void submit("/api/admin/recipes", "POST", { productId, ingredientId: recipeIngredientId, quantity: recipeQuantity }, "Recipe saved. Stock will be deducted when this product is sold.");
+  }
+
+  async function createSupplier(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/suppliers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: supplierName, phone: supplierPhone, email: supplierEmail }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not create supplier.");
+      setSupplierName(""); setSupplierPhone(""); setSupplierEmail(""); setNotice("Supplier added.");
+      await load(); setPoSupplierId(data.supplier.id);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create supplier."); }
+    finally { setBusy(false); }
+  }
+
+  function addPurchaseLine() {
+    const ingredient = ingredients.find((item) => item.id === poIngredientId);
+    const quantityValue = Number(poQuantity);
+    const costValue = Number(poUnitCost);
+    if (!ingredient || !Number.isFinite(quantityValue) || quantityValue <= 0 || !Number.isFinite(costValue) || costValue < 0) { setNotice("Enter a valid ingredient, quantity and unit cost."); return; }
+    if (poLines.some((line) => line.ingredientId === ingredient.id)) { setNotice("Each ingredient can appear once per purchase order."); return; }
+    setPoLines((current) => [...current, { ingredientId: ingredient.id, quantity: poQuantity, unitCostMinor: Math.round(costValue * 100), name: ingredient.name, unit: ingredient.unit }]);
+    setNotice("");
+  }
+
+  async function createPurchaseOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!poSupplierId || !poLines.length) { setNotice("Choose a supplier and add at least one ingredient line."); return; }
+    setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/purchase-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ supplierId: poSupplierId, currency: "AFN", notes: poNotes, lines: poLines.map(({ ingredientId, quantity, unitCostMinor }) => ({ ingredientId, quantity, unitCostMinor })) }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not create purchase order.");
+      setPoLines([]); setPoNotes(""); setNotice(`Purchase order #${data.order.orderNumber} created as a draft.`);
+      await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create purchase order."); }
+    finally { setBusy(false); }
+  }
+
+  async function processPurchaseOrder(order: PurchaseOrder, action: "receive" | "cancel") {
+    if (!window.confirm(action === "receive" ? `Receive all items on purchase order #${order.orderNumber} into stock?` : `Cancel purchase order #${order.orderNumber}?`)) return;
+    setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/purchase-orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: order.id, action }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not process purchase order.");
+      setNotice(action === "receive" ? `Purchase order #${order.orderNumber} received and stock updated.` : `Purchase order #${order.orderNumber} cancelled.`);
+      await load();
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not process purchase order."); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -96,11 +164,37 @@ export default function InventoryPage() {
           <p className="inventory-hint">When a cashier completes a cash sale, the POS deducts these quantities in the same database transaction as the order and payment.</p>
         </form>
       </section>
+      <section className="inventory-grid">
+        <form className="catalog-editor" onSubmit={createSupplier}>
+          <div className="catalog-section-head"><div><span>SUPPLIER DIRECTORY</span><h2>Add supplier</h2></div></div>
+          <label>Supplier name<input required maxLength={120} value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Supplier or wholesaler"/></label>
+          <label>Phone<input maxLength={40} value={supplierPhone} onChange={(e) => setSupplierPhone(e.target.value)} placeholder="Contact number"/></label>
+          <label>Email<input type="email" maxLength={254} value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="orders@example.com"/></label>
+          <button className="catalog-primary" disabled={busy}>Add supplier</button>
+          <p className="inventory-hint">{suppliers.length} active supplier(s) available for purchasing.</p>
+        </form>
+        <form className="catalog-editor" onSubmit={createPurchaseOrder}>
+          <div className="catalog-section-head"><div><span>PROCUREMENT</span><h2>Create purchase order</h2></div></div>
+          <label>Supplier<select required value={poSupplierId} onChange={(e) => setPoSupplierId(e.target.value)}><option value="">Choose supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          <div className="catalog-form-row"><label>Ingredient<select value={poIngredientId} onChange={(e) => setPoIngredientId(e.target.value)}>{ingredients.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}</select></label><label>Quantity<input type="number" min="0.001" step="0.001" value={poQuantity} onChange={(e) => setPoQuantity(e.target.value)}/></label></div>
+          <label>Unit cost (AFN)<input type="number" min="0" step="0.01" value={poUnitCost} onChange={(e) => setPoUnitCost(e.target.value)}/></label>
+          <button type="button" className="catalog-cancel" disabled={busy || !ingredients.length} onClick={addPurchaseLine}>Add ingredient line</button>
+          {poLines.map((line) => <div className="catalog-product" key={line.ingredientId}><div className="catalog-product-info"><b>{line.name}</b><span>{line.quantity} {line.unit} · AFN {(line.unitCostMinor / 100).toFixed(2)} / unit</span></div><button type="button" onClick={() => setPoLines((current) => current.filter((item) => item.ingredientId !== line.ingredientId))}>Remove</button></div>)}
+          <label>Notes (optional)<input maxLength={1000} value={poNotes} onChange={(e) => setPoNotes(e.target.value)}/></label>
+          <button className="catalog-primary" disabled={busy || !suppliers.length || !poLines.length}>Save draft purchase order</button>
+          <p className="inventory-hint">Drafts do not change stock. Receive an order below to add quantities and update weighted-average ingredient cost.</p>
+        </form>
+      </section>
+      <section className="catalog-list inventory-list">
+        <div className="catalog-section-head"><div><span>SUPPLIER ORDERS</span><h2>Purchase orders <small>{purchaseOrders.length}</small></h2></div></div>
+        {purchaseOrders.map((order) => <article className="catalog-product" key={order.id}><div className="catalog-placeholder">PO</div><div className="catalog-product-info"><b>#{order.orderNumber} · {order.supplier.name}</b><span>{order.lines.map((line) => `${line.ingredientName}: ${line.quantity}`).join(" · ")}</span><small>{order.status} · {order.currency} {(order.subtotalMinor / 100).toFixed(2)}</small></div>{order.status === "DRAFT" && <div className="catalog-product-actions"><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "receive")}>Receive</button><button type="button" disabled={busy} onClick={() => void processPurchaseOrder(order, "cancel")}>Cancel</button></div>}</article>)}
+        {!purchaseOrders.length && <p>No purchase orders yet.</p>}
+      </section>
       <section className="catalog-list inventory-list">
         <div className="catalog-section-head"><div><span>LIVE STOCK</span><h2>Ingredient levels <small>{ingredients.length} items</small></h2></div></div>
         {ingredients.map((item) => {
           const low = Number(item.quantityOnHand) <= Number(item.reorderLevel);
-          return <article className="catalog-product" key={item.id}><div className="catalog-placeholder">◉</div><div className="catalog-product-info"><b>{item.name}</b><span>{item.recipeItems.map((r) => r.product.name).join(" · ") || "Not assigned to a recipe"}</span><small>{low ? "Low stock" : "Stock level healthy"} · Alert at {item.reorderLevel} {item.unit}</small></div><strong className="inventory-quantity">{item.quantityOnHand} {item.unit}</strong></article>;
+          return <article className="catalog-product" key={item.id}><div className="catalog-placeholder">◉</div><div className="catalog-product-info"><b>{item.name}</b><span>{item.recipeItems.map((r) => r.product.name).join(" · ") || "Not assigned to a recipe"}</span><small>{low ? "Low stock" : "Stock level healthy"} · Alert at {item.reorderLevel} {item.unit}</small></div><strong className="inventory-quantity">{item.quantityOnHand} {item.unit}<small>Avg cost: AFN {(item.averageCostMinor / 100).toFixed(2)} / unit</small></strong></article>;
         })}
         {!ingredients.length && <p>No ingredients yet. Add your first stock item above.</p>}
       </section>
