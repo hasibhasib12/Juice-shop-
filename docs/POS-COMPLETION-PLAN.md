@@ -49,7 +49,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key bound to a canonical request fingerprint; reusing a key for a different cart/tender is rejected.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount, partial-refund and refund-history-index migrations on the isolated Neon development branch.
+- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount, partial-refund, refund-history-index and partial-purchase-receipt migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
@@ -66,8 +66,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Deduct configured recipe quantities only when a cash order completes, in the same transaction as order/payment creation; reject insufficient stock and roll back.
 - [x] Low-stock thresholds and waste/count adjustment movements.
 - [x] Supplier directory and purchase-order drafts with supplier, ingredient, quantity, unit cost and audit events.
-- [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; received/cancelled orders cannot be processed twice.
-- [ ] Supplier invoice matching, partial receipts, supplier payment tracking and stock valuation reports/exports.
+- [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; partial receipts update only the received quantities, reject over-receiving, keep outstanding lines open, and allow cancellation without reversing previously received stock.
+- [ ] Supplier invoice matching, supplier payment tracking and stock valuation reports/exports.
 - [x] Inventory movement ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
