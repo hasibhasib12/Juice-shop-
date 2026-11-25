@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
 
+  const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const period = request.nextUrl.searchParams.get("period") || "day";
   const dateParam = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period)) return NextResponse.json({ error: "Period must be day, week or month." }, { status: 400 });
@@ -48,11 +49,11 @@ export async function GET(request: NextRequest) {
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const orders = await prisma.order.findMany({
-    where: { status: { in: ["COMPLETED", "REFUNDED"] }, completedAt: { gte: start, lt: end } },
+    where: { status: { in: ["COMPLETED", "REFUNDED"] }, completedAt: { gte: start, lt: end }, ...(branchId ? { cashier: { branchId } } : {}) },
     select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
     orderBy: { completedAt: "desc" },
   });
-  const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true, kind: true } });
+  const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { processedBy: { branchId } } : {}) }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true, kind: true } });
   const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
   const currencyBreakdown = currencies.map((currency) => {
     const currencyOrders = orders.filter((order) => order.currency === currency);
