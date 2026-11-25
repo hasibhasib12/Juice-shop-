@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.$transaction(async (tx) => {
       if (await tx.user.count() !== 0) throw new Error("SETUP_ALREADY_COMPLETE");
       const created = await tx.user.create({
-        data: { name, email, passwordHash: hashPassword(password), role: "OWNER", active: true },
+        data: { name, email, passwordHash: hashPassword(password), role: "OWNER", active: true, branch: { connect: { code: "MAIN" } } },
         select: { id: true, name: true, email: true, role: true },
       });
       await tx.auditEvent.create({
