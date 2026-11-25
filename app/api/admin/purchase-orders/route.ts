@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const access = await managerOnly();
   if (access.response) return access.response;
   const rate = await checkActionRateLimit("purchase-order-write", access.user!.id, 30, 900);
@@ -106,6 +110,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const access = await managerOnly();
   if (access.response) return access.response;
   const rate = await checkActionRateLimit("purchase-order-write", access.user!.id, 30, 900);
