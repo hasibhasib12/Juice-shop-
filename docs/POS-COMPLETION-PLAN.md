@@ -49,8 +49,10 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
+- [x] Cash + manually confirmed external split tender with exact total validation and separate receipt lines (manual external payment is not a card gateway).
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
-- [ ] Split tender, card-provider integration, failed/voided payments, refunds, reconciliation, and provider callback idempotency.
+- [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
+- [ ] Card-provider integration, failed/voided payments, refunds, reconciliation, and provider callback idempotency.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
 
