@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
 
   const date = request.nextUrl.searchParams.get("date");
-  if (date && !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
   const setting = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
   const timezone = typeof setting?.value === "string" ? setting.value : "Asia/Kabul";
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
