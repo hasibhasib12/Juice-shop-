@@ -46,6 +46,7 @@ export default function Home() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutUncertain, setCheckoutUncertain] = useState(false);
   const [cashTender, setCashTender] = useState("");
@@ -63,7 +64,18 @@ export default function Home() {
   const [draftBusy, setDraftBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
+    let active = true;
+    fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
+      const data = await response.json();
+      if (!active || !data.user) return;
+      setStaff(data.user);
+      const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
+      const shiftData = await shiftResponse.json();
+      if (active && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") {
+        window.location.assign("/shift?welcome=1");
+      }
+    }).catch(() => { if (active) setStaff(null); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -287,7 +299,14 @@ export default function Home() {
       setStaff(data.user);
       setLoginPassword("");
       setLoginOpen(false);
-      setNotice(`Signed in as ${data.user.name}.`);
+      setProfileMenuOpen(false);
+      const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
+      const shiftData = await shiftResponse.json();
+      if (shiftResponse.ok && !shiftData.shift) {
+        window.location.assign("/shift?welcome=1");
+        return;
+      }
+      setNotice(`Welcome, ${data.user.name}! Your shift is ready.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Sign-in failed.");
     } finally {
@@ -296,9 +315,21 @@ export default function Home() {
   }
 
   async function signOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setStaff(null);
-    setNotice("You have signed out.");
+    setProfileMenuOpen(false);
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) {
+        setNotice(data.error || "Close your cash shift before signing out.");
+        window.location.assign("/shift");
+        return;
+      }
+      const name = staff?.name ?? "there";
+      setStaff(null);
+      setNotice(`Goodbye, ${name}! You have signed out.`);
+    } catch {
+      setNotice("Sign-out failed. Please check your connection and try again.");
+    }
   }
 
   async function switchCashier() {
@@ -498,7 +529,10 @@ export default function Home() {
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
-        <button type="button" className="cashier" onClick={() => staff ? void signOut() : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
+        <div className="profile-menu-wrap">
+          <button type="button" className="cashier" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => staff ? setProfileMenuOpen((open) => !open) : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
+          {staff && profileMenuOpen && <div className="profile-menu" role="menu"><div className="profile-menu-heading"><b>{staff.name}</b><small>{staff.email}</small><small>{staff.role}</small></div><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); setNotice(`Signed in as ${staff.name} · ${staff.role}. Manage your details through your manager.`); }}>My profile</button><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); window.location.assign("/shift"); }}>Cash shift</button><button type="button" role="menuitem" onClick={() => void signOut()}>Log out</button></div>}
+        </div>
       </header>
 
       <div className="pos-layout">
