@@ -217,6 +217,15 @@ model AuditEvent {
   @@index([entityType, entityId, createdAt])
 }
 
+model LoginAttempt {
+  key             String   @id
+  attempts        Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([windowStartedAt])
+}
+
 model PosSetting {
   key       String   @id
   value     Json
