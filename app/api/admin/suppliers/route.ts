@@ -19,8 +19,6 @@ async function managerOnly() {
 export async function GET() {
   const access = await managerOnly();
   if (access.response) return access.response;
-  const rate = await checkActionRateLimit("supplier-write", access.user!.id, 30, 900);
-  if (!rate.allowed) return NextResponse.json({ error: "Too many supplier changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const suppliers = await prisma.supplier.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] });
   return NextResponse.json({ suppliers }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -52,8 +50,11 @@ export async function POST(request: NextRequest) {
   if ([contact, phone, email, address, notes].includes(undefined)) return NextResponse.json({ error: "Supplier contact fields are too long or invalid." }, { status: 400 });
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid supplier email address." }, { status: 400 });
   try {
-    const supplier = await prisma.supplier.create({ data: { name, contact, phone, email, address, notes } });
-    await prisma.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_CREATED", entityType: "Supplier", entityId: supplier.id, details: { name } } });
+    const supplier = await prisma.$transaction(async (tx) => {
+      const created = await tx.supplier.create({ data: { name, contact, phone, email, address, notes } });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_CREATED", entityType: "Supplier", entityId: created.id, details: { name } } });
+      return created;
+    });
     return NextResponse.json({ supplier }, { status: 201 });
   } catch { return NextResponse.json({ error: "Supplier could not be created." }, { status: 503 }); }
 }
@@ -90,8 +91,11 @@ export async function PATCH(request: NextRequest) {
   }
   if (!Object.keys(data).length) return NextResponse.json({ error: "No supplier changes supplied." }, { status: 400 });
   try {
-    const supplier = await prisma.supplier.update({ where: { id: value.id }, data });
-    await prisma.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_UPDATED", entityType: "Supplier", entityId: supplier.id, details: data } });
+    const supplier = await prisma.$transaction(async (tx) => {
+      const updated = await tx.supplier.update({ where: { id: value.id as string }, data });
+      await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_UPDATED", entityType: "Supplier", entityId: updated.id, details: data } });
+      return updated;
+    });
     return NextResponse.json({ supplier });
   } catch { return NextResponse.json({ error: "Supplier could not be updated." }, { status: 404 }); }
 }
