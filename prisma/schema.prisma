@@ -13,6 +13,12 @@ enum UserRole {
   CASHIER
 }
 
+enum StaffApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ProductStatus {
   ACTIVE
   ARCHIVED
@@ -75,6 +81,7 @@ model User {
   passwordHash String
   role         UserRole    @default(CASHIER)
   active       Boolean     @default(true)
+  approvalStatus StaffApprovalStatus @default(APPROVED)
   sessionVersion Int        @default(0)
   permissionOverrides Json  @default("{}")
   orders       Order[]
