@@ -31,7 +31,8 @@ export default function ReportsPage() {
       <section className="report-controls">
         <label>Period<select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label>
         <label>Reference date<input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></label>
-        <button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button>\n        <a href={`/api/reports?period=${period}&date=${date}&format=csv`} className="catalog-cancel">Download sales CSV</a><a href={`/api/reports/shifts?date=${date}`} className="catalog-cancel">Download shift CSV</a>
+        <button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button><button type="button" onClick={() => window.print()} disabled={!report || loading}>Print / Save PDF</button>
+        <a href={`/api/reports?period=${period}&date=${date}&format=csv`} className="catalog-cancel">Download sales CSV</a><a href={`/api/reports/shifts?date=${date}`} className="catalog-cancel">Download shift CSV</a>
       </section>
       {notice && <p className="catalog-notice">{notice}</p>}
       {report && <>
@@ -50,6 +51,7 @@ export default function ReportsPage() {
         <section className="catalog-list"><div className="catalog-section-head"><div><span>TRANSACTION LOG</span><h2>Recent orders</h2></div></div>{report.recentOrders.map((o) => <article className="report-row" key={o.orderNumber}><b>#{o.orderNumber}</b><span>{o.cashier}</span><strong>{money(o.totalMinor, o.currency)}</strong></article>)}{!report.recentOrders.length && <p>No orders to show.</p>}</section>
         <p className="report-footnote">Report window: {new Date(report.start).toLocaleString()} – {new Date(report.end).toLocaleString()}. Refunds and voids are deducted on the date they are processed; average order and product mix reflect gross sales.</p>
       </>}
+      <style jsx global>{`@media print { @page { size: A4; margin: 14mm; } body { background: #fff !important; color: #111 !important; } .catalog-admin { min-height: 0; padding: 0; background: #fff !important; color: #111 !important; } .catalog-admin-header { border: 0; padding: 0 0 12px; } .catalog-admin-header a, .report-controls, .catalog-back { display: none !important; } .catalog-admin-header h1, .catalog-admin-header p, .catalog-admin-header span, .report-footnote, .report-row, .report-row span, .report-row b, .report-row strong { color: #111 !important; } .report-metrics article, .catalog-list { background: #fff !important; color: #111 !important; border: 1px solid #bbb !important; box-shadow: none !important; break-inside: avoid; } .report-metrics { grid-template-columns: repeat(3, 1fr); } .report-columns { grid-template-columns: 1fr 1fr; } }`}</style>
     </main>
   );
 }
