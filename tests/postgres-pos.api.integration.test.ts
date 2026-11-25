@@ -257,6 +257,23 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const orderId = checkoutJson.order.id;
     const lineId = checkoutJson.order.lines[0].id;
 
+    const cashierOwnOrders = await cashierRequest("/api/orders", undefined, "GET");
+    await expectStatus(cashierOwnOrders, 200);
+    const cashierOwnOrdersJson = await cashierOwnOrders.json() as { orders: { id: string }[] };
+    assert.equal(cashierOwnOrdersJson.orders.some((order) => order.id === orderId), false);
+    const deniedForeignOrder = await cashierRequest(`/api/orders/${orderId}`, undefined, "GET");
+    await expectStatus(deniedForeignOrder, 403);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true } } });
+    const grantedAllOrders = await cashierRequest("/api/orders", undefined, "GET");
+    await expectStatus(grantedAllOrders, 200);
+    const grantedAllOrdersJson = await grantedAllOrders.json() as { orders: { id: string }[] };
+    assert.equal(grantedAllOrdersJson.orders.some((order) => order.id === orderId), true);
+    const grantedForeignOrder = await cashierRequest(`/api/orders/${orderId}`, undefined, "GET");
+    await expectStatus(grantedForeignOrder, 200);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const revokedForeignOrder = await cashierRequest(`/api/orders/${orderId}`, undefined, "GET");
+    await expectStatus(revokedForeignOrder, 403);
+
     const replay = await request("/api/checkout", checkoutBody);
     await expectStatus(replay, 201);
     const replayJson = await replay.json() as { order: { id: string } };
