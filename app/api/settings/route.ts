@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,7 +103,13 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await withSerializableRetry(() => prisma.$transaction(async (tx) => {
+      const currentCurrencyRow = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
+      const currentCurrency = typeof currentCurrencyRow?.value === "string" ? currentCurrencyRow.value.toUpperCase() : defaults.currency;
+      if (settings.currency !== currentCurrency) {
+        const openShifts = await tx.shift.count({ where: { closedAt: null } });
+        if (openShifts > 0) throw new Error("STORE_CURRENCY_SHIFT_OPEN");
+      }
       for (const [field, value] of Object.entries(settings)) {
         if (typeof value !== "string" && typeof value !== "number") continue;
         await tx.posSetting.upsert({
@@ -113,9 +121,15 @@ export async function PUT(request: NextRequest) {
       await tx.auditEvent.create({
         data: { userId: user.id, action: "STORE_SETTINGS_UPDATED", entityType: "PosSetting", details: settings },
       });
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ settings }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "STORE_CURRENCY_SHIFT_OPEN") {
+      return NextResponse.json({ error: "Close all active cashier shifts before changing the store currency. This prevents mixed-currency cash reconciliation." }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return NextResponse.json({ error: "Store activity changed while settings were being saved. Reload and retry." }, { status: 409 });
+    }
     return NextResponse.json({ error: "Store settings could not be saved." }, { status: 503 });
   }
 }
