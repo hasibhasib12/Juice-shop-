@@ -95,6 +95,32 @@ export default function CataloguePage() {
     setForm((current) => ({ ...current, categoryId: data.category.id }));
   }
 
+  async function updateCategory(category: Category) {
+    const name = window.prompt("Category name", category.name);
+    if (name === null) return;
+    const response = await fetch("/api/admin/categories", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: category.id, name }),
+    });
+    const data = await response.json();
+    if (!response.ok) { setNotice(data.error || "Could not rename category."); return; }
+    setNotice("Category renamed.");
+    await load();
+  }
+
+  async function toggleCategory(category: Category) {
+    const action = category.active ? "archive" : "restore";
+    if (!window.confirm(`${action === "archive" ? "Archive" : "Restore"} “${category.name}”?`)) return;
+    const response = category.active
+      ? await fetch("/api/admin/categories", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: category.id }) })
+      : await fetch("/api/admin/categories", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: category.id, active: true }) });
+    const data = await response.json();
+    if (!response.ok) { setNotice(data.error || `Could not ${action} category.`); return; }
+    setNotice(`Category ${action}d.`);
+    await load();
+  }
+
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header">
@@ -121,7 +147,7 @@ export default function CataloguePage() {
           <form className="catalog-category-form" onSubmit={addCategory}>
             <div className="catalog-section-head"><div><span>MENU STRUCTURE</span><h2>Categories</h2></div></div>
             <div className="catalog-inline"><input required maxLength={60} value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="New category name"/><button type="submit">Add</button></div>
-            <div className="catalog-chips">{categories.map((c) => <span key={c.id} className={c.active ? "" : "muted"}>{c.name}</span>)}</div>
+            <div className="catalog-chips">{categories.map((c) => <span key={c.id} className={c.active ? "" : "muted"}>{c.name}<button type="button" onClick={() => void updateCategory(c)} aria-label={`Rename ${c.name}`}>Edit</button><button type="button" onClick={() => void toggleCategory(c)} aria-label={`${c.active ? "Archive" : "Restore"} ${c.name}`}>{c.active ? "Archive" : "Restore"}</button></span>)}</div>
           </form>
           <section className="catalog-list">
             <div className="catalog-section-head"><div><span>YOUR MENU</span><h2>Products <small>{products.length}</small></h2></div></div>
