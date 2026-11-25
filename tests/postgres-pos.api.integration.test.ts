@@ -121,6 +121,33 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const cashierCookie = cashierLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cashierCookie.includes("juice_shop_session="));
 
+    const cashierInventoryRead = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: cashierCookie } });
+    await expectStatus(cashierInventoryRead, 403);
+    const cashierSupplierRead = await fetch(`${baseUrl}/api/admin/suppliers`, { headers: { cookie: cashierCookie } });
+    await expectStatus(cashierSupplierRead, 403);
+    const cashierPurchaseOrderRead = await fetch(`${baseUrl}/api/admin/purchase-orders`, { headers: { cookie: cashierCookie } });
+    await expectStatus(cashierPurchaseOrderRead, 403);
+    const cashierInvoiceRead = await fetch(`${baseUrl}/api/admin/supplier-invoices`, { headers: { cookie: cashierCookie } });
+    await expectStatus(cashierInvoiceRead, 403);
+
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_INVENTORY: true } } });
+    const grantedInventoryRead = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: cashierCookie } });
+    await expectStatus(grantedInventoryRead, 200);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_INVENTORY: false } } });
+    const revokedInventoryRead = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: cashierCookie } });
+    await expectStatus(revokedInventoryRead, 403);
+
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_PURCHASING: true } } });
+    for (const path of ["/api/admin/suppliers", "/api/admin/purchase-orders", "/api/admin/supplier-invoices"]) {
+      const grantedRead = await fetch(`${baseUrl}${path}`, { headers: { cookie: cashierCookie } });
+      await expectStatus(grantedRead, 200);
+    }
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_PURCHASING: false } } });
+    for (const path of ["/api/admin/suppliers", "/api/admin/purchase-orders", "/api/admin/supplier-invoices"]) {
+      const revokedRead = await fetch(`${baseUrl}${path}`, { headers: { cookie: cashierCookie } });
+      await expectStatus(revokedRead, 403);
+    }
+
     const cashierSettingsWrite = await fetch(`${baseUrl}/api/settings`, {
       method: "PUT", headers: { "content-type": "application/json", cookie: cashierCookie },
       body: JSON.stringify(settingsJson.settings),
