@@ -69,7 +69,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       currency: "AFN", categoryId,
       variants: { create: { name: "Large", priceMinor: 1500, recipeItems: { create: { ingredientId, quantity: "250.000" } } } },
     } });
-    await prisma.shift.create({ data: { id: shiftId, userId, openingCashMinor: 500 } });
+    await prisma.shift.create({ data: { id: shiftId, userId, branchId: "main-branch", openingCashMinor: 500 } });
     await prisma.supplier.create({ data: { id: supplierId, name: `API Integration Supplier ${suffix}` } });
     await prisma.purchaseOrder.create({ data: {
       id: purchaseOrderId, supplierId, createdById: userId, status: "RECEIVED",
