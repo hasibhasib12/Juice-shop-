@@ -14,9 +14,9 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Manager/owner catalogue APIs and a branded `/catalog` management screen now support creating, editing, hiding, and archiving products, adding categories, HTTPS image URLs, SKU, currency and price updates. Writes are audited.
 - Store country, currency, timezone and locale have Afghanistan / AFN / Asia-Kabul defaults and an owner-only settings API.
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
-- Checkout API currently supports cash only. It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
+- Checkout supports cash and cash plus a manually confirmed external tender (no gateway). It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
 - Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, manager discounts, shift UI, and sales reports are implemented; direct printer integration, automated end-to-end tests, and other checklist items remain incomplete.
+- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, shift UI, and basic sales reports are implemented; manager discounts, direct printer integration, automated end-to-end tests, and other checklist items remain incomplete.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -33,7 +33,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
 - [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
-- [ ] Expand schema for variants, modifiers, refunds, cash movements, discounts and customers.
+- [x] Expand schema for full-order refund/void records and payment tender allocation.\n- [ ] Expand schema for variants, modifiers, cash movements, discounts and customers.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
@@ -52,7 +52,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Cash + manually confirmed external split tender with exact total validation and separate receipt lines (manual external payment is not a card gateway).
 - [ ] Card payment integration with a selected provider/terminal; intentionally deferred because the owner does not need it now.
 - [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
-- [ ] Card-provider integration (deferred), partial refunds, reconciliation, and provider callback idempotency.
+- [ ] Card-provider integration (deferred), partial refunds, and cash drawer reconciliation automation beyond shift close.
 - [x] Manager/owner-only full-order refund or void with required reason, atomic payment/order status reversal, unique reversal record, and audit event.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
