@@ -71,7 +71,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
 - [x] Manager/owner staff directory, cashier creation, account activation/deactivation, and owner-controlled role assignment.
 - [x] Manager/owner-only refund and void authorization with mandatory reason and audit trail.
-- [ ] Fine-grained permissions, password reset/change workflow, configurable discount approval thresholds and rate limiting.
+- [ ] Fine-grained permissions, password reset/change workflow and configurable discount approval thresholds. Database-backed login throttling is implemented at eight attempts per email per 15-minute window, with generic failures and a Retry-After response.
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
@@ -83,7 +83,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
-- [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
+- [ ] Security review, broader API rate limiting, CSRF/session protections, secrets handling, backup/restore test. Login attempts are now throttled using a hashed email key in the isolated database; the rate-limit table migration is applied and verified on the development branch.
 - [ ] Automated integration tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation. Checkout now persists a request fingerprint, rejects mismatched idempotency-key reuse (including unique-key race recovery), and has unit coverage for canonical request fingerprints.
 - [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Sealed returns are also forced to NOT_RESTOCKABLE until finished-product inventory exists.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, then run Prisma validation and build checks (validation/build still pending).
