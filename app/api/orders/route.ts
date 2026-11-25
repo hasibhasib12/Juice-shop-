@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
     const canViewAll = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
     const orders = await prisma.order.findMany({
-      where: { ...(canViewAll ? {} : { cashierId: user.id }) },
+      where: { cashier: { branchId: user.branchId }, ...(canViewAll ? {} : { cashierId: user.id }) },
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: "desc" },
       take: limit + 1,
