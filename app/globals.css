@@ -211,3 +211,8 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .shift-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .shift-metrics article{display:flex;flex-direction:column;gap:7px;padding:15px;border:1px solid #713047;border-radius:10px}
 .shift-metrics span{font-size:11px;color:#e4c2cf}.shift-metrics b{font-size:21px;letter-spacing:-.03em}
+
+
+.staff-grid{display:grid;grid-template-columns:minmax(280px,390px) minmax(0,1fr);gap:18px;align-items:start;padding-top:22px}
+.catalog-editor small{font-size:10px;color:#d5b7c2;font-weight:500;line-height:1.45}
+@media(max-width:760px){.staff-grid{grid-template-columns:1fr}}
