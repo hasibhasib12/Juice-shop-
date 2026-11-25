@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role } } });
       return created;
     });
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json({ user }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "That email is already registered or staff could not be created." }, { status: 409 });
   }
