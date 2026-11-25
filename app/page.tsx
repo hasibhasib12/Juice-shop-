@@ -45,6 +45,7 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutUncertain, setCheckoutUncertain] = useState(false);
   const [cashTender, setCashTender] = useState("");
   const [splitPayment, setSplitPayment] = useState(false);
   const [otherPaymentConfirmed, setOtherPaymentConfirmed] = useState(false);
@@ -205,6 +206,7 @@ export default function Home() {
   useEffect(() => { setCashTender((total / 100).toFixed(2)); }, [total]);
 
   function addToCart(product: Product) {
+    if (checkoutBusy || checkoutUncertain) return;
     if (product.variants.length || product.modifierGroups.length) {
       setConfigProduct(product);
       setConfigVariantId(product.variants[0]?.id ?? "");
@@ -215,6 +217,7 @@ export default function Home() {
   }
 
   function addConfiguredLine(product: Product, variantId: string | undefined, optionIds: string[]) {
+    if (checkoutBusy || checkoutUncertain) return;
     const variant = product.variants.find((item) => item.id === variantId);
     const selectedModifiers = product.modifierGroups.flatMap((group) => group.options.filter((option) => optionIds.includes(option.id)).map((option) => ({ optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
     const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selectedModifiers.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
@@ -228,6 +231,7 @@ export default function Home() {
   }
 
   function changeQuantity(key: string, delta: number) {
+    if (checkoutBusy || checkoutUncertain) return;
     setDiscount(0);
     setDiscountApprovalId(null);
     setCart((current) =>
@@ -372,6 +376,8 @@ export default function Home() {
           ...(discountApprovalId ? { discountApprovalId } : {}),
         }),
       });
+      if (response.status < 500) setCheckoutUncertain(false);
+      else setCheckoutUncertain(true);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Checkout failed.");
       setNotice(`Order #${data.order.orderNumber} completed. ${splitPayment ? "Split payment" : "Cash payment"} recorded.`);
@@ -386,9 +392,11 @@ export default function Home() {
       setCustomerName("");
       setOrderNotes("");
       setCheckoutKey("");
+      setCheckoutUncertain(false);
     } catch (error) {
       if (error instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine)) {
-        setNotice("Connection interrupted. Your order is still on screen. Retry checkout with the same request; the checkout key will check whether the sale already completed and prevent a duplicate.");
+        setCheckoutUncertain(true);
+        setNotice("Connection interrupted. Your order is locked on screen. Restore the connection and retry checkout without changing the order; the same checkout key checks whether the sale already completed and prevents a duplicate.");
       } else {
         setNotice(error instanceof Error ? error.message : "Checkout failed. Your order is still on screen; review the result before starting another sale.");
       }
@@ -441,7 +449,7 @@ export default function Home() {
           <div className="product-grid" aria-busy={loadingProducts}>
             {loadingProducts && <div className="no-products" role="status">Loading products…</div>}
             {!loadingProducts && visibleProducts.map((product) => (
-              <button type="button" className="product-tile" key={product.id} aria-label={`Add ${product.name} to order, ${money(product.priceMinor, product.currency)}`} onClick={() => addToCart(product)}>
+              <button type="button" className="product-tile" key={product.id} disabled={checkoutBusy || checkoutUncertain} aria-label={`Add ${product.name} to order, ${money(product.priceMinor, product.currency)}`} onClick={() => addToCart(product)}>
                 <span className="tile-photo">
                   {product.image ? <img src={product.image} alt={product.name} loading="lazy"/> : <span>{product.name}</span>}
                 </span>
@@ -456,7 +464,7 @@ export default function Home() {
         </section>
 
         <aside className="order-card">
-          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
+          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" disabled={checkoutBusy || checkoutUncertain} onClick={() => setCart([])}>×</button></div>
           <div className="order-quick-actions" aria-label="Order tools">
             <button type="button" onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button type="button" onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
@@ -476,13 +484,13 @@ export default function Home() {
                   <span>{money(line.unitPriceMinor, line.product.currency)}{line.variantName ? ` · ${line.variantName}` : ""}</span>
                   {line.selectedModifiers.length > 0 && <small>{line.selectedModifiers.map((item) => item.name).join(", ")}</small>}
                   <div className="stepper">
-                    <button type="button" aria-label={`Decrease ${line.product.name} quantity`} onClick={() => changeQuantity(line.key, -1)}>−</button>
+                    <button type="button" aria-label={`Decrease ${line.product.name} quantity`} disabled={checkoutBusy || checkoutUncertain} onClick={() => changeQuantity(line.key, -1)}>−</button>
                     <b>{line.quantity}</b>
-                    <button type="button" aria-label={`Increase ${line.product.name} quantity`} onClick={() => changeQuantity(line.key, 1)}>+</button>
+                    <button type="button" aria-label={`Increase ${line.product.name} quantity`} disabled={checkoutBusy || checkoutUncertain} onClick={() => changeQuantity(line.key, 1)}>+</button>
                   </div>
                 </div>
                 <strong>{money(line.unitPriceMinor * line.quantity, line.product.currency)}</strong>
-                <button type="button" className="remove-line" aria-label={`Remove ${line.product.name} from order`} onClick={() => changeQuantity(line.key, -line.quantity)}>×</button>
+                <button type="button" className="remove-line" aria-label={`Remove ${line.product.name} from order`} disabled={checkoutBusy || checkoutUncertain} onClick={() => changeQuantity(line.key, -line.quantity)}>×</button>
               </div>
             ))}
           </div>
@@ -494,21 +502,21 @@ export default function Home() {
           <div className="order-total" aria-live="polite" aria-atomic="true"><b>Total:</b><strong>{money(total)}</strong></div>
           <div className="cash-tender-panel" id="cash-tender-help">
             <label htmlFor="cash-tender">{splitPayment ? `Cash portion (${storeInfo.currency})` : `Cash received (${storeInfo.currency})`}</label>
-            <input id="cash-tender" aria-describedby="cash-tender-help" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
-            <label className="split-payment-toggle"><input type="checkbox" checked={splitPayment} onChange={(event) => { setSplitPayment(event.target.checked); setOtherPaymentConfirmed(false); setCashTender(event.target.checked ? (total / 2 / 100).toFixed(2) : (total / 100).toFixed(2)); }} disabled={checkoutBusy || cart.length === 0 || total < 2}/> Split payment</label>
+            <input id="cash-tender" aria-describedby="cash-tender-help" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || checkoutUncertain || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
+            <label className="split-payment-toggle"><input type="checkbox" checked={splitPayment} onChange={(event) => { setSplitPayment(event.target.checked); setOtherPaymentConfirmed(false); setCashTender(event.target.checked ? (total / 2 / 100).toFixed(2) : (total / 100).toFixed(2)); }} disabled={checkoutBusy || checkoutUncertain || cart.length === 0 || total < 2}/> Split payment</label>
             {!splitPayment && <div className="cash-tender-presets">
-              <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={cart.length === 0}>Exact</button>
-              {[5000, 10000, 20000].filter((extra) => total > 0 && total + extra <= 2_000_000_000).map((extra) => <button type="button" key={extra} onClick={() => setCashTender(((total + extra) / 100).toFixed(2))}>{money(total + extra, storeInfo.currency)}</button>)}
+              <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={checkoutBusy || checkoutUncertain || cart.length === 0}>Exact</button>
+              {[5000, 10000, 20000].filter((extra) => total > 0 && total + extra <= 2_000_000_000).map((extra) => <button type="button" key={extra} onClick={() => setCashTender(((total + extra) / 100).toFixed(2))} disabled={checkoutBusy || checkoutUncertain}>{money(total + extra, storeInfo.currency)}</button>)}
             </div>}
-            {splitPayment && <><div className="cash-tender-change"><span>Other payment remaining</span><strong>{tenderValid ? money(otherPaymentMinor, storeInfo.currency) : "—"}</strong></div><label className="other-payment-confirm"><input type="checkbox" checked={otherPaymentConfirmed} onChange={(event) => setOtherPaymentConfirmed(event.target.checked)}/> I confirm the other payment has been received outside this POS.</label></>}
+            {splitPayment && <><div className="cash-tender-change"><span>Other payment remaining</span><strong>{tenderValid ? money(otherPaymentMinor, storeInfo.currency) : "—"}</strong></div><label className="other-payment-confirm"><input type="checkbox" checked={otherPaymentConfirmed} onChange={(event) => setOtherPaymentConfirmed(event.target.checked)} disabled={checkoutBusy || checkoutUncertain}/> I confirm the other payment has been received outside this POS.</label></>}
             {!splitPayment && <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>}
             {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
           <div className="payment-actions">
-            <button type="button" className="clear-order" onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
+            <button type="button" className="clear-order" disabled={checkoutBusy || checkoutUncertain} onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
+            <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || checkoutUncertain || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
-          <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
+          <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy || checkoutBusy || checkoutUncertain}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
