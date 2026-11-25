@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { checkoutFingerprint } from "../lib/checkout-fingerprint";
 
+const splitTender = [
+  { method: "CASH" as const, amountMinor: 750 },
+  { method: "OTHER" as const, amountMinor: 500 },
+];
 const cash = [{ method: "CASH" as const, amountMinor: 1250 }];
 const base = { cashReceivedMinor: 1300, discountApprovalId: undefined };
 
@@ -9,11 +13,11 @@ test("checkout fingerprint is stable across item and tender ordering", () => {
   const first = checkoutFingerprint([
     { productId: "juice-b", quantity: 1 },
     { productId: "juice-a", quantity: 2 },
-  ], cash, base.cashReceivedMinor, base.discountApprovalId);
+  ], splitTender, base.cashReceivedMinor, base.discountApprovalId);
   const second = checkoutFingerprint([
     { productId: "juice-a", quantity: 2 },
     { productId: "juice-b", quantity: 1 },
-  ], [...cash], base.cashReceivedMinor, base.discountApprovalId);
+  ], [...splitTender].reverse(), base.cashReceivedMinor, base.discountApprovalId);
   assert.equal(first, second);
 });
 
