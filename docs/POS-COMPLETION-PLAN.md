@@ -190,3 +190,12 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Waste that would make stock negative is rejected (409); malformed/negative movement quantity is rejected (400). Both cases verify stock quantity, movement count, and audit count remain unchanged. Two concurrent waste attempts against insufficient combined stock produce exactly one success and one conflict, with only one movement/audit entry and no negative balance.
 - Revoking `MANAGE_INVENTORY` blocks subsequent stock movement writes (403) and leaves stock, movement ledger, and audit history unchanged.
 - The test and assertions are committed on `feature/pos-foundation`; isolated PostgreSQL execution and latest-head CI remain pending. No deployment, production data changes, or schema migration.
+
+
+## Product and category permission boundary — 2026-11-25 (CI pending)
+- Added a dedicated `MANAGE_CATALOG` permission. Owner and manager defaults preserve existing access; cashiers are denied by default and can be granted catalog access explicitly.
+- Product list/create/update/archive and category create/update/archive now read the persisted permission override and enforce `MANAGE_CATALOG`, rather than relying only on a role-name check. Permission revocation therefore takes effect on the next request.
+- Added unit coverage for owner/manager defaults and cashier grant/revoke semantics.
+- Added PostgreSQL-backed HTTP integration coverage for denied reads/writes, no mutation/audit side effects on denial, authorized product/category lifecycle, exactly-once audit events, and permission revocation.
+- No schema migration is required; the permission is stored in the existing JSON permission-overrides field.
+- CI and isolated PostgreSQL execution remain pending. No deployment, production data changes, or `main` changes.
