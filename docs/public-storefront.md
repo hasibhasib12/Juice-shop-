@@ -19,3 +19,5 @@ Set `STOREFRONT_BRANCH_ID` to the branch ID intended for public display. If omit
 ## Not yet connected
 
 The basket is currently a client-side preview. Customer order submission, delivery/pickup scheduling, customer accounts, online payments, and order status tracking are not enabled. Payment providers remain intentionally deferred.
+
+The storefront is deliberately separate from POS checkout until customer ordering rules and fulfilment flows are implemented.
