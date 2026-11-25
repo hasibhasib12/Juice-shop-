@@ -29,34 +29,43 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const body = parsed as { name?: string; description?: string | null; imageUrl?: string | null; sku?: string | null; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean; status?: "ACTIVE" | "ARCHIVED" };
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) {
+    if (typeof body.name !== "string") return NextResponse.json({ error: "Product name must be text." }, { status: 400 });
     const name = body.name.trim();
     if (!name || name.length > 100) return NextResponse.json({ error: "Product name must be 1–100 characters." }, { status: 400 });
     data.name = name;
   }
   if (body.description !== undefined) {
-    if (body.description !== null && body.description.length > 500) return NextResponse.json({ error: "Description is too long." }, { status: 400 });
-    data.description = body.description?.trim() || null;
+    if (body.description !== null && (typeof body.description !== "string" || body.description.length > 500)) return NextResponse.json({ error: "Description is too long or invalid." }, { status: 400 });
+    data.description = typeof body.description === "string" ? body.description.trim() || null : null;
   }
   if (body.imageUrl !== undefined) {
-    if (body.imageUrl && (body.imageUrl.length > 1000 || !/^https:\/\//i.test(body.imageUrl))) return NextResponse.json({ error: "Product image must be an HTTPS URL." }, { status: 400 });
-    data.imageUrl = body.imageUrl?.trim() || null;
+    if (body.imageUrl !== null && (typeof body.imageUrl !== "string" || body.imageUrl.length > 1000 || !/^https:\/\//i.test(body.imageUrl))) return NextResponse.json({ error: "Product image must be an HTTPS URL." }, { status: 400 });
+    data.imageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() || null : null;
   }
-  if (body.sku !== undefined) data.sku = body.sku?.trim() || null;
+  if (body.sku !== undefined) {
+    if (body.sku !== null && (typeof body.sku !== "string" || body.sku.length > 100)) return NextResponse.json({ error: "SKU must be 100 characters or fewer." }, { status: 400 });
+    data.sku = typeof body.sku === "string" ? body.sku.trim() || null : null;
+  }
   if (body.priceMinor !== undefined) {
     if (!Number.isSafeInteger(body.priceMinor) || body.priceMinor < 1) return NextResponse.json({ error: "Price must be a positive integer in minor units." }, { status: 400 });
     data.priceMinor = body.priceMinor;
   }
   if (body.currency !== undefined) {
+    if (typeof body.currency !== "string") return NextResponse.json({ error: "Currency must be a three-letter ISO code." }, { status: 400 });
     const currency = body.currency.trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(currency)) return NextResponse.json({ error: "Currency must be a three-letter ISO code." }, { status: 400 });
     data.currency = currency;
   }
   if (body.categoryId !== undefined) {
+    if (typeof body.categoryId !== "string" || !body.categoryId || body.categoryId.length > 64) return NextResponse.json({ error: "Choose a valid category." }, { status: 400 });
     const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
     if (!category || !category.active) return NextResponse.json({ error: "Choose an active category." }, { status: 400 });
     data.categoryId = category.id;
   }
-  if (body.available !== undefined) data.available = body.available;
+  if (body.available !== undefined) {
+    if (typeof body.available !== "boolean") return NextResponse.json({ error: "Availability must be true or false." }, { status: 400 });
+    data.available = body.available;
+  }
   if (body.status !== undefined) {
     if (body.status !== "ACTIVE" && body.status !== "ARCHIVED") return NextResponse.json({ error: "Invalid product status." }, { status: 400 });
     data.status = body.status;
