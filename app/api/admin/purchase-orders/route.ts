@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { hasPermission } from "@/lib/permissions";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch { return NextResponse.json({ error: "Each line needs a unique ingredient, positive quantity (up to 3 decimals), and non-negative unit cost." }, { status: 400 }); }
 
   try {
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const supplier = await tx.supplier.findUnique({ where: { id: body.supplierId as string } });
       if (!supplier || !supplier.active) throw new Error("SUPPLIER_NOT_FOUND");
       const ingredients = await tx.ingredient.findMany({ where: { id: { in: input.map((line) => line.ingredientId) } } });
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
       });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_CREATED", entityType: "PurchaseOrder", entityId: created.id, details: { orderNumber: created.orderNumber, supplier: supplier.name, subtotalMinor, currency } } });
       return created;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "SUPPLIER_NOT_FOUND") return NextResponse.json({ error: "Supplier not found or inactive." }, { status: 404 });
@@ -145,7 +146,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const current = await tx.purchaseOrder.findUnique({ where: { id: body.id as string }, include: { lines: true } });
       if (!current) throw new Error("ORDER_NOT_FOUND");
       if (body.action === "cancel") {
@@ -197,7 +198,7 @@ export async function PATCH(request: NextRequest) {
       });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PURCHASE_ORDER_RECEIVED", entityType: "PurchaseOrder", entityId: current.id, details: { orderNumber: current.orderNumber, partial: !fullyReceived, receipts: applied } } });
       return receivedOrder;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ order }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message === "ORDER_NOT_FOUND") return NextResponse.json({ error: "Purchase order not found." }, { status: 404 });
