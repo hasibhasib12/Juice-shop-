@@ -51,11 +51,13 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
 
   try {
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: userId, name: "POS API Integration Owner",
       email: `${suffix}@api-integration.invalid`,
       passwordHash: passwordHash(password), role: "OWNER",
     } });
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: cashierId, name: "POS API Integration Cashier",
       email: `cashier-${suffix}@api-integration.invalid`,
       passwordHash: passwordHash(password), role: "CASHIER",
