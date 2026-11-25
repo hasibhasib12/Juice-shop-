@@ -18,12 +18,15 @@ export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
+
+  if (body.customerName !== undefined && (typeof body.customerName !== "string" || body.customerName.trim().length > 120)) return NextResponse.json({ error: "Customer name must be 120 characters or fewer." }, { status: 400 });
+  if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 1000)) return NextResponse.json({ error: "Order notes must be 1,000 characters or fewer." }, { status: 400 });
 
   const items = body.items;
   const key = body.idempotencyKey;
@@ -159,7 +162,7 @@ export async function POST(request: NextRequest) {
           action: "ORDER_COMPLETED",
           entityType: "Order",
           entityId: order.id,
-          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, discountMinor, discountApprovedBy: discountApproval?.managerId ?? null, discountReason: discountApproval?.reason ?? null, taxMinor, taxRateBps, currency, payments: normalizedTenders.map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })), cashReceivedMinor, changeDueMinor },
+          details: { orderNumber: order.orderNumber, totalMinor: order.totalMinor, discountMinor, discountApprovedBy: discountApproval?.managerId ?? null, discountReason: discountApproval?.reason ?? null, hasCustomerName: Boolean(body.customerName?.trim()), hasNotes: Boolean(body.notes?.trim()), taxMinor, taxRateBps, currency, payments: normalizedTenders.map((tender) => ({ method: tender.method, amountMinor: tender.amountMinor })), cashReceivedMinor, changeDueMinor },
         },
       });
       return order;
