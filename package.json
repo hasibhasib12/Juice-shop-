@@ -17,7 +17,8 @@
     "next": "^15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@prisma/client": "^6.0.0"
+    "@prisma/client": "^6.0.0",
+    "@aws-sdk/client-s3": "^3.850.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

@@ -17,6 +17,7 @@ export default function CataloguePage() {
   const [categoryName, setCategoryName] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -37,6 +38,7 @@ export default function CataloguePage() {
 
   function startEdit(product: Product) {
     setEditing(product.id);
+    setImageFile(null);
     setForm({
       name: product.name,
       description: product.description || "",
@@ -70,8 +72,16 @@ export default function CataloguePage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save product.");
+      if (imageFile) {
+        const imageData = new FormData();
+        imageData.set("image", imageFile);
+        const upload = await fetch(`/api/admin/products/${data.product.id}/image`, { method: "POST", body: imageData });
+        const uploadData = await upload.json();
+        if (!upload.ok) throw new Error(uploadData.error || "Product saved, but image upload failed.");
+      }
       setNotice(editing ? "Product updated." : "Product added.");
       setEditing(null);
+      setImageFile(null);
       setForm({ ...empty, categoryId: categories.find((c) => c.active)?.id || "" });
       await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not save product."); }
@@ -132,7 +142,7 @@ export default function CataloguePage() {
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       <section className="catalog-admin-grid">
         <form className="catalog-editor" onSubmit={save}>
-          <div className="catalog-section-head"><div><span>{editing ? "EDIT ITEM" : "NEW ITEM"}</span><h2>{editing ? "Update product" : "Add a product"}</h2></div>{editing && <button type="button" className="catalog-cancel" onClick={() => { setEditing(null); setForm(empty); }}>Cancel</button>}</div>
+          <div className="catalog-section-head"><div><span>{editing ? "EDIT ITEM" : "NEW ITEM"}</span><h2>{editing ? "Update product" : "Add a product"}</h2></div>{editing && <button type="button" className="catalog-cancel" onClick={() => { setEditing(null); setForm(empty); setImageFile(null); }}>Cancel</button>}</div>
           <label>Product name<input required maxLength={100} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Fresh orange juice"/></label>
           <label>Description<input maxLength={500} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Short menu description"/></label>
           <div className="catalog-form-row">
@@ -141,6 +151,7 @@ export default function CataloguePage() {
           </div>
           <label>Category<select required value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}><option value="">Choose category</option>{categories.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>Photo URL (HTTPS)<input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://…"/></label>
+          <label>Or upload product photo (JPEG, PNG, WebP · max 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}/>{imageFile && <small>Selected: {imageFile.name}</small>}</label>
           <label>SKU (optional)<input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="JUICE-001"/></label>
           <label className="catalog-check"><input type="checkbox" checked={form.available} onChange={(e) => setForm({ ...form, available: e.target.checked })}/> Available on the till</label>
           <button className="catalog-primary" disabled={busy || categories.filter((c) => c.active).length === 0}>{busy ? "Saving…" : editing ? "Save changes" : "Add product"}</button>
