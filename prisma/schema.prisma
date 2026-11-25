@@ -46,10 +46,32 @@ enum StockMovementType {
   RETURN
 }
 
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  timezone  String   @default("Asia/Kabul")
+  currency  String   @default("AFN")
+  active    Boolean  @default(true)
+  users     User[]
+  shifts    Shift[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, name])
+}
+
 model User {
   id           String      @id @default(cuid())
   name         String
   email        String      @unique
+  phone        String?
+  photoUrl     String?
+  employeeCode String?     @unique
+  branchId     String
+  branch       Branch      @relation(fields: [branchId], references: [id])
   passwordHash String
   role         UserRole    @default(CASHIER)
   active       Boolean     @default(true)
@@ -193,6 +215,8 @@ model Payment {
 
 model Shift {
   id                String       @id @default(cuid())
+  branchId          String
+  branch            Branch       @relation(fields: [branchId], references: [id])
   userId            String
   user              User         @relation(fields: [userId], references: [id])
   orders            Order[]
@@ -205,6 +229,7 @@ model Shift {
   closedAt          DateTime?
 
   @@index([userId, closedAt])
+  @@index([branchId, openedAt])
 }
 
 model StockMovement {
