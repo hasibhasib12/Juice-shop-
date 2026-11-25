@@ -37,6 +37,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   let createdTableId: string | undefined;
   let createdCategoryId: string | undefined;
   let createdCashierShiftId: string | undefined;
+  let otherBranchId: string | undefined;
+  let otherBranchManagerId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const ingredientId = `api-it-ingredient-${suffix}`;
@@ -445,7 +447,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       name: `Other Branch ${suffix.slice(0, 8)}`, code: otherBranchCode,
       timezone: "Asia/Kabul", currency: "AFN",
     } });
-    const otherBranchManagerId = `api-it-other-manager-${suffix}`;
+    otherBranchId = otherBranch.id;
+    otherBranchManagerId = `api-it-other-manager-${suffix}`;
     const otherBranchManagerEmail = `other-manager-${suffix}@api-integration.invalid`;
     await prisma.user.create({ data: {
       id: otherBranchManagerId, name: "Other Branch Manager",
@@ -663,7 +666,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.ingredient.deleteMany({ where: { id: ingredientId } });
     if (createdCategoryId) await prisma.category.deleteMany({ where: { id: createdCategoryId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
-    await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId, ...(otherBranchManagerId ? [otherBranchManagerId] : [])] } } });
+    if (otherBranchId) await prisma.branch.deleteMany({ where: { id: otherBranchId } });
     await prisma.$disconnect();
   }
 });
