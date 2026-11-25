@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const order = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
+      const configuredCurrency = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
+      const storeCurrency = typeof configuredCurrency?.value === "string" ? configuredCurrency.value.toUpperCase() : "AFN";
+      if (currency !== storeCurrency) throw new Error("PURCHASE_CURRENCY_MISMATCH");
       const supplier = await tx.supplier.findUnique({ where: { id: body.supplierId as string } });
       if (!supplier || !supplier.active) throw new Error("SUPPLIER_NOT_FOUND");
       const ingredients = await tx.ingredient.findMany({ where: { id: { in: input.map((line) => line.ingredientId) } } });
@@ -106,6 +109,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "SUPPLIER_NOT_FOUND") return NextResponse.json({ error: "Supplier not found or inactive." }, { status: 404 });
     if (error instanceof Error && error.message === "INGREDIENT_NOT_FOUND") return NextResponse.json({ error: "One or more ingredients were not found." }, { status: 404 });
     if (error instanceof Error && error.message === "TOTAL_TOO_LARGE") return NextResponse.json({ error: "Purchase order total is too large." }, { status: 400 });
+    if (error instanceof Error && error.message === "PURCHASE_CURRENCY_MISMATCH") return NextResponse.json({ error: "Purchase order currency must match the store currency. Foreign-currency cost conversion is not configured." }, { status: 400 });
     return NextResponse.json({ error: "Purchase order could not be created." }, { status: 409 });
   }
 }
@@ -156,6 +160,9 @@ export async function PATCH(request: NextRequest) {
         return cancelled;
       }
       if (current.status !== "DRAFT" && current.status !== "PARTIALLY_RECEIVED") throw new Error("ORDER_NOT_OPEN");
+      const configuredCurrency = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
+      const storeCurrency = typeof configuredCurrency?.value === "string" ? configuredCurrency.value.toUpperCase() : "AFN";
+      if (current.currency !== storeCurrency) throw new Error("PURCHASE_CURRENCY_MISMATCH");
 
       const lineById = new Map(current.lines.map((line) => [line.id, line]));
       const applied: { lineId: string; ingredientId: string; quantity: string }[] = [];
@@ -207,6 +214,7 @@ export async function PATCH(request: NextRequest) {
     if (error instanceof Error && error.message === "RECEIPT_EXCEEDS_OUTSTANDING") return NextResponse.json({ error: "A received quantity exceeds the outstanding quantity." }, { status: 400 });
     if (error instanceof Error && error.message === "INGREDIENT_NOT_FOUND") return NextResponse.json({ error: "A purchase order ingredient no longer exists." }, { status: 409 });
     if (error instanceof Error && error.message === "COST_TOO_LARGE") return NextResponse.json({ error: "Average stock cost is too large." }, { status: 400 });
+    if (error instanceof Error && error.message === "PURCHASE_CURRENCY_MISMATCH") return NextResponse.json({ error: "This purchase order uses a different currency from the store. Update the currency or configure a verified conversion before receiving stock." }, { status: 409 });
     return NextResponse.json({ error: "Purchase order could not be processed." }, { status: 409 });
   }
 }
