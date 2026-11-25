@@ -23,12 +23,13 @@ export async function GET() {
   if (access.response) return access.response;
   const [orders, suppliers, ingredients] = await Promise.all([
     prisma.purchaseOrder.findMany({
+      where: { branchId: access.user!.branchId },
       orderBy: { createdAt: "desc" },
       take: 100,
       include: { supplier: { select: { id: true, name: true } }, lines: { orderBy: { ingredientName: "asc" } } },
     }),
-    prisma.supplier.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true, quantityOnHand: true, averageCostMinor: true } }),
+    prisma.supplier.findMany({ where: { branchId: access.user!.branchId, active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.ingredient.findMany({ where: { branchId: access.user!.branchId }, orderBy: { name: "asc" }, select: { id: true, name: true, unit: true, quantityOnHand: true, averageCostMinor: true } }),
   ]);
   return NextResponse.json({ orders, suppliers, ingredients }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -71,9 +72,9 @@ export async function POST(request: NextRequest) {
       const configuredCurrency = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
       const storeCurrency = typeof configuredCurrency?.value === "string" ? configuredCurrency.value.toUpperCase() : "AFN";
       if (currency !== storeCurrency) throw new Error("PURCHASE_CURRENCY_MISMATCH");
-      const supplier = await tx.supplier.findUnique({ where: { id: body.supplierId as string } });
+      const supplier = await tx.supplier.findFirst({ where: { id: body.supplierId as string, branchId: access.user!.branchId } });
       if (!supplier || !supplier.active) throw new Error("SUPPLIER_NOT_FOUND");
-      const ingredients = await tx.ingredient.findMany({ where: { id: { in: input.map((line) => line.ingredientId) } } });
+      const ingredients = await tx.ingredient.findMany({ where: { id: { in: input.map((line) => line.ingredientId) }, branchId: access.user!.branchId } });
       if (ingredients.length !== input.length) throw new Error("INGREDIENT_NOT_FOUND");
       const byId = new Map(ingredients.map((item) => [item.id, item]));
       const lines = input.map((line) => {
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
       if (!Number.isSafeInteger(subtotalMinor)) throw new Error("TOTAL_TOO_LARGE");
       const created = await tx.purchaseOrder.create({
         data: {
+          branchId: access.user!.branchId,
           supplierId: supplier.id,
           createdById: access.user!.id,
           currency,
@@ -151,7 +153,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const order = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-      const current = await tx.purchaseOrder.findUnique({ where: { id: body.id as string }, include: { lines: true } });
+      const current = await tx.purchaseOrder.findFirst({ where: { id: body.id as string, branchId: access.user!.branchId }, include: { lines: true } });
       if (!current) throw new Error("ORDER_NOT_FOUND");
       if (body.action === "cancel") {
         if (current.status !== "DRAFT" && current.status !== "PARTIALLY_RECEIVED") throw new Error("ORDER_NOT_OPEN");
@@ -171,7 +173,7 @@ export async function PATCH(request: NextRequest) {
         if (!line) throw new Error("RECEIPT_LINE_NOT_FOUND");
         const outstanding = line.quantity.minus(line.receivedQuantity);
         if (outstanding.lte(0) || receipt.quantity.gt(outstanding)) throw new Error("RECEIPT_EXCEEDS_OUTSTANDING");
-        const ingredient = await tx.ingredient.findUnique({ where: { id: line.ingredientId } });
+        const ingredient = await tx.ingredient.findFirst({ where: { id: line.ingredientId, branchId: access.user!.branchId } });
         if (!ingredient) throw new Error("INGREDIENT_NOT_FOUND");
         const previousValue = ingredient.quantityOnHand.mul(ingredient.averageCostMinor);
         const receivedValue = receipt.quantity.mul(line.unitCostMinor);
