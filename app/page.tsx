@@ -514,7 +514,7 @@ export default function Home() {
           </div>
           <div className="payment-actions">
             <button type="button" className="clear-order" disabled={checkoutBusy || checkoutUncertain} onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || checkoutUncertain || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
+            <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : checkoutUncertain ? "Retry Checkout" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
           <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy || checkoutBusy || checkoutUncertain}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
