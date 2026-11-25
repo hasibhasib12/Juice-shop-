@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       const shift = await tx.shift.findFirst({ where: { userId: user.id, closedAt: null }, orderBy: { openedAt: "desc" } });
       if (!shift) throw new Error("NO_OPEN_SHIFT");
       const [payments, refunds, existing] = await Promise.all([
-        tx.payment.aggregate({ where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] }, order: { cashierId: user.id, createdAt: { gte: shift.openedAt } } }, _sum: { amountMinor: true } }),
+        tx.payment.aggregate({ where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] }, order: { shiftId: shift.id } }, _sum: { amountMinor: true } }),
         tx.refund.aggregate({ where: { processedById: user.id, createdAt: { gte: shift.openedAt } }, _sum: { cashRefundMinor: true } }),
         tx.cashMovement.groupBy({ by: ["type"], where: { shiftId: shift.id }, _sum: { amountMinor: true } }),
       ]);
