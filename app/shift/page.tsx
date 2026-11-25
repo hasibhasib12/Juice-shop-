@@ -19,6 +19,7 @@ export default function ShiftPage() {
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [currency, setCurrency] = useState("AFN");
   const [staffName, setStaffName] = useState("");
+  const [staffBranchName, setStaffBranchName] = useState("");
   const [closedJustNow, setClosedJustNow] = useState(false);
   const formatMoney = (minor: number) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
   async function load() {
@@ -31,7 +32,7 @@ export default function ShiftPage() {
   }
   useEffect(() => {
     void load().catch((error) => setNotice(error.message));
-    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.user?.name) { setStaffName(data.user.name); if (new URLSearchParams(window.location.search).get("welcome") === "1") setNotice(`Welcome, ${data.user.name}! Please count the cash in your drawer to open your shift.`); } }).catch(() => undefined);
+    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.user?.name) { setStaffName(data.user.name); setStaffBranchName(data.user.branch?.name ?? "Assigned branch"); if (new URLSearchParams(window.location.search).get("welcome") === "1") setNotice(`Welcome, ${data.user.name}! You are assigned to ${data.user.branch?.name ?? "your branch"}. Please count the cash in your drawer to open your shift.`); } }).catch(() => undefined);
     fetch("/api/settings", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (typeof data.settings?.currency === "string") setCurrency(data.settings.currency); }).catch(() => undefined);
     if (new URLSearchParams(window.location.search).get("welcome") === "1") {
       window.history.replaceState({}, "", "/shift");
@@ -84,7 +85,7 @@ export default function ShiftPage() {
           </form>
           <div className="catalog-list cash-movement-list"><div className="catalog-section-head"><div><span>SHIFT CASH LOG</span><h2>Recent movements</h2></div></div>{movements.map((movement) => <article className="report-row" key={movement.id}><b>{movement.type === "PAID_IN" ? "Paid in" : "Paid out"}</b><span>{movement.reason}</span><strong>{movement.type === "PAID_IN" ? "+" : "−"}{formatMoney(movement.amountMinor)}</strong></article>)}{!movements.length && <p>No cash movements recorded.</p>}</div>
         </> : <>
-          <div className="shift-status closed"><span>NO OPEN SHIFT</span><strong>Open a drawer to enable checkout.</strong></div>
+          <div className="shift-status closed"><span>NO OPEN SHIFT</span><strong>Open a drawer for {staffBranchName || "your assigned branch"} to enable checkout.</strong></div>
           <form className="catalog-editor" onSubmit={(e) => void submit(e, "open")}><div className="catalog-section-head"><div><span>START OF SHIFT</span><h2>Open cash drawer</h2></div></div><label>Opening float ({currency})<input required type="number" min="0" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}/></label><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Open shift"}</button></form>
         </>}
       </section>
