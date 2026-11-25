@@ -223,7 +223,9 @@ model Shift {
   cashMovements     CashMovement[]
   refunds           Refund[]
   openingCashMinor  Int
+  openingNote       String?
   closingCashMinor  Int?
+  closingNote       String?
   expectedCashMinor Int?
   openedAt          DateTime     @default(now())
   closedAt          DateTime?
