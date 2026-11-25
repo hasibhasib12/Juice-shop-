@@ -65,6 +65,7 @@ model Branch {
   shifts    Shift[]
   categories Category[]
   products Product[]
+  ingredients Ingredient[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -142,6 +143,8 @@ model Product {
 
 model Ingredient {
   id             String          @id @default(cuid())
+  branchId       String          @default("main-branch")
+  branch         Branch          @relation(fields: [branchId], references: [id])
   name           String
   unit           String
   quantityOnHand Decimal         @default(0) @db.Decimal(14, 3)
@@ -153,6 +156,9 @@ model Ingredient {
   variantRecipes VariantRecipeItem[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+
+  @@index([branchId, name])
+  @@index([branchId, quantityOnHand])
 }
 
 model RecipeItem {
