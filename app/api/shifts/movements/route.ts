@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +10,10 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const rate = await checkActionRateLimit("cash-movement", user.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many cash-drawer changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { type?: string; amountMinor?: number; reason?: string };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   const type = body.type;
   const amountMinor = body.amountMinor;
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
       if (!shift) throw new Error("NO_OPEN_SHIFT");
       const [payments, refunds, existing] = await Promise.all([
         tx.payment.aggregate({ where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] }, order: { shiftId: shift.id } }, _sum: { amountMinor: true } }),
-        tx.refund.aggregate({ where: { processedById: user.id, createdAt: { gte: shift.openedAt } }, _sum: { cashRefundMinor: true } }),
+        tx.refund.aggregate({ where: { shiftId: shift.id }, _sum: { cashRefundMinor: true } }),
         tx.cashMovement.groupBy({ by: ["type"], where: { shiftId: shift.id }, _sum: { amountMinor: true } }),
       ]);
       const paidIn = existing.find((movement) => movement.type === "PAID_IN")?._sum.amountMinor ?? 0;

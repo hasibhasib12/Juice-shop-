@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const rate = await checkActionRateLimit("shift-close", user.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many shift changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { closingCashMinor?: number };
-  try { body = await request.json(); } catch {
+  try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
   const closingCashMinor = body.closingCashMinor;
@@ -63,6 +66,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "NO_OPEN_SHIFT") {
       return NextResponse.json({ error: "There is no open shift to close." }, { status: 409 });
     }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The shift changed at the same time. Reload and retry." }, { status: 409 });
     return NextResponse.json({ error: "Shift could not be closed." }, { status: 503 });
   }
 }
