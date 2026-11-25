@@ -35,6 +35,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   const userId = `api-it-user-${suffix}`;
   const cashierId = `api-it-cashier-${suffix}`;
   let createdTableId: string | undefined;
+  let createdCashierShiftId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const ingredientId = `api-it-ingredient-${suffix}`;
@@ -111,6 +112,15 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       managerEmail: `${suffix}@api-integration.invalid`, managerPassword: password, discountMinor: 1, reason: 123, items: [],
     });
     await expectStatus(malformedDiscountReason, 400);
+    const concurrentShiftOpens = await Promise.all([
+      cashierRequest("/api/shifts", { openingCashMinor: 100 }),
+      cashierRequest("/api/shifts", { openingCashMinor: 100 }),
+    ]);
+    assert.deepEqual(concurrentShiftOpens.map((response) => response.status).sort(), [201, 409]);
+    const openedShiftResponse = concurrentShiftOpens.find((response) => response.status === 201)!;
+    const openedShiftJson = await openedShiftResponse.json() as { shift: { id: string } };
+    createdCashierShiftId = openedShiftJson.shift.id;
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCashierShiftId, action: "SHIFT_OPENED", userId: cashierId } }), 1);
     const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
     await expectStatus(deniedTableCreate, 403);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
@@ -190,6 +200,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     if (createdTableId) {
       await prisma.auditEvent.deleteMany({ where: { entityId: createdTableId } });
       await prisma.diningTable.deleteMany({ where: { id: createdTableId } });
+    }
+    if (createdCashierShiftId) {
+      await prisma.cashMovement.deleteMany({ where: { shiftId: createdCashierShiftId } });
+      await prisma.auditEvent.deleteMany({ where: { entityId: createdCashierShiftId } });
+      await prisma.shift.deleteMany({ where: { id: createdCashierShiftId } });
     }
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
