@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { name?: string; description?: string; imageUrl?: string; sku?: string; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   const name = body.name?.trim();
