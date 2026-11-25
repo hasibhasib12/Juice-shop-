@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
         data: {
           status: "COMPLETED",
           cashierId: cashier.id,
+          shiftId: activeShift.id,
           subtotalMinor,
           discountMinor: 0,
           taxMinor,
