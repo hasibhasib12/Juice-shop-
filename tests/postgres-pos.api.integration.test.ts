@@ -304,6 +304,14 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       select: { details: true },
     });
     assert.equal((shiftOpenedEvent.details as { currency?: string } | null)?.currency, settingsJson.settings.currency);
+    const competingCashOuts = await Promise.all([
+      cashierRequest("/api/shifts/movements", { type: "PAID_OUT", amountMinor: 80, reason: "Concurrent drawer payout A" }),
+      cashierRequest("/api/shifts/movements", { type: "PAID_OUT", amountMinor: 80, reason: "Concurrent drawer payout B" }),
+    ]);
+    assert.deepEqual(competingCashOuts.map((response) => response.status).sort(), [201, 409]);
+    assert.equal(await prisma.cashMovement.count({ where: { shiftId: createdCashierShiftId, type: "PAID_OUT" } }), 1);
+    const remainingDrawer = await prisma.cashMovement.aggregate({ where: { shiftId: createdCashierShiftId }, _sum: { amountMinor: true } });
+    assert.equal(100 - (remainingDrawer._sum.amountMinor ?? 0), 20, "concurrent paid-outs must not overdraw the cash drawer");
     const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
     await expectStatus(deniedTableCreate, 403);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
