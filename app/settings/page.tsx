@@ -2,11 +2,12 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type Settings = { countryCode: string; countryName: string; currency: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string };
-const defaults: Settings = { countryCode: "AF", countryName: "Afghanistan", currency: "AFN", timezone: "Asia/Kabul", locale: "en-AF", taxRateBps: 0, taxLabel: "Tax" };
+type Settings = { countryCode: string; countryName: string; currency: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string; maxDiscountPercentBps: number };
+const defaults: Settings = { countryCode: "AF", countryName: "Afghanistan", currency: "AFN", timezone: "Asia/Kabul", locale: "en-AF", taxRateBps: 0, taxLabel: "Tax", maxDiscountPercentBps: 10000 };
 export default function SettingsPage() {
   const [settings, setSettings] = useState(defaults);
   const [taxPercent, setTaxPercent] = useState("0");
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState("100");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -14,15 +15,18 @@ export default function SettingsPage() {
       if (data.settings) {
         setSettings({ ...defaults, ...data.settings });
         setTaxPercent((Number(data.settings.taxRateBps ?? 0) / 100).toString());
+        setMaxDiscountPercent((Number(data.settings.maxDiscountPercentBps ?? 10000) / 100).toString());
       }
     }).catch(() => setNotice("Could not load store settings."));
   }, []);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     const rate = Number(taxPercent);
+    const discountLimit = Number(maxDiscountPercent);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) { setNotice("Tax rate must be between 0% and 100%."); setBusy(false); return; }
+    if (!Number.isFinite(discountLimit) || discountLimit < 0.01 || discountLimit > 100) { setNotice("Maximum discount must be between 0.01% and 100%."); setBusy(false); return; }
     try {
-      const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settings, taxRateBps: Math.round(rate * 100) }) });
+      const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settings, taxRateBps: Math.round(rate * 100), maxDiscountPercentBps: Math.round(discountLimit * 100) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Settings could not be saved.");
       setSettings({ ...defaults, ...data.settings });
@@ -43,7 +47,10 @@ export default function SettingsPage() {
         <div className="catalog-section-head settings-subhead"><div><span>TAX CONFIGURATION</span><h2>Sales tax</h2></div></div>
         <div className="catalog-form-row"><label>Tax label<input required maxLength={30} value={settings.taxLabel} onChange={(e) => field("taxLabel", e.target.value)}/></label><label>Tax rate (%)<input required type="number" min="0" max="100" step="0.01" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)}/></label></div>
         <p className="inventory-hint">Tax defaults to 0%. Set the legally applicable rate only after confirming the rules for your business location. This POS currently adds the configured rate to the subtotal (tax-exclusive pricing).</p>
-        <button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Save store settings"}</button>
+        <div className="catalog-section-head settings-subhead"><div><span>DISCOUNT CONTROL</span><h2>Manager approval limit</h2></div></div>
+        <label>Maximum discount (%)<input required type="number" min="0.01" max="100" step="0.01" value={maxDiscountPercent} onChange={(e) => setMaxDiscountPercent(e.target.value)}/></label>
+        <p className="inventory-hint">Discounts still require manager or owner password approval. This limit caps the percentage that can be approved on an order. Default: 100% (discount must still be less than the subtotal).</p>
+      <button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Save store settings"}</button>
       </form>
     </main>
   );
