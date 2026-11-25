@@ -316,6 +316,7 @@ enum ReturnDisposition {
 
 enum PurchaseOrderStatus {
   DRAFT
+  PARTIALLY_RECEIVED
   RECEIVED
   CANCELLED
 }
