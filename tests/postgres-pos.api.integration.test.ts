@@ -41,6 +41,10 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   const productId = `api-it-product-${suffix}`;
   const ingredientId = `api-it-ingredient-${suffix}`;
   const shiftId = `api-it-shift-${suffix}`;
+  const supplierId = `api-it-supplier-${suffix}`;
+  const purchaseOrderId = `api-it-po-${suffix}`;
+  const purchaseLineId = `api-it-po-line-${suffix}`;
+  const invoiceNumber = `API-INV-${suffix}`;
   const password = `Integration-${randomUUID()}-Pass`;
   let server: ChildProcess | undefined;
 
@@ -63,6 +67,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       variants: { create: { name: "Large", priceMinor: 1500, recipeItems: { create: { ingredientId, quantity: "250.000" } } } },
     } });
     await prisma.shift.create({ data: { id: shiftId, userId, openingCashMinor: 500 } });
+    await prisma.supplier.create({ data: { id: supplierId, name: `API Integration Supplier ${suffix}` } });
+    await prisma.purchaseOrder.create({ data: {
+      id: purchaseOrderId, supplierId, createdById: userId, status: "RECEIVED",
+      currency: "AFN", subtotalMinor: 1000,
+      lines: { create: {
+        id: purchaseLineId, ingredientId, ingredientName: "Private integration ingredient",
+        quantity: "10.000", receivedQuantity: "10.000", unitCostMinor: 100,
+        lineTotalMinor: 1000,
+      } },
+    } });
 
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-H", "127.0.0.1", "-p", String(port)], {
       cwd: process.cwd(),
@@ -88,6 +102,27 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(login, 200);
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
+
+    const invoiceResponse = await request("/api/admin/supplier-invoices", {
+      action: "invoice", purchaseOrderId, invoiceNumber,
+      invoiceDate: new Date().toISOString(), lines: [{
+        purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
+      }],
+    });
+    await expectStatus(invoiceResponse, 201);
+    const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
+    assert.equal(invoiceJson.invoice.totalMinor, 1000);
+    const invoiceId = invoiceJson.invoice.id;
+    const concurrentSupplierPayments = await Promise.all([
+      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-a" }),
+      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-b" }),
+    ]);
+    assert.deepEqual(concurrentSupplierPayments.map((response) => response.status).sort(), [201, 409]);
+    const supplierPayments = await prisma.supplierPayment.findMany({ where: { invoiceId } });
+    assert.equal(supplierPayments.length, 1);
+    assert.equal(supplierPayments.reduce((sum, payment) => sum + payment.amountMinor, 0), 600);
+    assert.equal((await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: invoiceId } })).status, "PARTIALLY_PAID");
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED", userId } }), 1);
 
     const settingsResponse = await fetch(`${baseUrl}/api/settings`);
     await expectStatus(settingsResponse, 200);
@@ -260,6 +295,9 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       ]);
       if (server.exitCode === null) server.kill("SIGKILL");
     }
+    await prisma.auditEvent.deleteMany({ where: { entityId: { in: await prisma.supplierInvoice.findMany({ where: { purchaseOrderId }, select: { id: true } }).then((rows) => rows.map((row) => row.id)) } } });
+    await prisma.purchaseOrder.deleteMany({ where: { id: purchaseOrderId } });
+    await prisma.supplier.deleteMany({ where: { id: supplierId } });
     await prisma.refund.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.orderLineReturn.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
