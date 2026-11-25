@@ -31,7 +31,7 @@ export default function ShiftPage() {
   }
   useEffect(() => {
     void load().catch((error) => setNotice(error.message));
-    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.user?.name) setStaffName(data.user.name); }).catch(() => undefined);
+    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.user?.name) { setStaffName(data.user.name); if (new URLSearchParams(window.location.search).get("welcome") === "1") setNotice(`Welcome, ${data.user.name}! Please count the cash in your drawer to open your shift.`); } }).catch(() => undefined);
     fetch("/api/settings", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (typeof data.settings?.currency === "string") setCurrency(data.settings.currency); }).catch(() => undefined);
     if (new URLSearchParams(window.location.search).get("welcome") === "1") {
       window.history.replaceState({}, "", "/shift");
