@@ -12,6 +12,7 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [storeCurrency, setStoreCurrency] = useState("AFN");
   const [supplierName, setSupplierName] = useState("");
   const [supplierPhone, setSupplierPhone] = useState("");
   const [supplierEmail, setSupplierEmail] = useState("");
@@ -36,10 +37,11 @@ export default function InventoryPage() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [stockResponse, recipeResponse, purchasingResponse] = await Promise.all([fetch("/api/admin/inventory", { cache: "no-store" }), fetch("/api/admin/recipes", { cache: "no-store" }), fetch("/api/admin/purchase-orders", { cache: "no-store" })]);
+    const [stockResponse, recipeResponse, purchasingResponse, settingsResponse] = await Promise.all([fetch("/api/admin/inventory", { cache: "no-store" }), fetch("/api/admin/recipes", { cache: "no-store" }), fetch("/api/admin/purchase-orders", { cache: "no-store" }), fetch("/api/settings", { cache: "no-store" })]);
     const stockData = await stockResponse.json();
     const recipeData = await recipeResponse.json();
     const purchasingData = await purchasingResponse.json();
+    const settingsData = await settingsResponse.json();
     if (!stockResponse.ok) throw new Error(stockData.error || "Could not load inventory.");
     if (!recipeResponse.ok) throw new Error(recipeData.error || "Could not load recipes.");
     if (!purchasingResponse.ok) throw new Error(purchasingData.error || "Could not load purchasing records.");
@@ -47,6 +49,7 @@ export default function InventoryPage() {
     setProducts(recipeData.products);
     setSuppliers(purchasingData.suppliers);
     setPurchaseOrders(purchasingData.orders);
+    setStoreCurrency(settingsData.settings?.currency || "AFN");
     setIngredientId((current) => current || stockData.ingredients[0]?.id || "");
     setProductId((current) => current || recipeData.products[0]?.id || "");
     setRecipeIngredientId((current) => current || stockData.ingredients[0]?.id || "");
@@ -110,7 +113,7 @@ export default function InventoryPage() {
     if (!poSupplierId || !poLines.length) { setNotice("Choose a supplier and add at least one ingredient line."); return; }
     setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/purchase-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ supplierId: poSupplierId, currency: "AFN", notes: poNotes, lines: poLines.map(({ ingredientId, quantity, unitCostMinor }) => ({ ingredientId, quantity, unitCostMinor })) }) });
+      const response = await fetch("/api/admin/purchase-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ supplierId: poSupplierId, currency: storeCurrency, notes: poNotes, lines: poLines.map(({ ingredientId, quantity, unitCostMinor }) => ({ ingredientId, quantity, unitCostMinor })) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not create purchase order.");
       setPoLines([]); setPoNotes(""); setNotice(`Purchase order #${data.order.orderNumber} created as a draft.`);
@@ -177,9 +180,9 @@ export default function InventoryPage() {
           <div className="catalog-section-head"><div><span>PROCUREMENT</span><h2>Create purchase order</h2></div></div>
           <label>Supplier<select required value={poSupplierId} onChange={(e) => setPoSupplierId(e.target.value)}><option value="">Choose supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
           <div className="catalog-form-row"><label>Ingredient<select value={poIngredientId} onChange={(e) => setPoIngredientId(e.target.value)}>{ingredients.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}</select></label><label>Quantity<input type="number" min="0.001" step="0.001" value={poQuantity} onChange={(e) => setPoQuantity(e.target.value)}/></label></div>
-          <label>Unit cost (AFN)<input type="number" min="0" step="0.01" value={poUnitCost} onChange={(e) => setPoUnitCost(e.target.value)}/></label>
+          <label>Unit cost ({storeCurrency})<input type="number" min="0" step="0.01" value={poUnitCost} onChange={(e) => setPoUnitCost(e.target.value)}/></label>
           <button type="button" className="catalog-cancel" disabled={busy || !ingredients.length} onClick={addPurchaseLine}>Add ingredient line</button>
-          {poLines.map((line) => <div className="catalog-product" key={line.ingredientId}><div className="catalog-product-info"><b>{line.name}</b><span>{line.quantity} {line.unit} · AFN {(line.unitCostMinor / 100).toFixed(2)} / unit</span></div><button type="button" onClick={() => setPoLines((current) => current.filter((item) => item.ingredientId !== line.ingredientId))}>Remove</button></div>)}
+          {poLines.map((line) => <div className="catalog-product" key={line.ingredientId}><div className="catalog-product-info"><b>{line.name}</b><span>{line.quantity} {line.unit} · {storeCurrency} {(line.unitCostMinor / 100).toFixed(2)} / unit</span></div><button type="button" onClick={() => setPoLines((current) => current.filter((item) => item.ingredientId !== line.ingredientId))}>Remove</button></div>)}
           <label>Notes (optional)<input maxLength={1000} value={poNotes} onChange={(e) => setPoNotes(e.target.value)}/></label>
           <button className="catalog-primary" disabled={busy || !suppliers.length || !poLines.length}>Save draft purchase order</button>
           <p className="inventory-hint">Drafts do not change stock. Receive an order below to add quantities and update weighted-average ingredient cost.</p>
@@ -192,9 +195,10 @@ export default function InventoryPage() {
       </section>
       <section className="catalog-list inventory-list">
         <div className="catalog-section-head"><div><span>LIVE STOCK</span><h2>Ingredient levels <small>{ingredients.length} items</small></h2></div></div>
+        <p className="inventory-hint">Estimated ingredient stock value: <strong>{storeCurrency} {(ingredients.reduce((total, item) => total + Math.round(Number(item.quantityOnHand) * item.averageCostMinor), 0) / 100).toFixed(2)}</strong>. This uses weighted-average unit cost and excludes tax and supplier liabilities.</p>
         {ingredients.map((item) => {
           const low = Number(item.quantityOnHand) <= Number(item.reorderLevel);
-          return <article className="catalog-product" key={item.id}><div className="catalog-placeholder">◉</div><div className="catalog-product-info"><b>{item.name}</b><span>{item.recipeItems.map((r) => r.product.name).join(" · ") || "Not assigned to a recipe"}</span><small>{low ? "Low stock" : "Stock level healthy"} · Alert at {item.reorderLevel} {item.unit}</small></div><strong className="inventory-quantity">{item.quantityOnHand} {item.unit}<small>Avg cost: AFN {(item.averageCostMinor / 100).toFixed(2)} / unit</small></strong></article>;
+          return <article className="catalog-product" key={item.id}><div className="catalog-placeholder">◉</div><div className="catalog-product-info"><b>{item.name}</b><span>{item.recipeItems.map((r) => r.product.name).join(" · ") || "Not assigned to a recipe"}</span><small>{low ? "Low stock" : "Stock level healthy"} · Alert at {item.reorderLevel} {item.unit}</small></div><strong className="inventory-quantity">{item.quantityOnHand} {item.unit}<small>Avg cost: {storeCurrency} {(item.averageCostMinor / 100).toFixed(2)} / unit</small></strong></article>;
         })}
         {!ingredients.length && <p>No ingredients yet. Add your first stock item above.</p>}
       </section>
