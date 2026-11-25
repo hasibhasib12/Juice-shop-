@@ -36,7 +36,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
-- [ ] Automated unit/integration tests for critical calculations and transaction rollback. A feature-branch CI workflow now runs Prisma validation, lint, TypeScript and production build; it does not replace business-logic tests.
+- [ ] Broader unit/integration tests for critical calculations and transaction rollback. Focused unit tests now cover canonical checkout idempotency fingerprints; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
 
 ## Milestone 2 — Catalogue and checkout
@@ -84,7 +84,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
-- [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation. Checkout now persists a request fingerprint and rejects mismatched idempotency-key reuse.
+- [ ] Automated integration tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation. Checkout now persists a request fingerprint, rejects mismatched idempotency-key reuse (including unique-key race recovery), and has unit coverage for canonical request fingerprints.
 - [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Sealed returns are also forced to NOT_RESTOCKABLE until finished-product inventory exists.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, then run Prisma validation and build checks (validation/build still pending).
 - [ ] Preview acceptance test with the owner using realistic sample data.
