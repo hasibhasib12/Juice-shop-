@@ -50,6 +50,7 @@ test("POS purchasing API: invoice authorization and purchase-order line boundari
 
   try {
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: userId,
       name: "Purchasing Integration Cashier",
       email: `${suffix}@purchasing-integration.invalid`,
