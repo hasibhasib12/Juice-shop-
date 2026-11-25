@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
   let body: { managerEmail?: string; managerPassword?: string; discountMinor?: number; reason?: string; items?: Item[] };
   try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
 
-  const email = body.managerEmail?.trim().toLowerCase();
-  const reason = body.reason?.trim();
+  const email = typeof body.managerEmail === "string" ? body.managerEmail.trim().toLowerCase() : "";
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   const items = body.items;
   if (!email || email.length > 254 || typeof body.managerPassword !== "string" || body.managerPassword.length < 1 || body.managerPassword.length > 200) {
     return NextResponse.json({ error: "Manager email and password are required." }, { status: 400 });
