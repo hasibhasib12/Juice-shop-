@@ -33,10 +33,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         const activeShift = await tx.shift.findFirst({ where: { userId: actor.id, closedAt: null }, select: { id: true } });
         if (!activeShift) throw new Error("NO_OPEN_SHIFT_FOR_CASH_REFUND");
       }
-      const refund = await tx.refund.create({ data: { orderId: order.id, processedById: actor.id, kind, amountMinor: order.totalMinor, currency: order.currency, reason, cashRefundMinor, otherRefundMinor } });
+      const refund = await tx.refund.create({ data: { orderId: order.id, processedById: actor.id, kind, amountMinor: order.totalMinor, currency: order.currency, reason, cashRefundMinor, otherRefundMinor, taxRefundMinor: order.taxMinor } });
       await tx.payment.updateMany({ where: { orderId: order.id, status: "COMPLETED" }, data: { status: "REFUNDED" } });
       const updatedOrder = await tx.order.update({ where: { id: order.id }, data: { status: kind === "VOID" ? "VOIDED" : "REFUNDED" }, select: { id: true, orderNumber: true, status: true, totalMinor: true, currency: true } });
-      await tx.auditEvent.create({ data: { userId: actor.id, action: kind === "VOID" ? "ORDER_VOIDED" : "ORDER_REFUNDED", entityType: "Order", entityId: order.id, details: { refundId: refund.id, amountMinor: refund.amountMinor, currency: refund.currency, reason } } });
+      await tx.auditEvent.create({ data: { userId: actor.id, action: kind === "VOID" ? "ORDER_VOIDED" : "ORDER_REFUNDED", entityType: "Order", entityId: order.id, details: { refundId: refund.id, amountMinor: refund.amountMinor, currency: refund.currency, reason, cashRefundMinor, otherRefundMinor, taxRefundMinor: refund.taxRefundMinor } } });
       return { refund, order: updatedOrder };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
