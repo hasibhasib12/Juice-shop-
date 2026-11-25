@@ -49,6 +49,7 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
 
   try {
     await prisma.user.create({ data: {
+      branch: { connect: { code: "MAIN" } },
       id: userId,
       name: "Catalogue Integration Cashier",
       email,
