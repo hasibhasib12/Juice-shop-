@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permission = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permission?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
+  const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const period = request.nextUrl.searchParams.get("period") || "day";
   const date = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period) || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) return NextResponse.json({ error: "Invalid report period or date." }, { status: 400 });
@@ -43,8 +44,8 @@ export async function GET(request: NextRequest) {
   const start = localMidnightUtc(startYear, startMonth, startDay, timezone);
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
   const [orders, refunds, currencySetting] = await Promise.all([
-    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } }, select: { totalMinor: true, taxMinor: true, discountMinor: true, currency: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } } }),
-    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true } }),
+    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end }, ...(branchId ? { cashier: { branchId } } : {}) }, select: { totalMinor: true, taxMinor: true, discountMinor: true, currency: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } } }),
+    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { processedBy: { branchId } } : {}) }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);
   const currencies = [...new Set([...orders.map(o => o.currency), ...refunds.map(r => r.currency)])];
