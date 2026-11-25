@@ -21,6 +21,8 @@ export async function GET() {
         imageUrl: true,
         priceMinor: true,
         currency: true,
+        variants: { where: { active: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, priceMinor: true, recipeItems: { select: { ingredientId: true, quantity: true } } } },
+        modifierGroups: { where: { active: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, required: true, minSelections: true, maxSelections: true, options: { where: { active: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, priceDeltaMinor: true } } } },
         category: { select: { id: true, name: true } },
       },
     });
