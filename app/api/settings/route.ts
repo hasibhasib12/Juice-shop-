@@ -11,6 +11,8 @@ const defaults = {
   currency: "AFN",
   timezone: "Asia/Kabul",
   locale: "en-AF",
+  taxRateBps: 0,
+  taxLabel: "Tax",
 };
 
 const settingKeys = {
@@ -19,6 +21,8 @@ const settingKeys = {
   currency: "store.currency",
   timezone: "store.timezone",
   locale: "store.locale",
+  taxRateBps: "store.taxRateBps",
+  taxLabel: "store.taxLabel",
 } as const;
 
 export async function GET() {
@@ -54,7 +58,7 @@ export async function PUT(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (user.role !== "OWNER") return NextResponse.json({ error: "Only the owner can change store settings." }, { status: 403 });
 
-  let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string };
+  let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -65,12 +69,16 @@ export async function PUT(request: NextRequest) {
     currency: body.currency,
     timezone: body.timezone,
     locale: body.locale,
+    taxRateBps: body.taxRateBps,
+    taxLabel: body.taxLabel,
   };
   if (!settings.countryCode || !/^[A-Z]{2}$/.test(settings.countryCode) ||
       !settings.countryName || settings.countryName.trim().length > 80 ||
       !settings.currency || !/^[A-Z]{3}$/.test(settings.currency) ||
       !settings.timezone || settings.timezone.length > 80 ||
-      !settings.locale || settings.locale.length > 24) {
+      !settings.locale || settings.locale.length > 24 ||
+      !Number.isSafeInteger(settings.taxRateBps) || (settings.taxRateBps ?? -1) < 0 || (settings.taxRateBps ?? 10001) > 10000 ||
+      !settings.taxLabel || settings.taxLabel.trim().length > 30) {
     return NextResponse.json({ error: "Provide a valid country, ISO currency code, timezone and locale." }, { status: 400 });
   }
   try {
@@ -83,7 +91,7 @@ export async function PUT(request: NextRequest) {
   try {
     await prisma.$transaction(async (tx) => {
       for (const [field, value] of Object.entries(settings)) {
-        if (typeof value !== "string") continue;
+        if (typeof value !== "string" && typeof value !== "number") continue;
         await tx.posSetting.upsert({
           where: { key: `store.${field}` },
           update: { value },
