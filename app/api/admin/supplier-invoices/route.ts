@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
 async function managerOnly() {
   const user = await getCurrentUser();
   if (!user) return { response: NextResponse.json({ error: "Sign-in required." }, { status: 401 }) };
-  if (user.role !== "OWNER" && user.role !== "MANAGER") return { response: NextResponse.json({ error: "Manager or owner access required." }, { status: 403 }) };
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, permissionState?.permissionOverrides, "MANAGE_PURCHASING")) return { response: NextResponse.json({ error: "Purchasing access required." }, { status: 403 }) };
   return { user };
 }
 
