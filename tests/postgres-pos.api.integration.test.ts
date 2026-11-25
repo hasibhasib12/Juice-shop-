@@ -129,6 +129,18 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(cashierPurchaseOrderRead, 403);
     const cashierInvoiceRead = await fetch(`${baseUrl}/api/admin/supplier-invoices`, { headers: { cookie: cashierCookie } });
     await expectStatus(cashierInvoiceRead, 403);
+    for (const [path, method] of [
+      ["/api/admin/inventory", "POST"],
+      ["/api/admin/suppliers", "POST"],
+      ["/api/admin/purchase-orders", "POST"],
+      ["/api/admin/supplier-invoices", "POST"],
+    ] as const) {
+      const deniedMutation = await fetch(`${baseUrl}${path}`, {
+        method, headers: { "content-type": "application/json", cookie: cashierCookie },
+        body: JSON.stringify({}),
+      });
+      await expectStatus(deniedMutation, 403);
+    }
 
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_INVENTORY: true } } });
     const grantedInventoryRead = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: cashierCookie } });
