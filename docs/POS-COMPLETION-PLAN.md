@@ -8,7 +8,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 
 ## Current verified baseline
 - Next.js 15 / React 19 / TypeScript application with the approved pomegranate POS layout.
-- PostgreSQL/Neon is connected to the application, but the current Vercel Preview and Production database environment variables share the same integration values. No migration or seed has been run because a separate Preview database branch has not yet been verified.
+- PostgreSQL/Neon uses a dedicated `juice-shop-preview-development` branch for development; the original Neon production branch remains untouched. Initial POS, cash-tender, refund/void and cash-refund-allocation migrations are applied and tracked on the development branch.
 - Prisma schema, initial SQL migration, repeatable catalogue seed, and database health endpoint are committed.
 - Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards only if the live catalogue cannot be loaded.
 - Manager/owner catalogue APIs and a branded `/catalog` management screen now support creating, editing, hiding, and archiving products, adding categories, HTTPS image URLs, SKU, currency and price updates. Writes are audited.
@@ -45,14 +45,14 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [ ] Apply the new cash-tender migration to the isolated Neon development branch and verify it before preview deployment.
+- [ ] Apply and verify cash-tender, refund/void and refund cash-allocation migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
 - [x] Cash + manually confirmed external split tender with exact total validation and separate receipt lines (manual external payment is not a card gateway).
-- [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
+- [ ] Card payment integration with a selected provider/terminal; intentionally deferred because the owner does not need it now.
 - [x] Split cash + manually confirmed external tender; both payment legs are stored independently and must exactly equal the server-calculated order total.
-- [ ] Card-provider integration, failed/voided payments, partial refunds, reconciliation, and provider callback idempotency.
+- [ ] Card-provider integration (deferred), partial refunds, reconciliation, and provider callback idempotency.
 - [x] Manager/owner-only full-order refund or void with required reason, atomic payment/order status reversal, unique reversal record, and audit event.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
@@ -86,7 +86,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Decisions that must be configured before live use
 1. PostgreSQL hosting/provider and credentials.
 2. Legal business location, tax rules, receipt/business identity, timezone, and currency settings.
-3. Card terminal/payment provider and merchant credentials, if card payments are required.
+3. Card terminal/payment provider and merchant credentials, only if card payments are required later.
 4. Receipt printer model/connection method, if direct thermal printing is required.
 5. Actual menu, prices, sizes, extras, recipes, and ingredient units.
 
