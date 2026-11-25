@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
@@ -14,9 +15,11 @@ type DraftItem = { productId: string; quantity: number; variantId?: string; modi
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
   try {
     const drafts = await prisma.order.findMany({
-      where: { status: "DRAFT", ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
+      where: { status: "DRAFT", ...(!canViewAllOrders ? { cashierId: user.id } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {
