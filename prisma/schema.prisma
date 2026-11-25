@@ -157,6 +157,8 @@ model Payment {
   amountMinor       Int
   currency          String         @default("AFN")
   providerReference String?
+  cashReceivedMinor  Int?
+  changeDueMinor     Int?
   createdAt         DateTime       @default(now())
 
   @@index([orderId, status])
