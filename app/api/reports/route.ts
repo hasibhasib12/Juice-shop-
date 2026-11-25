@@ -5,6 +5,14 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function localMidnightUtc(year: number, monthIndex: number, day: number, timeZone: string) {
+  const guess = Date.UTC(year, monthIndex, day);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(guess));
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
+  const localAsUtc = Date.UTC(value("year"), value("month") - 1, value("day"), value("hour"), value("minute"), value("second"));
+  return new Date(guess - (localAsUtc - guess));
+}
+
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
@@ -13,17 +21,29 @@ export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period") || "day";
   const dateParam = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period)) return NextResponse.json({ error: "Period must be day, week or month." }, { status: 400 });
-  const selected = dateParam ? new Date(`${dateParam}T00:00:00.000Z`) : new Date();
-  if (!Number.isFinite(selected.getTime())) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
-  let start = new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(), selected.getUTCDate()));
+  if (dateParam && !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateParam)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
+  const timezoneRow = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
+  const timezone = typeof timezoneRow?.value === "string" ? timezoneRow.value : "Asia/Kabul";
+  const currentParts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const part = (type: string) => currentParts.find((item) => item.type === type)?.value || "";
+  const selected = dateParam || `${part("year")}-${part("month")}-${part("day")}`;
+  const [year, month, day] = selected.split("-").map(Number);
+  const validDate = new Date(Date.UTC(year, month - 1, day));
+  if (!year || !month || !day || validDate.getUTCFullYear() !== year || validDate.getUTCMonth() !== month - 1 || validDate.getUTCDate() !== day) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
+  let startDay = day;
+  let startMonth = month - 1;
+  let startYear = year;
   if (period === "week") {
-    const day = start.getUTCDay();
-    start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
-  } else if (period === "month") start = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-  const end = new Date(start);
-  if (period === "day") end.setUTCDate(end.getUTCDate() + 1);
-  if (period === "week") end.setUTCDate(end.getUTCDate() + 7);
-  if (period === "month") end.setUTCMonth(end.getUTCMonth() + 1);
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    const monday = new Date(Date.UTC(year, month - 1, day - ((weekday + 6) % 7)));
+    startDay = monday.getUTCDate(); startMonth = monday.getUTCMonth(); startYear = monday.getUTCFullYear();
+  } else if (period === "month") { startDay = 1; }
+  const next = new Date(Date.UTC(startYear, startMonth, startDay));
+  if (period === "day") next.setUTCDate(next.getUTCDate() + 1);
+  if (period === "week") next.setUTCDate(next.getUTCDate() + 7);
+  if (period === "month") next.setUTCMonth(next.getUTCMonth() + 1);
+  const start = localMidnightUtc(startYear, startMonth, startDay, timezone);
+  const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const orders = await prisma.order.findMany({
     where: { status: "COMPLETED", completedAt: { gte: start, lt: end } },
