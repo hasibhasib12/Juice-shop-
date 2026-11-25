@@ -148,10 +148,8 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
       "product update must roll back when its audit insert fails");
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_UPDATED" } }), 0,
       "failed product update must not leave an audit event");
-    await prisma.$executeRawUnsafe(`
-      DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent";
-      DROP FUNCTION IF EXISTS public.pos_test_reject_audit();
-    `);
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent"`);
+    await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS public.pos_test_reject_audit()`);
 
     const grantedRead = await request("/api/admin/products", "GET");
     await expectStatus(grantedRead, 200);
@@ -233,7 +231,8 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
     assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).name, productName);
   } finally {
-    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent"; DROP FUNCTION IF EXISTS public.pos_test_reject_audit();`).catch(() => undefined);
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent"`).catch(() => undefined);
+    await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS public.pos_test_reject_audit()`).catch(() => undefined);
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
       await Promise.race([
