@@ -259,3 +259,5 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .cash-tender-error{font-size:10px;color:#c42d40}
 
 .split-payment-toggle,.other-payment-confirm{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:#5d5960}.split-payment-toggle input,.other-payment-confirm input{accent-color:#8e284d;width:14px;height:14px}.other-payment-confirm{font-weight:600;line-height:1.35;color:#6e5b64}.cash-tender-panel .split-payment-toggle{padding:2px 0}
+
+.receipt-refund-note{margin:16px 0;padding:10px;border:1px dashed #c58a9f;border-radius:8px;color:#8e284d;font-size:12px;line-height:1.5;text-align:center;background:#fff8fa}
