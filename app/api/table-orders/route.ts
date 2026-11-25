@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
   const tableId = body.tableId ?? null;
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id: body.orderId! }, select: { id: true, orderNumber: true, status: true, cashierId: true, tableId: true } });
       if (!order) throw new Error("ORDER_NOT_FOUND");
       if (order.status !== "DRAFT") throw new Error("ORDER_NOT_OPEN");
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       const updated = await tx.order.update({ where: { id: order.id }, data: { tableId }, select: { id: true, orderNumber: true, tableId: true } });
       await tx.auditEvent.create({ data: { userId: user.id, action: tableId ? (order.tableId ? "DINING_ORDER_TRANSFERRED" : "DINING_ORDER_ASSIGNED") : "DINING_ORDER_UNASSIGNED", entityType: "Order", entityId: order.id, details: { fromTableId: order.tableId, toTableId: tableId } } });
       return updated;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ order: result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
