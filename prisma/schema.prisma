@@ -66,6 +66,8 @@ model Branch {
   categories Category[]
   products Product[]
   ingredients Ingredient[]
+  suppliers Supplier[]
+  purchaseOrders PurchaseOrder[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -420,6 +422,8 @@ model OrderLineReturn {
 
 model Supplier {
   id        String         @id @default(cuid())
+  branchId  String         @default("main-branch")
+  branch    Branch         @relation(fields: [branchId], references: [id])
   name      String
   contact   String?
   phone     String?
@@ -432,11 +436,13 @@ model Supplier {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  @@index([active, name])
+  @@index([branchId, active, name])
 }
 
 model PurchaseOrder {
   id             String              @id @default(cuid())
+  branchId       String              @default("main-branch")
+  branch         Branch              @relation(fields: [branchId], references: [id])
   orderNumber    Int                 @unique @default(autoincrement())
   supplierId     String
   supplier       Supplier            @relation(fields: [supplierId], references: [id])
@@ -452,7 +458,7 @@ model PurchaseOrder {
   receivedAt     DateTime?
 
   @@index([supplierId, createdAt])
-  @@index([status, createdAt])
+  @@index([branchId, status, createdAt])
 }
 
 model PurchaseOrderLine {
