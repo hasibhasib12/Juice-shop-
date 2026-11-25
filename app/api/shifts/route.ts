@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const rate = await checkActionRateLimit("shift-open", user.id, 10, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many shift changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
-  let body: { openingCashMinor?: number };
+  let body: { openingCashMinor?: number; openingNote?: string };
   try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
   const openingCashMinor = body.openingCashMinor;
+  const openingNote = typeof body.openingNote === "string" ? body.openingNote.trim() : "";
+  if (openingNote.length > 1000) return NextResponse.json({ error: "Opening note must be 1,000 characters or fewer." }, { status: 400 });
   if (!Number.isSafeInteger(openingCashMinor) || (openingCashMinor as number) < 0) {
     return NextResponse.json({ error: "Opening cash must be a non-negative amount in minor currency units." }, { status: 400 });
   }
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
       const currencySetting = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
       const currency = typeof currencySetting?.value === "string" ? currencySetting.value.toUpperCase() : "AFN";
       const created = await tx.shift.create({
-        data: { userId: user.id, branchId: user.branchId, openingCashMinor: openingCashMinor as number },
+        data: { userId: user.id, branchId: user.branchId, openingCashMinor: openingCashMinor as number, openingNote: openingNote || null },
       });
       await tx.auditEvent.create({
         data: { userId: user.id, action: "SHIFT_OPENED", entityType: "Shift", entityId: created.id, details: { openingCashMinor, currency } },
