@@ -359,34 +359,34 @@ export default function Home() {
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
-        <button className="cashier" onClick={() => staff ? void signOut() : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
+        <button type="button" className="cashier" onClick={() => staff ? void signOut() : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
       </header>
 
       <div className="pos-layout">
         <aside className="sidebar">
-          <button className="side-home" onClick={() => { setCategory("All"); setSearch(""); }}><span>⌂</span>Home</button>
+          <button type="button" className="side-home" onClick={() => { setCategory("All"); setSearch(""); }}><span>⌂</span>Home</button>
           <nav className="side-nav" aria-label="Categories">
             {categoryNames.map((name) => (
-              <button key={name} aria-pressed={category === name} className={category === name ? "side-link selected" : "side-link"} onClick={() => setCategory(name)}>
+              <button type="button" key={name} aria-pressed={category === name} className={category === name ? "side-link selected" : "side-link"} onClick={() => setCategory(name)}>
                 <span>🍹</span>{name}
               </button>
             ))}
           </nav>
-          {staff && <button className="side-settings" onClick={() => { window.location.href = "/tables"; }}><span>▦</span>Tables & orders</button>}
-          {(staff?.role === "OWNER" || staff?.role === "MANAGER") && <><button className="side-settings" onClick={() => { window.location.href = "/catalog"; }}><span>⚙</span>Manage menu</button><button className="side-settings" onClick={() => { window.location.href = "/inventory"; }}><span>◉</span>Inventory</button><button className="side-settings" onClick={() => { window.location.href = "/reports"; }}><span>▥</span>Reports</button><button className="side-settings" onClick={() => { window.location.href = "/staff"; }}><span>♙</span>Staff</button>{staff?.role === "OWNER" && <button className="side-settings" onClick={() => { window.location.href = "/settings"; }}><span>⚙</span>Store settings</button>}</>}
+          {staff && <button type="button" className="side-settings" onClick={() => { window.location.href = "/tables"; }}><span>▦</span>Tables & orders</button>}
+          {(staff?.role === "OWNER" || staff?.role === "MANAGER") && <><button type="button" className="side-settings" onClick={() => { window.location.href = "/catalog"; }}><span>⚙</span>Manage menu</button><button type="button" className="side-settings" onClick={() => { window.location.href = "/inventory"; }}><span>◉</span>Inventory</button><button type="button" className="side-settings" onClick={() => { window.location.href = "/reports"; }}><span>▥</span>Reports</button><button type="button" className="side-settings" onClick={() => { window.location.href = "/staff"; }}><span>♙</span>Staff</button>{staff?.role === "OWNER" && <button type="button" className="side-settings" onClick={() => { window.location.href = "/settings"; }}><span>⚙</span>Store settings</button>}</>}
         </aside>
 
         <section className="menu-area">
           <div className="category-tabs">
-            <button aria-pressed={category === "All"} className={category === "All" ? "tab active" : "tab"} onClick={() => setCategory("All")}>All</button>
+            <button type="button" aria-pressed={category === "All"} className={category === "All" ? "tab active" : "tab"} onClick={() => setCategory("All")}>All</button>
             {categoryNames.slice(0, 4).map((name) => (
-              <button key={name} aria-pressed={category === name} className={category === name ? "tab active" : "tab"} onClick={() => setCategory(name)}>{name}</button>
+              <button type="button" key={name} aria-pressed={category === name} className={category === name ? "tab active" : "tab"} onClick={() => setCategory(name)}>{name}</button>
             ))}
           </div>
           <div className="product-grid" aria-busy={loadingProducts}>
             {loadingProducts && <div className="no-products" role="status">Loading products…</div>}
             {!loadingProducts && visibleProducts.map((product) => (
-              <button className="product-tile" key={product.id} aria-label={`Add ${product.name} to order, ${money(product.priceMinor, product.currency)}`} onClick={() => addToCart(product)}>
+              <button type="button" className="product-tile" key={product.id} aria-label={`Add ${product.name} to order, ${money(product.priceMinor, product.currency)}`} onClick={() => addToCart(product)}>
                 <span className="tile-photo">
                   {product.image ? <img src={product.image} alt={product.name} loading="lazy"/> : <span>{product.name}</span>}
                 </span>
@@ -401,16 +401,16 @@ export default function Home() {
         </section>
 
         <aside className="order-card">
-          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
+          <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" onClick={() => setCart([])}>×</button></div>
           <div className="order-quick-actions" aria-label="Order tools">
-            <button onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
-            <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
-            <button onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
-            <button onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
-            <button onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
-            <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Receipt</button>
+            <button type="button" onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
+            <button type="button" onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
+            <button type="button" onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
+            <button type="button" onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
+            <button type="button" onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
+            <button type="button" onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Receipt</button>
           </div>
-          <div className="order-items">
+          <div className="order-items" aria-label="Current order items">
             {cart.length === 0 ? (
               <div className="cart-empty"><span>🛍</span><b>Your order is empty</b><small>Add a drink to get started</small></div>
             ) : cart.map((line) => (
@@ -431,15 +431,15 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div className="order-summary">
+          <div className="order-summary" aria-label="Order subtotal, discount and tax">
             <div><span>Subtotal:</span><b>{money(subtotal)}</b></div>
             <div><span>Discount:</span><b>− {money(discount)}</b></div>
             <div><span>{storeInfo.taxLabel}:</span><b>{money(tax)}</b></div>
           </div>
-          <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
-          <div className="cash-tender-panel">
+          <div className="order-total" aria-live="polite" aria-atomic="true"><b>Total:</b><strong>{money(total)}</strong></div>
+          <div className="cash-tender-panel" id="cash-tender-help">
             <label htmlFor="cash-tender">{splitPayment ? `Cash portion (${storeInfo.currency})` : `Cash received (${storeInfo.currency})`}</label>
-            <input id="cash-tender" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
+            <input id="cash-tender" aria-describedby="cash-tender-help" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
             <label className="split-payment-toggle"><input type="checkbox" checked={splitPayment} onChange={(event) => { setSplitPayment(event.target.checked); setOtherPaymentConfirmed(false); setCashTender(event.target.checked ? (total / 2 / 100).toFixed(2) : (total / 100).toFixed(2)); }} disabled={checkoutBusy || cart.length === 0 || total < 2}/> Split payment</label>
             {!splitPayment && <div className="cash-tender-presets">
               <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={cart.length === 0}>Exact</button>
@@ -450,10 +450,10 @@ export default function Home() {
             {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
           <div className="payment-actions">
-            <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
+            <button type="button" className="clear-order" onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
+            <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
-          <button className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
+          <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
@@ -473,7 +473,7 @@ export default function Home() {
               })}</fieldset>;
             })}
             <p className="modifier-total">Unit price <strong>{money((configProduct.variants.find((item) => item.id === configVariantId)?.priceMinor ?? configProduct.priceMinor) + configProduct.modifierGroups.flatMap((group) => group.options.filter((option) => configOptionIds.includes(option.id))).reduce((sum, option) => sum + option.priceDeltaMinor, 0), configProduct.currency)}</strong></p>
-            <button className="catalog-primary" disabled={configProduct.modifierGroups.some((group) => { const count = group.options.filter((option) => configOptionIds.includes(option.id)).length; return count < group.minSelections || count > group.maxSelections; }) || (configProduct.variants.length > 0 && !configVariantId)} onClick={() => { addConfiguredLine(configProduct, configVariantId || undefined, configOptionIds); setConfigProduct(null); }}>Add to order</button>
+            <button type="button" className="catalog-primary" disabled={configProduct.modifierGroups.some((group) => { const count = group.options.filter((option) => configOptionIds.includes(option.id)).length; return count < group.minSelections || count > group.maxSelections; }) || (configProduct.variants.length > 0 && !configVariantId)} onClick={() => { addConfiguredLine(configProduct, configVariantId || undefined, configOptionIds); setConfigProduct(null); }}>Add to order</button>
           </section>
         </div>
       )}
