@@ -43,7 +43,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Category rename/archive, image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
-- [ ] Server-created draft orders, tables/customer/order notes, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.\n- [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
+- [ ] Server-created draft orders, tables/customer/order notes, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
+- [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
 - [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift and manager-discount migrations on the isolated Neon development branch.
