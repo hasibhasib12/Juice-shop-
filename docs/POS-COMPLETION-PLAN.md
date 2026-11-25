@@ -97,3 +97,12 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Table create/update now consistently enforce the configurable `MANAGE_TABLES` permission, apply database-backed rate limits, and persist create audit records atomically.
 - The owner will perform physical scanner/printer tests and real-device acceptance personally. These remain open acceptance tasks until the owner reports results; development should continue independently.
 - These newest security/reliability changes are on the feature branch and require a successful CI run on the final current head before being marked verified.
+
+
+## Verified development — 2026-11-25 (currency and shift safeguards)
+- Commit `27c8abec473e063095ec74f082478b9ed31334c1` passed GitHub Actions run `45625910744`: Prisma validation, development migrations, ESLint, automated tests, TypeScript and production build.
+- Store currency changes are rejected while cashier shifts are open or purchase orders remain in DRAFT / PARTIALLY_RECEIVED states. The update is protected by a Serializable transaction with bounded retry handling.
+- Shift opening captures the configured store currency in its `SHIFT_OPENED` audit event. Shift reconciliation CSV/PDF exports show that currency; legacy shifts without a snapshot are labelled UNKNOWN rather than guessed.
+- Purchase order creation and receiving reject currencies that differ from the configured store currency. Currency conversion is intentionally not fabricated; a future FX workflow requires an explicit exchange-rate source and accounting policy.
+- Integration coverage verifies currency changes are blocked while a shift is open and that the shift-opening audit event records the currency.
+- No production database, production environment variables, or deployment were changed.
