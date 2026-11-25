@@ -76,12 +76,13 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
       body: JSON.stringify(body),
     });
 
+    const openingMovementCountBeforeDenied = await prisma.stockMovement.count({ where: { reason: "Opening stock" } });
     const deniedCreate = await post({
       action: "create", name: ingredientName, unit: "kg", openingQuantity: "10", reorderLevel: "2",
     });
     await expectStatus(deniedCreate, 403);
     assert.equal(await prisma.ingredient.count({ where: { name: ingredientName } }), 0);
-    assert.equal(await prisma.stockMovement.count({ where: { reason: "Opening stock" } }), 0);
+    assert.equal(await prisma.stockMovement.count({ where: { reason: "Opening stock" } }), openingMovementCountBeforeDenied);
     assert.equal(await prisma.auditEvent.count({ where: { userId, action: "INGREDIENT_CREATED" } }), 0);
 
     await prisma.user.update({
