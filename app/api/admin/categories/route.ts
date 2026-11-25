@@ -22,8 +22,10 @@ export async function POST(request: NextRequest) {
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
   const rateResponse = await categoryWriteLimit(user.id);
   if (rateResponse) return rateResponse;
-  let body: { name?: string; sortOrder?: number };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  let parsed: unknown;
+  try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  const body = parsed as { name?: string; sortOrder?: number };
   const name = body.name?.trim();
   if (!name || name.length > 60) return NextResponse.json({ error: "Category name must be 1–60 characters." }, { status: 400 });
   try {
