@@ -26,7 +26,7 @@ export default function StaffReportsPage() {
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header"><Link href="/reports" className="catalog-back">← Sales reports</Link><div><span>JUICE SHOP · MANAGEMENT</span><h1>Staff performance</h1><p>Daily sales attribution, refund activity and shift operations by staff member.</p></div></header>
-      <section className="report-controls"><label>Business date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button><a href={`/api/reports/staff?date=${date}&format=csv`} className="catalog-cancel">Download staff CSV</a></section>
+      <section className="report-controls"><label>Business date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button><button type="button" onClick={() => window.print()} disabled={!report || loading}>Print / Save PDF</button><a href={`/api/reports/staff?date=${date}&format=csv`} className="catalog-cancel">Download staff CSV</a></section>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       {report && <>
         <p className="report-footnote">Business date: {report.date} · Timezone: {report.timezone}. Sales are attributed to the cashier on each completed order; refunds are attributed to the staff member who processed them. Different currencies are kept on separate rows.</p>
@@ -41,6 +41,7 @@ export default function StaffReportsPage() {
           {!report.rows.length && <p>No active staff accounts found.</p>}
         </section>
       </>}
+      <style jsx global>{`@media print { @page { size: A4 landscape; margin: 12mm; } body { background: #fff !important; color: #111 !important; } .catalog-admin { min-height: 0; padding: 0; background: #fff !important; color: #111 !important; } .catalog-admin-header { border: 0; padding: 0 0 12px; } .catalog-admin-header a, .report-controls, .catalog-back { display: none !important; } .catalog-admin-header h1, .catalog-admin-header p, .catalog-admin-header span, .report-footnote, .report-row, .report-row span, .report-row b, .report-row strong, .report-row small { color: #111 !important; } .catalog-list { background: #fff !important; color: #111 !important; border: 1px solid #bbb !important; box-shadow: none !important; break-inside: avoid; } .report-row { break-inside: avoid; } }`}</style>
     </main>
   );
 }
