@@ -103,27 +103,6 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
 
-    const invoiceResponse = await request("/api/admin/supplier-invoices", {
-      action: "invoice", purchaseOrderId, invoiceNumber,
-      invoiceDate: new Date().toISOString(), lines: [{
-        purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
-      }],
-    });
-    await expectStatus(invoiceResponse, 201);
-    const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
-    assert.equal(invoiceJson.invoice.totalMinor, 1000);
-    const invoiceId = invoiceJson.invoice.id;
-    const concurrentSupplierPayments = await Promise.all([
-      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-a" }),
-      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-b" }),
-    ]);
-    assert.deepEqual(concurrentSupplierPayments.map((response) => response.status).sort(), [201, 409]);
-    const supplierPayments = await prisma.supplierPayment.findMany({ where: { invoiceId } });
-    assert.equal(supplierPayments.length, 1);
-    assert.equal(supplierPayments.reduce((sum, payment) => sum + payment.amountMinor, 0), 600);
-    assert.equal((await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: invoiceId } })).status, "PARTIALLY_PAID");
-    assert.equal(await prisma.auditEvent.count({ where: { entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED", userId } }), 1);
-
     const settingsResponse = await fetch(`${baseUrl}/api/settings`);
     await expectStatus(settingsResponse, 200);
     const settingsJson = await settingsResponse.json() as { settings: { currency: string; countryCode: string; countryName: string; timezone: string; locale: string; taxRateBps: number; taxLabel: string; maxDiscountPercentBps: number } };
@@ -164,6 +143,28 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify(body),
     });
+
+    const invoiceResponse = await request("/api/admin/supplier-invoices", {
+      action: "invoice", purchaseOrderId, invoiceNumber,
+      invoiceDate: new Date().toISOString(), lines: [{
+        purchaseOrderLineId: purchaseLineId, quantity: "10", unitCostMinor: 100,
+      }],
+    });
+    await expectStatus(invoiceResponse, 201);
+    const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
+    assert.equal(invoiceJson.invoice.totalMinor, 1000);
+    const invoiceId = invoiceJson.invoice.id;
+    const concurrentSupplierPayments = await Promise.all([
+      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-a" }),
+      request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-b" }),
+    ]);
+    assert.deepEqual(concurrentSupplierPayments.map((response) => response.status).sort(), [201, 409]);
+    const supplierPayments = await prisma.supplierPayment.findMany({ where: { invoiceId } });
+    assert.equal(supplierPayments.length, 1);
+    assert.equal(supplierPayments.reduce((sum, payment) => sum + payment.amountMinor, 0), 600);
+    assert.equal((await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: invoiceId } })).status, "PARTIALLY_PAID");
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED", userId } }), 1);
+
 
     const cashierLogin = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
