@@ -13,7 +13,7 @@ export default function OrdersPage() {
   const [role, setRole] = useState("");
   const [reversalBusy, setReversalBusy] = useState<string | null>(null);
   async function load(next?: string | null, reset = false) {
-    setLoading(true); setNotice("");
+    setLoading(true);
     try {
       const response = await fetch(`/api/orders?limit=20${next ? `&cursor=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
