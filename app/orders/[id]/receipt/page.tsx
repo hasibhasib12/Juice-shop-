@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Order = { id: string; orderNumber: number; status: string; subtotalMinor: number; discountMinor: number; taxMinor: number; totalMinor: number; currency: string; customerName?: string | null; notes?: string | null; completedAt: string | null; cashier: { name: string }; lines: { id: string; productName: string; quantity: number; unitPriceMinor: number; lineTotalMinor: number; variantName?: string | null; selectedModifiers?: { name?: string; groupName?: string; priceDeltaMinor?: number }[] | null }[]; payments: { method: string; amountMinor: number; status: string; cashReceivedMinor?: number | null; changeDueMinor?: number | null; currency?: string }[]; refunds: { kind: string; amountMinor: number; reason: string; id: string; createdAt: string; cashRefundMinor: number; otherRefundMinor: number; taxRefundMinor: number }[] };
 const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(minor / 100);
@@ -12,6 +12,7 @@ export default function ReceiptPage() {
   const params = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [notice, setNotice] = useState("");
+  const autoPrintStarted = useRef(false);
   useEffect(() => {
     fetch(`/api/orders/${params.id}`, { cache: "no-store" }).then(async (response) => {
       const data = await response.json();
@@ -19,6 +20,17 @@ export default function ReceiptPage() {
       setOrder(data.order);
     }).catch((error) => setNotice(error.message));
   }, [params.id]);
+
+  useEffect(() => {
+    if (!order || autoPrintStarted.current) return;
+    const shouldAutoPrint = new URLSearchParams(window.location.search).get("autoPrint") === "1";
+    if (!shouldAutoPrint) return;
+    autoPrintStarted.current = true;
+    // Wait for the receipt DOM to paint so the print dialog contains the full receipt.
+    const timer = window.setTimeout(() => window.print(), 350);
+    return () => window.clearTimeout(timer);
+  }, [order]);
+
   if (!order) return <main className="receipt-screen"><p>{notice || "Loading receipt…"}</p><Link href="/">Back to POS</Link></main>;
   return (
     <main className="receipt-screen">
