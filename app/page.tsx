@@ -459,17 +459,11 @@ export default function Home() {
       setPendingCheckout(null);
       setNotice(`Order #${data.order.orderNumber} completed. ${payload.paymentTenders.length > 1 ? "Split payment" : "Cash payment"} recorded.`);
       setLastOrderId(data.order.id);
-      setCart([]);
-      setDraftId(null);
-      setDiscount(0);
-      setDiscountApprovalId(null);
-      setCashTender("0.00");
-      setSplitPayment(false);
-      setOtherPaymentConfirmed(false);
-      setCustomerName("");
-      setOrderNotes("");
       setCheckoutKey("");
       setCheckoutUncertain(false);
+      // Open the saved receipt immediately after the server confirms the completed sale.
+      // The receipt page owns the automatic print prompt; the order is already durable.
+      window.location.assign(`/orders/${data.order.id}/receipt?autoPrint=1`);
     } catch (error) {
       setCheckoutUncertain(recoveryRequired);
       if (error instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine)) {
