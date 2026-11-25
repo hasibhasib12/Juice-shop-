@@ -355,7 +355,7 @@ export default function Home() {
         </a>
         <label className="top-search">
           <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
-          <input type="search" autoFocus value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key !== "Enter") return; const code = search.trim().toLowerCase(); const match = products.find((product) => product.sku?.toLowerCase() === code); if (!match) return; event.preventDefault(); addToCart(match); setSearch(""); setCategory("All"); setNotice("Scanned " + match.name + " and added it to the cart."); }} placeholder="Search name or scan barcode / SKU..." />
+          <input type="search" aria-label="Search products by name or SKU" autoFocus value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key !== "Enter") return; const code = search.trim().toLowerCase(); const match = products.find((product) => product.sku?.toLowerCase() === code); if (!match) return; event.preventDefault(); addToCart(match); setSearch(""); setCategory("All"); setNotice("Scanned " + match.name + " and added it to the cart."); }} placeholder="Search name or scan barcode / SKU..." />
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
@@ -367,7 +367,7 @@ export default function Home() {
           <button className="side-home" onClick={() => { setCategory("All"); setSearch(""); }}><span>⌂</span>Home</button>
           <nav className="side-nav" aria-label="Categories">
             {categoryNames.map((name) => (
-              <button key={name} className={category === name ? "side-link selected" : "side-link"} onClick={() => setCategory(name)}>
+              <button key={name} aria-pressed={category === name} className={category === name ? "side-link selected" : "side-link"} onClick={() => setCategory(name)}>
                 <span>🍹</span>{name}
               </button>
             ))}
@@ -378,15 +378,15 @@ export default function Home() {
 
         <section className="menu-area">
           <div className="category-tabs">
-            <button className={category === "All" ? "tab active" : "tab"} onClick={() => setCategory("All")}>All</button>
+            <button aria-pressed={category === "All"} className={category === "All" ? "tab active" : "tab"} onClick={() => setCategory("All")}>All</button>
             {categoryNames.slice(0, 4).map((name) => (
-              <button key={name} className={category === name ? "tab active" : "tab"} onClick={() => setCategory(name)}>{name}</button>
+              <button key={name} aria-pressed={category === name} className={category === name ? "tab active" : "tab"} onClick={() => setCategory(name)}>{name}</button>
             ))}
           </div>
-          <div className="product-grid">
-            {loadingProducts && <div className="no-products">Loading products…</div>}
+          <div className="product-grid" aria-busy={loadingProducts}>
+            {loadingProducts && <div className="no-products" role="status">Loading products…</div>}
             {!loadingProducts && visibleProducts.map((product) => (
-              <button className="product-tile" key={product.id} onClick={() => addToCart(product)}>
+              <button className="product-tile" key={product.id} aria-label={`Add ${product.name} to order, ${money(product.priceMinor, product.currency)}`} onClick={() => addToCart(product)}>
                 <span className="tile-photo">
                   {product.image ? <img src={product.image} alt={product.name} loading="lazy"/> : <span>{product.name}</span>}
                 </span>
@@ -421,13 +421,13 @@ export default function Home() {
                   <span>{money(line.unitPriceMinor, line.product.currency)}{line.variantName ? ` · ${line.variantName}` : ""}</span>
                   {line.selectedModifiers.length > 0 && <small>{line.selectedModifiers.map((item) => item.name).join(", ")}</small>}
                   <div className="stepper">
-                    <button onClick={() => changeQuantity(line.key, -1)}>−</button>
+                    <button type="button" aria-label={`Decrease ${line.product.name} quantity`} onClick={() => changeQuantity(line.key, -1)}>−</button>
                     <b>{line.quantity}</b>
-                    <button onClick={() => changeQuantity(line.key, 1)}>+</button>
+                    <button type="button" aria-label={`Increase ${line.product.name} quantity`} onClick={() => changeQuantity(line.key, 1)}>+</button>
                   </div>
                 </div>
                 <strong>{money(line.unitPriceMinor * line.quantity, line.product.currency)}</strong>
-                <button className="remove-line" aria-label="Remove item" onClick={() => changeQuantity(line.key, -line.quantity)}>×</button>
+                <button type="button" className="remove-line" aria-label={`Remove ${line.product.name} from order`} onClick={() => changeQuantity(line.key, -line.quantity)}>×</button>
               </div>
             ))}
           </div>
