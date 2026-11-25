@@ -467,7 +467,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const lineId = checkoutJson.order.lines[0].id;
     const receiptPdf = await fetch(`${baseUrl}/api/orders/${orderId}/receipt/pdf`, { headers: { cookie } });
     await expectStatus(receiptPdf, 200);
-    assert.match(receiptPdf.headers.get("content-type") ?? "", /application\\/pdf/);
+    assert.match(receiptPdf.headers.get("content-type") ?? "", /application\/pdf/);
     const receiptBytes = Buffer.from(await receiptPdf.arrayBuffer());
     assert.ok(receiptBytes.subarray(0, 8).toString("ascii").startsWith("%PDF-1."), "saved order receipt must be a valid PDF");
 
