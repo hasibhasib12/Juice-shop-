@@ -42,3 +42,12 @@ test("checkout fingerprint changes when payment, cash received, or discount chan
   assert.notEqual(original, checkoutFingerprint([{ productId: "juice-a", quantity: 1 }], cash, 1400, undefined));
   assert.notEqual(original, checkoutFingerprint([{ productId: "juice-a", quantity: 1 }], cash, 1300, "approval-1"));
 });
+
+
+test("checkout fingerprint binds customer name and staff order notes", () => {
+  const items = [{ productId: "juice-a", quantity: 1 }];
+  const original = checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice" });
+  assert.notEqual(original, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Different customer", notes: "No ice" }));
+  assert.notEqual(original, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "Extra ice" }));
+  assert.equal(original, checkoutFingerprint(items, cash, 1300, undefined, { customerName: " Walk-in ", notes: "No ice " }));
+});
