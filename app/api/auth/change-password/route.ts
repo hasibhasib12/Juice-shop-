@@ -9,13 +9,16 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
 
-  let body: { currentPassword?: string; newPassword?: string };
+  let parsed: unknown;
   try {
-    body = await request.json();
+    parsed = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+  const body = parsed as { currentPassword?: unknown; newPassword?: unknown };
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
   const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
   if (currentPassword.length < 1 || currentPassword.length > 256 || newPassword.length < 12 || newPassword.length > 256) {

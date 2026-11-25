@@ -57,13 +57,17 @@ export default function StaffPage() {
     const confirmPassword = window.prompt("Enter the new temporary password again");
     if (confirmPassword === null) return;
     if (nextPassword !== confirmPassword) { setNotice("The passwords do not match."); return; }
-    const response = await fetch(`/api/admin/staff/${user.id}/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword: nextPassword }),
-    });
-    const data = await response.json();
-    setNotice(response.ok ? "Password reset. The employee must sign in again." : data.error || "Could not reset password.");
+    try {
+      const response = await fetch(`/api/admin/staff/${user.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: nextPassword }),
+      });
+      const data = await response.json();
+      setNotice(response.ok ? "Password reset. The employee must sign in again." : data.error || "Could not reset password.");
+    } catch {
+      setNotice("Password reset request failed. Check the connection and try again.");
+    }
   }
   return (
     <main className="catalog-admin">
@@ -79,7 +83,7 @@ export default function StaffPage() {
           <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
-          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small>{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <><button type="button" onClick={() => void resetPassword(user)}>Reset password</button>{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
+          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small>{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <>{(currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void resetPassword(user)}>Reset password</button>}{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
           {!users.length && <p>No staff accounts found.</p>}
         </section>
       </section>

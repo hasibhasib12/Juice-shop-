@@ -6,10 +6,14 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const email = typeof body.email === "string" ? body.email : "";
+    const parsed: unknown = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+    const body = parsed as { email?: unknown; password?: unknown };
+    const email = typeof body.email === "string" ? body.email.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    if (email.length > 254 || password.length < 1 || password.length > 256) {
+    if (!email || email.length > 254 || password.length < 1 || password.length > 256) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 400 });
     }
 
