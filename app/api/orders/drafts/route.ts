@@ -14,11 +14,11 @@ export async function GET() {
   try {
     const drafts = await prisma.order.findMany({
       where: { status: "DRAFT", ...(user.role === "OWNER" || user.role === "MANAGER" ? {} : { cashierId: user.id }) },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       take: 50,
       select: {
         id: true, orderNumber: true, customerName: true, notes: true, subtotalMinor: true,
-        taxMinor: true, totalMinor: true, currency: true, createdAt: true, updatedAt: true,
+        taxMinor: true, totalMinor: true, currency: true, createdAt: true,
         cashier: { select: { id: true, name: true } },
         lines: { select: { id: true, productId: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true } },
       },
