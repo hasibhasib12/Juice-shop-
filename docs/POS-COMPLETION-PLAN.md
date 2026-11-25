@@ -36,7 +36,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
-- [ ] Broader unit/integration tests for critical calculations and transaction rollback. Focused unit tests now cover canonical checkout idempotency fingerprints; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
+- [ ] Broader unit/integration tests for critical calculations and transaction rollback. Focused unit tests cover canonical checkout idempotency fingerprints, including item/tender order invariance, split-tender amount sensitivity, duplicate-line aggregation, cash received and discount approval changes; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
 
 ## Milestone 2 — Catalogue and checkout
