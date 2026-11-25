@@ -31,7 +31,7 @@ export default function ReportsPage() {
       <section className="report-controls">
         <label>Period<select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label>
         <label>Reference date<input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></label>
-        <button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button>\n        <a href={`/api/reports?period=${period}&date=${date}&format=csv`} className="catalog-cancel">Download CSV</a>
+        <button onClick={() => void load()} disabled={loading}>{loading ? "Loading…" : "Refresh report"}</button>\n        <a href={`/api/reports?period=${period}&date=${date}&format=csv`} className="catalog-cancel">Download sales CSV</a><a href={`/api/reports/shifts?date=${date}`} className="catalog-cancel">Download shift CSV</a>
       </section>
       {notice && <p className="catalog-notice">{notice}</p>}
       {report && <>

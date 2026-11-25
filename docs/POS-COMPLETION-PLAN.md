@@ -70,7 +70,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Low-stock thresholds and waste/count adjustment movements.
 - [x] Supplier directory and purchase-order drafts with supplier, ingredient, quantity, unit cost and audit events.
 - [x] Receiving a purchase order atomically updates ingredient stock, stock movement history and weighted-average ingredient cost; partial receipts update only the received quantities, reject over-receiving, keep outstanding lines open, and allow cancellation without reversing previously received stock.
-- [x] Supplier invoice matching to received purchase-order lines, duplicate invoice protection, cumulative billed-quantity limits, unit-cost variance visibility and partial supplier payments with overpayment protection and audit events. Invoice management screen and API are implemented; workflow tests remain pending.\n- [ ] Stock valuation exports.
+- [x] Supplier invoice matching to received purchase-order lines, duplicate invoice protection, cumulative billed-quantity limits, unit-cost variance visibility and partial supplier payments with overpayment protection and audit events. Invoice management screen and API are implemented; workflow tests remain pending.\n- [x] Manager/owner stock valuation CSV export with ingredient quantities, reorder thresholds, weighted-average unit cost, per-item valuation and total stock value; formula-injection-safe cells.
 - [x] Inventory movement ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
@@ -82,10 +82,10 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
 - [x] Associate each new completed order with the active cashier shift and reconcile cash sales by that exact shift.
-- [ ] Shift report export (sales report CSV export is implemented).
+- [x] Manager/owner daily shift CSV export with cashier, opening/closing timestamps, opening float, cash sales/refunds, paid-in/out, expected/count/variance and order count; timezone-aware date filtering.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
-- [ ] Stock valuation exports, staff performance reports and PDF report export. Sales reports now have CSV export; the inventory screen shows estimated ingredient stock value using weighted-average unit cost and configured store currency.
+- [ ] Staff performance reports and PDF report export. Sales, shift and stock valuation CSV exports are implemented; inventory valuation uses weighted-average ingredient cost.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
