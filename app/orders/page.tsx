@@ -31,8 +31,8 @@ export default function OrdersPage() {
     const options = order.lines.map((line, index) => {
       const returned = line.returns.reduce((sum, entry) => sum + entry.quantity, 0);
       return `${index + 1}. ${line.productName} — sold ${line.quantity}, already returned ${returned}, remaining ${line.quantity - returned}`;
-    }).join("\\n");
-    const choice = window.prompt(`Choose the line number to return:\\n${options}`);
+    }).join("\n");
+    const choice = window.prompt(`Choose the line number to return:\n${options}`);
     if (choice === null) return;
     const index = Number(choice) - 1;
     const line = order.lines[index];
