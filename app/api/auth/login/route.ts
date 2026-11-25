@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 import { authenticate, createSession } from "@/lib/auth";
 import { checkLoginRateLimit, clearLoginRateLimit } from "@/lib/login-rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 import { timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { createSession, hashPassword } from "@/lib/auth";
@@ -7,6 +8,9 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const setupSecret = process.env.POS_SETUP_KEY;
   if (!setupSecret || setupSecret.length < 32) {
     return NextResponse.json({ error: "Initial setup is not enabled." }, { status: 503 });
