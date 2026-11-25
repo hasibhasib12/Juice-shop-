@@ -504,6 +504,7 @@ export default function Home() {
       <div className="pos-layout">
         <aside className="sidebar">
           <button type="button" className="side-home" onClick={() => { setCategory("All"); setSearch(""); }}><span>⌂</span>Home</button>
+          {staff && <button type="button" className="side-cash-shift" onClick={() => { window.location.assign("/shift"); }}><span>◷</span>Cash shift</button>}
           <nav className="side-nav" aria-label="Categories">
             {categoryNames.map((name) => (
               <button type="button" key={name} aria-pressed={category === name} className={category === name ? "side-link selected" : "side-link"} onClick={() => setCategory(name)}>
