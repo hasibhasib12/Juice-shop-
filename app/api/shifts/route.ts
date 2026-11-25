@@ -52,11 +52,13 @@ export async function POST(request: NextRequest) {
     const shift = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const active = await tx.shift.findFirst({ where: { userId: user.id, closedAt: null } });
       if (active) throw new Error("SHIFT_ALREADY_OPEN");
+      const currencySetting = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
+      const currency = typeof currencySetting?.value === "string" ? currencySetting.value.toUpperCase() : "AFN";
       const created = await tx.shift.create({
         data: { userId: user.id, openingCashMinor: openingCashMinor as number },
       });
       await tx.auditEvent.create({
-        data: { userId: user.id, action: "SHIFT_OPENED", entityType: "Shift", entityId: created.id, details: { openingCashMinor } },
+        data: { userId: user.id, action: "SHIFT_OPENED", entityType: "Shift", entityId: created.id, details: { openingCashMinor, currency } },
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
