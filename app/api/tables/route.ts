@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: user.id, action: "DINING_TABLE_CREATED", entityType: "DiningTable", entityId: created.id, details: { name, section, capacity } } });
       return created;
     });
-    return NextResponse.json({ table }, { status: 201 });
+    return NextResponse.json({ table }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "A table with this name already exists." }, { status: 409 });
     return NextResponse.json({ error: "Table could not be created." }, { status: 503 });
@@ -103,7 +103,7 @@ export async function PATCH(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: user.id, action: "DINING_TABLE_UPDATED", entityType: "DiningTable", entityId: current.id, details: { before: current, changes: body } } });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return NextResponse.json({ table });
+    return NextResponse.json({ table }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "TABLE_NOT_FOUND") return NextResponse.json({ error: "Table not found." }, { status: 404 });
