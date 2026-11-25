@@ -18,6 +18,10 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
   const shiftId = `it-shift-${suffix}`;
   const orderId = `it-order-${suffix}`;
   const idempotencyKey = `it-key-${suffix}`;
+  const purchaseIngredientId = `it-purchase-ingredient-${suffix}`;
+  const supplierId = `it-supplier-${suffix}`;
+  const purchaseOrderId = `it-po-${suffix}`;
+  const purchaseLineId = `it-po-line-${suffix}`;
 
   try {
     await prisma.user.create({ data: {
@@ -142,7 +146,92 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
     const refundDrawerExpected = 1000 - (refundShiftRefunds._sum.cashRefundMinor ?? 0);
     assert.equal(originalDrawerExpected, 1650);
     assert.equal(refundDrawerExpected, 700);
+
+    // Two cashiers cannot both receive the same outstanding PO quantity.
+    // The winning receipt must update stock, weighted-average cost, line
+    // quantity, movement ledger, status and audit atomically.
+    await prisma.ingredient.create({ data: {
+      id: purchaseIngredientId, name: `Integration purchase stock ${suffix}`, unit: "kg",
+      quantityOnHand: new Prisma.Decimal(4), averageCostMinor: 100,
+    } });
+    await prisma.supplier.create({ data: {
+      id: supplierId, name: `Integration supplier ${suffix}`,
+    } });
+    await prisma.purchaseOrder.create({ data: {
+      id: purchaseOrderId, supplierId, createdById: userId, status: "DRAFT",
+      currency: "AFN", subtotalMinor: 2000,
+      lines: { create: {
+        id: purchaseLineId, ingredientId: purchaseIngredientId,
+        ingredientName: "Integration purchase stock", quantity: new Prisma.Decimal(10),
+        receivedQuantity: new Prisma.Decimal(0), unitCostMinor: 200,
+        lineTotalMinor: 2000,
+      } },
+    } });
+
+    const receiveSix = () => withSerializableRetry(() => prisma.$transaction(async (tx) => {
+      const current = await tx.purchaseOrder.findUniqueOrThrow({
+        where: { id: purchaseOrderId }, include: { lines: true },
+      });
+      if (current.status !== "DRAFT" && current.status !== "PARTIALLY_RECEIVED") {
+        throw new Error("ORDER_NOT_OPEN");
+      }
+      const line = current.lines.find((item) => item.id === purchaseLineId);
+      if (!line) throw new Error("RECEIPT_LINE_NOT_FOUND");
+      const receiptQuantity = new Prisma.Decimal(6);
+      const outstanding = line.quantity.minus(line.receivedQuantity);
+      if (outstanding.lte(0) || receiptQuantity.gt(outstanding)) {
+        throw new Error("RECEIPT_EXCEEDS_OUTSTANDING");
+      }
+      const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: purchaseIngredientId } });
+      const previousValue = ingredient.quantityOnHand.mul(ingredient.averageCostMinor);
+      const receivedValue = receiptQuantity.mul(line.unitCostMinor);
+      const nextQuantity = ingredient.quantityOnHand.plus(receiptQuantity);
+      const nextAverage = previousValue.plus(receivedValue).div(nextQuantity)
+        .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+      await tx.ingredient.update({
+        where: { id: purchaseIngredientId },
+        data: { quantityOnHand: nextQuantity, averageCostMinor: nextAverage.toNumber() },
+      });
+      await tx.stockMovement.create({ data: {
+        ingredientId: purchaseIngredientId, type: "PURCHASE", quantity: receiptQuantity,
+        reason: `Purchase order #${current.orderNumber}`,
+      } });
+      await tx.purchaseOrderLine.update({
+        where: { id: purchaseLineId },
+        data: { receivedQuantity: line.receivedQuantity.plus(receiptQuantity) },
+      });
+      await tx.purchaseOrder.update({
+        where: { id: purchaseOrderId },
+        data: { status: "PARTIALLY_RECEIVED" },
+      });
+      await tx.auditEvent.create({ data: {
+        userId, action: "PURCHASE_ORDER_RECEIVED", entityType: "PurchaseOrder",
+        entityId: purchaseOrderId, details: { partial: true, quantity: "6" },
+      } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
+
+    const receiptAttempts = await Promise.allSettled([receiveSix(), receiveSix()]);
+    assert.equal(receiptAttempts.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(receiptAttempts.filter((result) => result.status === "rejected").length, 1);
+    const receivedIngredient = await prisma.ingredient.findUniqueOrThrow({ where: { id: purchaseIngredientId } });
+    assert.equal(receivedIngredient.quantityOnHand.toString(), "10");
+    assert.equal(receivedIngredient.averageCostMinor, 160);
+    const receivedLine = await prisma.purchaseOrderLine.findUniqueOrThrow({ where: { id: purchaseLineId } });
+    assert.equal(receivedLine.receivedQuantity.toString(), "6");
+    const receivedOrder = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: purchaseOrderId } });
+    assert.equal(receivedOrder.status, "PARTIALLY_RECEIVED");
+    assert.equal(await prisma.stockMovement.count({
+      where: { ingredientId: purchaseIngredientId, type: "PURCHASE" },
+    }), 1);
+    assert.equal(await prisma.auditEvent.count({
+      where: { entityType: "PurchaseOrder", entityId: purchaseOrderId, action: "PURCHASE_ORDER_RECEIVED" },
+    }), 1);
   } finally {
+    await prisma.auditEvent.deleteMany({ where: { entityId: purchaseOrderId } });
+    await prisma.stockMovement.deleteMany({ where: { ingredientId: purchaseIngredientId } });
+    await prisma.purchaseOrder.deleteMany({ where: { id: purchaseOrderId } });
+    await prisma.ingredient.deleteMany({ where: { id: purchaseIngredientId } });
+    await prisma.supplier.deleteMany({ where: { id: supplierId } });
     await prisma.refund.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.order.deleteMany({ where: { cashierId: userId } });
