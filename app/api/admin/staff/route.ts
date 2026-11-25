@@ -12,7 +12,7 @@ export async function GET() {
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
-  const users = await prisma.user.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, phone: true, photoUrl: true, employeeCode: true, branch: { select: { id: true, name: true, code: true } }, permissionOverrides: true } });
+  const users = await prisma.user.findMany({ where: actor.role === "OWNER" ? {} : { branchId: actor.branchId }, orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, phone: true, photoUrl: true, employeeCode: true, branch: { select: { id: true, name: true, code: true } }, permissionOverrides: true } });
   const usersWithPermissions = users.map(({ permissionOverrides, ...user }) => ({ ...user, permissions: effectivePermissions(user.role, permissionOverrides) }));
   return NextResponse.json({ users: usersWithPermissions, currentRole: actor.role, currentUserId: actor.id }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
   const employeeCode = typeof body.employeeCode === "string" ? body.employeeCode.trim().toUpperCase() : "";
   const photoUrl = typeof body.photoUrl === "string" ? body.photoUrl.trim() : "";
   if (!branchId) return NextResponse.json({ error: "Assign this employee to a branch." }, { status: 400 });
+  if (actor.role === "MANAGER" && branchId !== actor.branchId) return NextResponse.json({ error: "Managers can only create staff in their own branch." }, { status: 403 });
   if (phone.length > 30 || employeeCode.length > 24 || (employeeCode && !/^[A-Z0-9_-]+$/.test(employeeCode)) || (photoUrl && (!/^https:\/\//i.test(photoUrl) || photoUrl.length > 2048))) return NextResponse.json({ error: "Check the phone, employee code and secure photo URL." }, { status: 400 });
   try {
     const user = await prisma.$transaction(async (tx) => {
