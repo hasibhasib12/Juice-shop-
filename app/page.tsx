@@ -9,6 +9,9 @@ type Product = { id: string; name: string; sku?: string | null; category: string
 type SelectedModifier = { optionId: string; groupName: string; name: string; priceDeltaMinor: number };
 type CartLine = { key: string; product: Product; quantity: number; variantId?: string; variantName?: string; modifierOptionIds: string[]; selectedModifiers: SelectedModifier[]; unitPriceMinor: number };
 type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
+type CheckoutPayload = { items: { productId: string; quantity: number; variantId?: string; modifierOptionIds: string[] }[]; paymentMethod: "CASH"; cashReceivedMinor: number; paymentTenders: { method: "CASH" | "OTHER"; amountMinor: number }[]; idempotencyKey: string; customerName: string; notes: string; draftId?: string; discountApprovalId?: string };
+type PendingCheckout = { version: 1; cashierId: string; createdAt: number; payload: CheckoutPayload };
+const PENDING_CHECKOUT_STORAGE_KEY = "juice-shop.pending-checkout.v1";
 
 const money = (amountMinor: number, currency = "AFN") =>
   new Intl.NumberFormat("en-US", {
@@ -50,6 +53,7 @@ export default function Home() {
   const [splitPayment, setSplitPayment] = useState(false);
   const [otherPaymentConfirmed, setOtherPaymentConfirmed] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState("");
+  const [pendingCheckout, setPendingCheckout] = useState<PendingCheckout | null>(null);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -62,6 +66,40 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
   }, []);
+
+  useEffect(() => {
+    if (!staff) return;
+    try {
+      const raw = window.sessionStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as PendingCheckout;
+      const payload = saved?.payload;
+      const valid = saved?.version === 1 && typeof saved.cashierId === "string" &&
+        Number.isSafeInteger(saved.createdAt) && payload && typeof payload === "object" &&
+        typeof payload.idempotencyKey === "string" && payload.idempotencyKey.length >= 12 &&
+        Array.isArray(payload.items) && payload.items.length > 0 &&
+        Array.isArray(payload.paymentTenders) && payload.paymentTenders.length > 0 &&
+        payload.items.every((item) => item && typeof item.productId === "string" && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && Array.isArray(item.modifierOptionIds)) &&
+        payload.paymentTenders.every((tender) => tender && (tender.method === "CASH" || tender.method === "OTHER") && Number.isSafeInteger(tender.amountMinor) && tender.amountMinor > 0);
+      if (!valid) {
+        window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+        setNotice("A saved checkout recovery record was invalid and has been discarded. Review Orders before taking payment again.");
+        return;
+      }
+      if (saved.cashierId !== staff.id) {
+        setCheckoutUncertain(true);
+        setNotice("A pending checkout belongs to another cashier. Sign in with the original cashier to safely resume it; do not start another sale in this tab.");
+        return;
+      }
+      setPendingCheckout(saved);
+      setCheckoutKey(payload.idempotencyKey);
+      setCheckoutUncertain(true);
+      setNotice("A pending checkout was recovered from this tab. Resume it to check whether the sale completed; the original payment request will be replayed unchanged.");
+    } catch {
+      setCheckoutUncertain(true);
+      setNotice("The saved checkout could not be read. Verify the Orders screen before attempting another sale.");
+    }
+  }, [staff]);
 
   useEffect(() => {
     function handleModalKeyDown(event: KeyboardEvent) {
@@ -346,41 +384,24 @@ export default function Home() {
     setNotice(`Draft #${draft.orderNumber} resumed. Prices are refreshed at checkout.`);
   }
 
-  async function completeCheckout() {
-    if (checkoutBusy) return;
-    if (!staff) {
-      setLoginOpen(true);
-      setNotice("Staff sign-in is required before checkout.");
-      return;
-    }
-    if (cart.some((line) => line.product.id.startsWith("demo-"))) {
-      setNotice("The demo catalogue is preview-only. Apply the database migration and seed the catalogue before live checkout.");
-      return;
-    }
+  async function submitCheckoutPayload(payload: CheckoutPayload, recovered: boolean) {
+    if (checkoutBusy || !staff) return;
     setCheckoutBusy(true);
-    const requestKey = checkoutKey || crypto.randomUUID();
-    setCheckoutKey(requestKey);
+    setCheckoutUncertain(true);
     try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })),
-          paymentMethod: "CASH",
-          cashReceivedMinor,
-          paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
-          idempotencyKey: requestKey,
-          customerName,
-          notes: orderNotes,
-          ...(draftId ? { draftId } : {}),
-          ...(discountApprovalId ? { discountApprovalId } : {}),
-        }),
-      });
-      if (response.status < 500) setCheckoutUncertain(false);
-      else setCheckoutUncertain(true);
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Checkout failed.");
-      setNotice(`Order #${data.order.orderNumber} completed. ${splitPayment ? "Split payment" : "Cash payment"} recorded.`);
+      if (!response.ok) {
+        if (response.status < 500 && response.status !== 401 && response.status !== 409 && response.status !== 429) {
+          window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+          setPendingCheckout(null);
+          setCheckoutUncertain(false);
+        }
+        throw new Error(data.error || "Checkout failed.");
+      }
+      window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+      setPendingCheckout(null);
+      setNotice(`Order #${data.order.orderNumber} completed. ${payload.paymentTenders.length > 1 ? "Split payment" : "Cash payment"} recorded.`);
       setLastOrderId(data.order.id);
       setCart([]);
       setDraftId(null);
@@ -394,16 +415,59 @@ export default function Home() {
       setCheckoutKey("");
       setCheckoutUncertain(false);
     } catch (error) {
+      setCheckoutUncertain(true);
       if (error instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine)) {
-        setCheckoutUncertain(true);
-        setNotice("Connection interrupted. Your order is locked on screen. Restore the connection and retry checkout without changing the order; the same checkout key checks whether the sale already completed and prevents a duplicate.");
+        setNotice("Connection interrupted. The exact checkout request is saved in this tab. Restore the connection and resume it; the same idempotency key prevents a duplicate sale.");
+      } else if (recovered) {
+        setNotice(error instanceof Error ? error.message : "Recovery could not be confirmed. Keep this tab open and retry the saved checkout.");
       } else {
-        setNotice(error instanceof Error ? error.message : "Checkout failed. Your order is still on screen; review the result before starting another sale.");
+        setNotice(error instanceof Error ? error.message : "Checkout failed. Keep this request saved and verify Orders before retrying.");
       }
     } finally {
       setCheckoutBusy(false);
     }
   }
+
+  async function completeCheckout() {
+    if (checkoutBusy || checkoutUncertain) return;
+    if (!staff) {
+      setLoginOpen(true);
+      setNotice("Staff sign-in is required before checkout.");
+      return;
+    }
+    if (cart.some((line) => line.product.id.startsWith("demo-"))) {
+      setNotice("The demo catalogue is preview-only. Apply the database migration and seed the catalogue before live checkout.");
+      return;
+    }
+    const requestKey = checkoutKey || crypto.randomUUID();
+    const payload: CheckoutPayload = {
+      items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })),
+      paymentMethod: "CASH",
+      cashReceivedMinor,
+      paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
+      idempotencyKey: requestKey,
+      customerName,
+      notes: orderNotes,
+      ...(draftId ? { draftId } : {}),
+      ...(discountApprovalId ? { discountApprovalId } : {}),
+    };
+    const saved: PendingCheckout = { version: 1, cashierId: staff.id, createdAt: Date.now(), payload };
+    try {
+      window.sessionStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, JSON.stringify(saved));
+    } catch {
+      setNotice("This browser tab cannot save checkout recovery data. Payment was not sent. Enable session storage before retrying.");
+      return;
+    }
+    setCheckoutKey(requestKey);
+    setPendingCheckout(saved);
+    await submitCheckoutPayload(payload, false);
+  }
+
+  async function resumePendingCheckout() {
+    if (!pendingCheckout || !staff || pendingCheckout.cashierId !== staff.id) return;
+    await submitCheckoutPayload(pendingCheckout.payload, true);
+  }
+
 
   function action(label: string) {
     setNotice(`${label} is not connected yet.`);
@@ -512,6 +576,7 @@ export default function Home() {
             {!splitPayment && <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>}
             {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
+          {pendingCheckout && <button type="button" className="place-order" onClick={() => void resumePendingCheckout()} disabled={checkoutBusy || !staff || pendingCheckout.cashierId !== staff.id}>{checkoutBusy ? "Checking saved checkout…" : "Resume saved checkout"}</button>}
           <div className="payment-actions">
             <button type="button" className="clear-order" disabled={checkoutBusy || checkoutUncertain} onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
             <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : checkoutUncertain ? "Retry Checkout" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
