@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       products.set(line.productName, current);
     }
   }
-  for (const refund of refundRows) {
+  for (const refund of refundOnlyRows) {
     if (refund.cashRefundMinor) tenders.set("CASH", (tenders.get("CASH") || 0) - refund.cashRefundMinor);
     if (refund.otherRefundMinor) tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
   }
@@ -140,11 +140,13 @@ export async function GET(request: NextRequest) {
       ["Summary", "Start", report.start.toISOString(), "", ""],
       ["Summary", "End", report.end.toISOString(), "", ""],
       ["Summary", "Orders", report.orderCount, "", ""],
-      ["Summary", "Refund count", report.refundCount, "", ""],\n      ["Summary", "Void count", report.voidCount, "", ""],
+      ["Summary", "Refund count", report.refundCount, "", ""],
+      ["Summary", "Void count", report.voidCount, "", ""],
       ...report.currencyBreakdown.flatMap((item) => [
         ["Summary", `Net sales (${item.currency})`, item.totalMinor, "", item.currency],
         ["Summary", `Tax (${item.currency})`, item.taxMinor, "", item.currency],
-        ["Summary", `Refund total (${item.currency})`, item.refundTotalMinor, "", item.currency],\n        ["Summary", `Voids (${item.currency})`, item.voidTotalMinor, "", item.currency],
+        ["Summary", `Refund total (${item.currency})`, item.refundTotalMinor, "", item.currency],
+        ["Summary", `Voids (${item.currency})`, item.voidTotalMinor, "", item.currency],
         ["Summary", `Discounts (${item.currency})`, item.discountMinor, "", item.currency],
         ...item.tenders.map((tender) => ["Tender", `${tender.method} (${item.currency})`, "", tender.amountMinor, item.currency]),
         ...item.topProducts.map((product) => ["Product", `${product.name} (${item.currency})`, product.quantity, product.salesMinor, item.currency]),
