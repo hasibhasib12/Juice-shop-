@@ -396,10 +396,14 @@ export default function Home() {
         if (response.status < 500 && response.status !== 401 && response.status !== 409 && response.status !== 429) {
           window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
           setPendingCheckout(null);
+          setCheckoutKey("");
           recoveryRequired = false;
           setCheckoutUncertain(false);
         }
         throw new Error(data.error || "Checkout failed.");
+      }
+      if (!data?.order || typeof data.order.id !== "string" || !Number.isSafeInteger(data.order.orderNumber)) {
+        throw new Error("Checkout response could not be confirmed. Keep the saved request and retry to reconcile the sale.");
       }
       window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
       setPendingCheckout(null);
