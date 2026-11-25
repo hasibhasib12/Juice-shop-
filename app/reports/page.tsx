@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 
 type Report = { period: string; start: string; end: string; orderCount: number; refundCount: number; refundTotalMinor: number; currencies: string[]; totalMinor: number; taxMinor: number; discountMinor: number; averageOrderMinor: number; tenders: { method: string; amountMinor: number }[]; topProducts: { name: string; quantity: number; salesMinor: number }[]; recentOrders: { orderNumber: number; totalMinor: number; currency: string; cashier: string }[] };
@@ -25,7 +27,7 @@ export default function ReportsPage() {
   const currency = report?.currencies.length === 1 ? report.currencies[0] : "AFN";
   return (
     <main className="catalog-admin">
-      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · MANAGEMENT</span><h1>Sales reports</h1><p>Review completed sales and payment mix.</p></div></header>
+      <header className="catalog-admin-header"><Link href="/" className="catalog-back">← Back to POS</Link><div><span>JUICE SHOP · MANAGEMENT</span><h1>Sales reports</h1><p>Review completed sales and payment mix.</p></div></header>
       <section className="report-controls">
         <label>Period<select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label>
         <label>Reference date<input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></label>
