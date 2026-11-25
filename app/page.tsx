@@ -295,6 +295,7 @@ export default function Home() {
           idempotencyKey: requestKey,
           customerName,
           notes: orderNotes,
+          ...(draftId ? { draftId } : {}),
           ...(discountApprovalId ? { discountApprovalId } : {}),
         }),
       });
