@@ -204,14 +204,14 @@ export default function Home() {
         body: JSON.stringify({
           items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
           paymentMethod: "CASH",
-          cashReceivedMinor: splitPayment ? cashReceivedMinor : cashReceivedMinor,
+          cashReceivedMinor,
           paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
           idempotencyKey: requestKey,
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Checkout failed.");
-      setNotice(`Order #${data.order.orderNumber} completed. Cash payment recorded.`);
+      setNotice(`Order #${data.order.orderNumber} completed. ${splitPayment ? "Split payment" : "Cash payment"} recorded.`);
       setLastOrderId(data.order.id);
       setCart([]);
       setDiscount(0);
@@ -322,17 +322,17 @@ export default function Home() {
             <label htmlFor="cash-tender">{splitPayment ? `Cash portion (${storeInfo.currency})` : `Cash received (${storeInfo.currency})`}</label>
             <input id="cash-tender" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
             <label className="split-payment-toggle"><input type="checkbox" checked={splitPayment} onChange={(event) => { setSplitPayment(event.target.checked); setOtherPaymentConfirmed(false); setCashTender(event.target.checked ? (total / 2 / 100).toFixed(2) : (total / 100).toFixed(2)); }} disabled={checkoutBusy || cart.length === 0 || total < 2}/> Split payment</label>
-            <div className="cash-tender-presets">
+            {!splitPayment && <div className="cash-tender-presets">
               <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={cart.length === 0}>Exact</button>
               {[5000, 10000, 20000].filter((extra) => total > 0 && total + extra <= 2_000_000_000).map((extra) => <button type="button" key={extra} onClick={() => setCashTender(((total + extra) / 100).toFixed(2))}>{money(total + extra, storeInfo.currency)}</button>)}
-            </div>
+            </div>}
             {splitPayment && <><div className="cash-tender-change"><span>Other payment remaining</span><strong>{tenderValid ? money(otherPaymentMinor, storeInfo.currency) : "—"}</strong></div><label className="other-payment-confirm"><input type="checkbox" checked={otherPaymentConfirmed} onChange={(event) => setOtherPaymentConfirmed(event.target.checked)}/> I confirm the other payment has been received outside this POS.</label></>}
             {!splitPayment && <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>}
             {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
           <div className="payment-actions">
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : "Pay Cash"}</span></button>
+            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
           <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
