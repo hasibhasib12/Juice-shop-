@@ -48,7 +48,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Cash payment record and transactional order completion (cash received/change due UI still pending).
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
 - [ ] Split tender, failed/voided payments, refunds, reconciliation, and idempotency.
-- [ ] Printable receipt layout, thermal printer/browser print support, and reprints (order number is generated).
+- [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
+- [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
 
 ## Milestone 4 — Inventory
 - [x] Ingredient units, product recipe/BOM links, stock receiving, waste and count adjustments with stock movement ledger and audit events.
