@@ -3,6 +3,7 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 import { detectProductImageType } from "@/lib/product-image";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
@@ -21,7 +22,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
-  if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
+  const permissionState = await prisma.user.findUnique({ where: { id: actor.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(actor.role, permissionState?.permissionOverrides, "MANAGE_CATALOG")) {
+    return NextResponse.json({ error: "Catalogue management access required." }, { status: 403 });
+  }
   const rate = await checkActionRateLimit("product-image-upload", actor.id, 20, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many image uploads. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
