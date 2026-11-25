@@ -29,8 +29,11 @@ export async function POST(request: NextRequest) {
   const name = body.name?.trim();
   if (!name || name.length > 60) return NextResponse.json({ error: "Category name must be 1–60 characters." }, { status: 400 });
   try {
-    const category = await prisma.category.create({ data: { name, sortOrder: Number.isSafeInteger(body.sortOrder) ? body.sortOrder! : 0 } });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_CREATED", entityType: "Category", entityId: category.id, details: { name } } });
+    const category = await prisma.$transaction(async (tx) => {
+      const created = await tx.category.create({ data: { name, sortOrder: Number.isSafeInteger(body.sortOrder) ? body.sortOrder! : 0 } });
+      await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_CREATED", entityType: "Category", entityId: created.id, details: { name } } });
+      return created;
+    });
     return NextResponse.json({ category }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Category already exists or could not be created." }, { status: 409 });
@@ -70,8 +73,11 @@ export async function PATCH(request: NextRequest) {
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "No category changes supplied." }, { status: 400 });
 
   try {
-    const category = await prisma.category.update({ where: { id: body.id }, data });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_UPDATED", entityType: "Category", entityId: category.id, details: data } });
+    const category = await prisma.$transaction(async (tx) => {
+      const updated = await tx.category.update({ where: { id: body.id as string }, data });
+      await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_UPDATED", entityType: "Category", entityId: updated.id, details: data } });
+      return updated;
+    });
     return NextResponse.json({ category }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "P2002") return NextResponse.json({ error: "A category with that name already exists." }, { status: 409 });
@@ -96,8 +102,11 @@ export async function DELETE(request: NextRequest) {
   }
   const id = (parsed as { id: string }).id;
   try {
-    const category = await prisma.category.update({ where: { id }, data: { active: false } });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_ARCHIVED", entityType: "Category", entityId: id, details: { name: category.name } } });
+    const category = await prisma.$transaction(async (tx) => {
+      const archived = await tx.category.update({ where: { id }, data: { active: false } });
+      await tx.auditEvent.create({ data: { userId: user.id, action: "CATEGORY_ARCHIVED", entityType: "Category", entityId: id, details: { name: archived.name } } });
+      return archived;
+    });
     return NextResponse.json({ category }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Category could not be archived." }, { status: 404 });
