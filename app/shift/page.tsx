@@ -21,6 +21,7 @@ export default function ShiftPage() {
   const [staffName, setStaffName] = useState("");
   const [staffBranchName, setStaffBranchName] = useState("");
   const [closedJustNow, setClosedJustNow] = useState(false);
+  const [loggedOut, setLoggedOut] = useState(false);
   const formatMoney = (minor: number) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
   async function load() {
     const response = await fetch("/api/shifts", { cache: "no-store" });
@@ -89,7 +90,8 @@ export default function ShiftPage() {
           <form className="catalog-editor" onSubmit={(e) => void submit(e, "open")}><div className="catalog-section-head"><div><span>START OF SHIFT</span><h2>Open cash drawer</h2></div></div><label>Opening float ({currency})<input required type="number" min="0" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}/></label><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Open shift"}</button></form>
         </>}
       </section>
-      {!shift && closedJustNow && <section className="catalog-editor shift-logout-panel"><h2>Shift completed</h2><p>Goodbye, {staffName || "team member"}! Your cash shift has been closed successfully.</p><button type="button" className="catalog-primary" onClick={async () => { const response = await fetch("/api/auth/logout", { method: "POST" }); const data = await response.json(); if (!response.ok) { setNotice(data.error || "Could not log out."); return; } window.location.assign("/"); }}>Log out safely</button></section>}
+      {!shift && closedJustNow && !loggedOut && <section className="catalog-editor shift-logout-panel"><h2>Shift completed</h2><p>Goodbye, {staffName || "team member"}! Your cash shift has been closed successfully.</p><button type="button" className="catalog-primary" onClick={async () => { const response = await fetch("/api/auth/logout", { method: "POST" }); const data = await response.json(); if (!response.ok) { setNotice(data.error || "Could not log out."); return; } setLoggedOut(true); setNotice(`Goodbye, ${staffName || "team member"}! You have safely logged out.`); }}>Log out safely</button></section>}
+      {loggedOut && <section className="catalog-editor shift-logout-panel"><h2>Goodbye, {staffName || "team member"}!</h2><p>Your shift is closed and you have safely logged out.</p><Link href="/" className="catalog-primary">Return to sign in</Link></section>}
     </main>
   );
 }
