@@ -19,7 +19,7 @@ export async function GET() {
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
 
   const [ingredients, currencySetting] = await Promise.all([
-    prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { name: true, unit: true, quantityOnHand: true, reorderLevel: true, averageCostMinor: true } }),
+    prisma.ingredient.findMany({ where: { branchId: user.branchId }, orderBy: { name: "asc" }, select: { name: true, unit: true, quantityOnHand: true, reorderLevel: true, averageCostMinor: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);
   const currency = typeof currencySetting?.value === "string" ? currencySetting.value : "AFN";
