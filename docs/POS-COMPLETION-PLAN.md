@@ -41,7 +41,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
 - [ ] Category rename/archive, image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
-- [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, configurable tax and totals.
+- [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
+- [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 
 ## Milestone 3 — Payments and receipts
