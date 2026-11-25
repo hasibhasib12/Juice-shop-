@@ -131,6 +131,7 @@ model Order {
   shiftId        String?
   shift          Shift?        @relation(fields: [shiftId], references: [id])
   customerName   String?
+  notes          String?
   subtotalMinor  Int
   discountMinor  Int           @default(0)
   taxMinor       Int           @default(0)
