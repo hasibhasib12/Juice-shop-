@@ -438,6 +438,45 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const orderId = checkoutJson.order.id;
     const lineId = checkoutJson.order.lines[0].id;
 
+    // A manager assigned to another branch must not see or mutate this branch's orders,
+    // even when their role grants VIEW_ALL_ORDERS and PROCESS_REFUNDS.
+    const otherBranchCode = `B${suffix.replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+    const otherBranch = await prisma.branch.create({ data: {
+      name: `Other Branch ${suffix.slice(0, 8)}`, code: otherBranchCode,
+      timezone: "Asia/Kabul", currency: "AFN",
+    } });
+    const otherBranchManagerId = `api-it-other-manager-${suffix}`;
+    const otherBranchManagerEmail = `other-manager-${suffix}@api-integration.invalid`;
+    await prisma.user.create({ data: {
+      id: otherBranchManagerId, name: "Other Branch Manager",
+      email: otherBranchManagerEmail, passwordHash: passwordHash(password),
+      role: "MANAGER", branchId: otherBranch.id,
+      permissionOverrides: { VIEW_ALL_ORDERS: true, PROCESS_REFUNDS: true },
+    } });
+    const otherBranchLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: otherBranchManagerEmail, password }),
+    });
+    await expectStatus(otherBranchLogin, 200);
+    const otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const otherBranchOrders = await fetch(`${baseUrl}/api/orders`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(otherBranchOrders, 200);
+    const otherBranchOrdersJson = await otherBranchOrders.json() as { orders: { id: string }[] };
+    assert.equal(otherBranchOrdersJson.orders.some((item) => item.id === orderId), false,
+      "manager order history must be restricted to their assigned branch");
+    const otherBranchOrderDetail = await fetch(`${baseUrl}/api/orders/${orderId}`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(otherBranchOrderDetail, 404);
+    const otherBranchRefund = await fetch(`${baseUrl}/api/orders/${orderId}/refund`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ kind: "REFUND", amountMinor: 1500, reason: "Cross-branch security test" }),
+    });
+    await expectStatus(otherBranchRefund, 404);
+    const otherBranchDrafts = await fetch(`${baseUrl}/api/orders/drafts`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(otherBranchDrafts, 200);
+    const otherBranchDraftsJson = await otherBranchDrafts.json() as { drafts: { id: string }[] };
+    assert.equal(otherBranchDraftsJson.drafts.some((item) => item.id === draftId), false,
+      "manager draft list must be restricted to their assigned branch");
+
     const cashierOwnOrders = await cashierRequest("/api/orders", undefined, "GET");
     await expectStatus(cashierOwnOrders, 200);
     const cashierOwnOrdersJson = await cashierOwnOrders.json() as { orders: { id: string }[] };
