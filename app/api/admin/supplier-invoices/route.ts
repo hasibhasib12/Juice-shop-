@@ -32,7 +32,21 @@ export async function GET() {
       include: { supplier: { select: { id: true, name: true } }, lines: true },
     }),
   ]);
-  return NextResponse.json({ invoices, orders }, { headers: { "Cache-Control": "no-store" } });
+  const ordersWithRemaining = orders.map(({ invoices: linkedInvoices, ...order }) => ({
+    ...order,
+    lines: order.lines.map((line) => {
+      const invoicedQuantity = linkedInvoices.reduce((sum, invoice) => {
+        const matched = invoice.lines.find((invoiceLine) => invoiceLine.purchaseOrderLineId === line.id);
+        return matched ? sum.add(matched.quantity) : sum;
+      }, new Prisma.Decimal(0));
+      return {
+        ...line,
+        invoicedQuantity: invoicedQuantity.toString(),
+        remainingQuantity: new Prisma.Decimal(line.receivedQuantity).minus(invoicedQuantity).toString(),
+      };
+    }),
+  }));
+  return NextResponse.json({ invoices, orders: ordersWithRemaining }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
@@ -73,6 +87,22 @@ export async function POST(request: NextRequest) {
           const poLine = byId.get(line.purchaseOrderLineId);
           if (!poLine || line.quantity.gt(poLine.receivedQuantity)) throw new Error("LINE_NOT_RECEIVED");
         }
+        const priorInvoices = await tx.supplierInvoiceLine.findMany({
+          where: {
+            purchaseOrderLineId: { in: lines.map((line) => line.purchaseOrderLineId) },
+            invoice: { status: { not: "VOIDED" } },
+          },
+          select: { purchaseOrderLineId: true, quantity: true },
+        });
+        const previouslyBilled = new Map<string, Prisma.Decimal>();
+        for (const prior of priorInvoices) {
+          previouslyBilled.set(prior.purchaseOrderLineId, (previouslyBilled.get(prior.purchaseOrderLineId) ?? new Prisma.Decimal(0)).add(prior.quantity));
+        }
+        for (const line of lines) {
+          const poLine = byId.get(line.purchaseOrderLineId)!;
+          const alreadyBilled = previouslyBilled.get(line.purchaseOrderLineId) ?? new Prisma.Decimal(0);
+          if (alreadyBilled.add(line.quantity).gt(poLine.receivedQuantity)) throw new Error("QUANTITY_ALREADY_BILLED");
+        }
         const totalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
         if (!Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("TOTAL_INVALID");
         const created = await tx.supplierInvoice.create({
@@ -91,6 +121,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       if (error instanceof Error && error.message === "ORDER_NOT_RECEIVED") return NextResponse.json({ error: "Invoices can only be matched to received purchase orders." }, { status: 409 });
       if (error instanceof Error && error.message === "LINE_NOT_RECEIVED") return NextResponse.json({ error: "Invoice quantities cannot exceed quantities already received on the purchase order." }, { status: 409 });
+      if (error instanceof Error && error.message === "QUANTITY_ALREADY_BILLED") return NextResponse.json({ error: "Invoice quantities cannot exceed the remaining uninvoiced received quantity." }, { status: 409 });
       if (error instanceof Error && error.message === "TOTAL_INVALID") return NextResponse.json({ error: "Invoice total must be a positive safe amount." }, { status: 400 });
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "This invoice number is already recorded for the supplier." }, { status: 409 });
       return NextResponse.json({ error: "Supplier invoice could not be recorded." }, { status: 409 });
