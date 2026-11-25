@@ -454,7 +454,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       id: otherBranchManagerId, name: "Other Branch Manager",
       email: otherBranchManagerEmail, passwordHash: passwordHash(password),
       role: "MANAGER", branchId: otherBranch.id,
-      permissionOverrides: { VIEW_ALL_ORDERS: true, PROCESS_REFUNDS: true },
+      permissionOverrides: { VIEW_ALL_ORDERS: true, PROCESS_REFUNDS: true, MANAGE_INVENTORY: true },
     } });
     const otherBranchLogin = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
@@ -462,6 +462,26 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(otherBranchLogin, 200);
     const otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const foreignInventory = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignInventory, 200);
+    const foreignInventoryJson = await foreignInventory.json() as { ingredients: { id: string }[] };
+    assert.equal(foreignInventoryJson.ingredients.some((item) => item.id === ingredientId), false,
+      "inventory list must not expose another branch's ingredients");
+    const foreignStockMovement = await fetch(`${baseUrl}/api/admin/inventory`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ action: "movement", ingredientId, type: "WASTE", quantity: "1", reason: "Cross-branch test" }),
+    });
+    await expectStatus(foreignStockMovement, 404);
+    const foreignRecipes = await fetch(`${baseUrl}/api/admin/recipes`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignRecipes, 200);
+    const foreignRecipesJson = await foreignRecipes.json() as { products: { id: string }[]; ingredients: { id: string }[] };
+    assert.equal(foreignRecipesJson.products.some((item) => item.id === productId), false);
+    assert.equal(foreignRecipesJson.ingredients.some((item) => item.id === ingredientId), false);
+    const foreignRecipeWrite = await fetch(`${baseUrl}/api/admin/recipes`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ productId, ingredientId, quantity: "1" }),
+    });
+    await expectStatus(foreignRecipeWrite, 404);
     const otherBranchOrders = await fetch(`${baseUrl}/api/orders`, { headers: { cookie: otherBranchCookie } });
     await expectStatus(otherBranchOrders, 200);
     const otherBranchOrdersJson = await otherBranchOrders.json() as { orders: { id: string }[] };
