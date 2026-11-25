@@ -8,7 +8,7 @@
 - Initial defaults are Afghanistan / AFN / Asia-Kabul, with worldwide configuration. Never assume a tax rate.
 
 ## Scope
-Staff-facing POS only: catalogue, checkout, orders, tables, staff, inventory, suppliers/purchasing, shifts, refunds/returns, reports, receipts, hardware compatibility, security and operational reliability. No customer app, delivery marketplace or online ordering.
+Phase 0 is the current priority: complete and accept the staff-facing POS. The owner has expanded the product roadmap to include kitchen display, waiter operations, QR self-service table ordering, expanded floor management, delivery dispatch, customer loyalty, finance, advanced inventory, workforce management, multi-branch operations, optional online ordering and AI business intelligence. These are future phases and must not be described as implemented until delivered and accepted. See `docs/PRODUCT-ROADMAP.md`.
 
 ## Implemented
 - [x] Next.js 15 / React 19 / TypeScript POS and Prisma/PostgreSQL backend.
