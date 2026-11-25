@@ -50,8 +50,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   try {
     const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true } });
-      if (!order) throw new Error("ORDER_NOT_FOUND");
+      const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true, cashier: { select: { branchId: true } } } });
+      if (!order || order.cashier.branchId !== actor.branchId) throw new Error("ORDER_NOT_FOUND");
       if (order.status !== "COMPLETED" && order.status !== "REFUNDED") throw new Error("ORDER_NOT_COMPLETED");
       const created = [];
       for (const item of body.items!) {
