@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { getCurrentUser, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ const fingerprint = (items: Item[]) => createHash("sha256").update([...items].ma
 export async function POST(request: NextRequest) {
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Sign in before requesting a discount." }, { status: 401 });
+  const rate = await checkActionRateLimit("discount-authorization", cashier.id, 8, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many discount authorization attempts. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   let body: { managerEmail?: string; managerPassword?: string; discountMinor?: number; reason?: string; items?: Item[] };
   try { const parsed: unknown = await request.json(); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); body = parsed as typeof body; } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }

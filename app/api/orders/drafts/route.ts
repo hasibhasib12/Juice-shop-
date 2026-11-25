@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const rate = await checkActionRateLimit("order-draft-write", user.id, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many draft changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   let body: { id?: string; items?: DraftItem[]; customerName?: string; notes?: string };
   try {
@@ -146,6 +149,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const rate = await checkActionRateLimit("order-draft-write", user.id, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many draft changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const id = request.nextUrl.searchParams.get("id");
   if (!id || id.length > 64) return NextResponse.json({ error: "A valid draft ID is required." }, { status: 400 });
   try {
