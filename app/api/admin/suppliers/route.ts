@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { hasPermission } from "@/lib/permissions";
 
 export const runtime = "nodejs";
@@ -17,6 +18,8 @@ async function managerOnly() {
 export async function GET() {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("supplier-write", access.user!.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many supplier changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const suppliers = await prisma.supplier.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] });
   return NextResponse.json({ suppliers }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -24,6 +27,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("supplier-write", access.user!.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many supplier changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
@@ -52,6 +57,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("supplier-write", access.user!.id, 30, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many supplier changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,8 @@ async function managerOnly() {
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   let body: { name?: string; description?: string | null; imageUrl?: string | null; sku?: string | null; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean; status?: "ACTIVE" | "ARCHIVED" };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
@@ -65,6 +68,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   try {
     const product = await prisma.product.update({ where: { id }, data: { status: "ARCHIVED", available: false } });
