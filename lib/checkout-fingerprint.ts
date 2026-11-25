@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export type CheckoutFingerprintItem = { productId: string; quantity: number };
+export type CheckoutFingerprintItem = { productId: string; quantity: number; variantId?: string; modifierOptionIds?: string[] };
 export type CheckoutFingerprintTender = { method: "CASH" | "OTHER"; amountMinor: number };
 
 export function checkoutFingerprint(
@@ -10,13 +10,16 @@ export function checkoutFingerprint(
   discountApprovalId: string | undefined,
   metadata?: { customerName?: string; notes?: string },
 ) {
-  const quantities = new Map<string, number>();
+  const quantities = new Map<string, { productId: string; variantId: string | null; modifierOptionIds: string[]; quantity: number }>();
   for (const item of items) {
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+    const modifierOptionIds = [...(item.modifierOptionIds ?? [])].sort();
+    const variantId = item.variantId ?? null;
+    const key = JSON.stringify([item.productId, variantId, modifierOptionIds]);
+    const current = quantities.get(key);
+    if (current) current.quantity += item.quantity;
+    else quantities.set(key, { productId: item.productId, variantId, modifierOptionIds, quantity: item.quantity });
   }
-  const canonicalItems = [...quantities.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([productId, quantity]) => ({ productId, quantity }));
+  const canonicalItems = [...quantities.values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   const canonicalTenders = [...tenders]
     .map(({ method, amountMinor }) => ({ method, amountMinor }))
     .sort((a, b) => a.method.localeCompare(b.method));
