@@ -135,6 +135,7 @@ model Order {
   lines          OrderLine[]
   payments       Payment[]
   refunds        Refund[]
+  itemReturns    OrderLineReturn[]
   cashMovements  CashMovement[]
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
@@ -152,6 +153,7 @@ model OrderLine {
   lineTotalMinor  Int
   order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product         Product @relation(fields: [productId], references: [id])
+  returns         OrderLineReturn[]
 
   @@index([orderId])
 }
@@ -281,4 +283,35 @@ model DiscountApproval {
 
   @@index([cashierId, expiresAt, usedAt])
   @@index([managerId, createdAt])
+}
+
+
+enum ReturnCondition {
+  SEALED_UNUSED
+  OPENED
+  PREPARED
+  DAMAGED
+}
+
+enum ReturnDisposition {
+  WASTE
+  NOT_RESTOCKABLE
+}
+
+model OrderLineReturn {
+  id             String            @id @default(cuid())
+  orderId        String
+  orderLineId    String
+  processedById  String
+  quantity       Int
+  condition      ReturnCondition
+  disposition    ReturnDisposition
+  reason         String
+  createdAt      DateTime          @default(now())
+  order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderLine      OrderLine         @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  processedBy    User              @relation(fields: [processedById], references: [id])
+
+  @@index([orderId, createdAt])
+  @@index([orderLineId, createdAt])
 }
