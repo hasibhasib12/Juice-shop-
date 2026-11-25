@@ -11,6 +11,7 @@ type Product = {
   image: string;
 };
 type CartLine = { product: Product; quantity: number };
+type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number }[] };
 
 const money = (amountMinor: number, currency = "AFN") =>
   new Intl.NumberFormat("en-US", {
@@ -52,6 +53,10 @@ export default function Home() {
   const [notesOpen, setNotesOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<SavedDraft[]>([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
@@ -228,6 +233,42 @@ export default function Home() {
     }
   }
 
+  async function saveDraft() {
+    if (!staff || cart.length === 0 || draftBusy) return;
+    if (cart.some((line) => line.product.id.startsWith("demo-"))) { setNotice("Drafts require the live database catalogue."); return; }
+    setDraftBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/orders/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(draftId ? { id: draftId } : {}), items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })), customerName, notes: orderNotes }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save draft.");
+      setDraftId(data.draft.id);
+      setNotice(`Draft #${data.draft.orderNumber} saved. You can resume it later.`);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not save draft."); }
+    finally { setDraftBusy(false); }
+  }
+
+  async function openDrafts() {
+    setDraftBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/orders/drafts", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load drafts.");
+      setDrafts(data.drafts); setDraftsOpen(true);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not load drafts."); }
+    finally { setDraftBusy(false); }
+  }
+
+  function resumeDraft(draft: SavedDraft) {
+    const lines = draft.lines.map((line) => {
+      const product = products.find((item) => item.id === line.productId);
+      return product ? { product, quantity: line.quantity } : null;
+    }).filter((line): line is CartLine => line !== null);
+    if (lines.length !== draft.lines.length) { setNotice("Some products in this draft are no longer in the live catalogue. Review it in Orders."); return; }
+    setCart(lines); setDraftId(draft.id); setCustomerName(draft.customerName || ""); setOrderNotes(draft.notes || "");
+    setDiscount(0); setDiscountApprovalId(null); setCheckoutKey(""); setDraftsOpen(false);
+    setNotice(`Draft #${draft.orderNumber} resumed. Prices are refreshed at checkout.`);
+  }
+
   async function completeCheckout() {
     if (checkoutBusy) return;
     if (!staff) {
@@ -262,6 +303,7 @@ export default function Home() {
       setNotice(`Order #${data.order.orderNumber} completed. ${splitPayment ? "Split payment" : "Cash payment"} recorded.`);
       setLastOrderId(data.order.id);
       setCart([]);
+      setDraftId(null);
       setDiscount(0);
       setDiscountApprovalId(null);
       setCashTender("0.00");
@@ -337,6 +379,7 @@ export default function Home() {
             <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
             <button onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
             <button onClick={() => setNotesOpen(true)}><span>▤</span>Notes</button>
+            <button onClick={() => void openDrafts()}><span>▣</span>Drafts</button>
             <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
           </div>
         </section>
@@ -385,11 +428,26 @@ export default function Home() {
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
             <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
-          <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
+          <button className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
+      {draftsOpen && (
+        <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDraftsOpen(false); }}>
+          <section className="login-panel" aria-label="Saved draft orders">
+            <button className="login-close" type="button" aria-label="Close drafts" onClick={() => setDraftsOpen(false)}>×</button>
+            <span className="login-kicker">SAVED SALES</span><h2>Draft orders</h2>
+            <p>Saved carts can be resumed by their cashier or a manager.</p>
+            {drafts.length === 0 ? <p>No saved drafts yet.</p> : drafts.map((draft) => (
+              <article className="catalog-product" key={draft.id}>
+                <div className="catalog-product-info"><b>Draft #{draft.orderNumber} · {draft.customerName || "Walk-in customer"}</b><span>{draft.lines.map((line) => `${line.quantity} × ${line.productName}`).join(" · ")}</span><small>{money(draft.totalMinor, draft.currency)}</small></div>
+                <button type="button" onClick={() => resumeDraft(draft)}>Resume</button>
+              </article>
+            ))}
+          </section>
+        </div>
+      )}
       {notesOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setNotesOpen(false); }}>
           <form className="login-panel" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
