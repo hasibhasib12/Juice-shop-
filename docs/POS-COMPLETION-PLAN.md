@@ -36,7 +36,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
-- [ ] Broader unit/integration tests for critical calculations and transaction rollback. Focused unit tests cover canonical checkout idempotency fingerprints, including item/tender order invariance, split-tender amount sensitivity, duplicate-line aggregation, cash received and discount approval changes; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
+- [ ] Broader unit/integration tests for critical calculations and transaction rollback, including saved-draft conversion and cross-cashier permissions. Focused unit tests cover canonical checkout idempotency fingerprints, including item/tender order invariance, split-tender amount sensitivity, duplicate-line aggregation, cash received and discount approval changes; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
 
 ## Milestone 2 — Catalogue and checkout
@@ -45,7 +45,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
-- [ ] Server-created draft orders, table management, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
+- [x] Server-created persistent draft orders: cashier-scoped save/list/update/delete, manager visibility, resume in the POS, and conversion into a completed order during the same checkout transaction. Draft conversion refreshes product prices and tax, requires an open shift, records payment/stock/audit entries, and prevents a draft from being completed twice.\n- [ ] Table management, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Cashier can attach an optional customer name and up to 1,000 characters of staff order notes at checkout; details are persisted on the order and displayed on reprinted receipts.
 - [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key bound to a canonical request fingerprint; reusing a key for a different cart/tender is rejected.
