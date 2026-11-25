@@ -39,6 +39,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   let createdCashierShiftId: string | undefined;
   let otherBranchId: string | undefined;
   let otherBranchManagerId: string | undefined;
+  let otherBranchProductId: string | undefined;
+  let otherBranchCategoryId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
   const ingredientId = `api-it-ingredient-${suffix}`;
@@ -260,6 +262,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       body: JSON.stringify({ action: "payment", invoiceId, amountMinor: 100, method: "CASH" }),
     });
     await expectStatus(foreignInvoicePayment, 404);
+    const foreignReceipt = await fetch(`${baseUrl}/api/orders/${orderId}/receipt/pdf`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignReceipt, 404);
     const foreignTables = await fetch(`${baseUrl}/api/tables`, { headers: { cookie: otherBranchCookie } });
     await expectStatus(foreignTables, 200);
     const foreignTablesJson = await foreignTables.json() as { tables: { id: string }[] };
@@ -461,6 +465,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(checkoutJson.order.lines.length, 1);
     const orderId = checkoutJson.order.id;
     const lineId = checkoutJson.order.lines[0].id;
+    const receiptPdf = await fetch(`${baseUrl}/api/orders/${orderId}/receipt/pdf`, { headers: { cookie } });
+    await expectStatus(receiptPdf, 200);
+    assert.match(receiptPdf.headers.get("content-type") ?? "", /application\\/pdf/);
+    const receiptBytes = Buffer.from(await receiptPdf.arrayBuffer());
+    assert.ok(receiptBytes.subarray(0, 8).toString("ascii").startsWith("%PDF-1."), "saved order receipt must be a valid PDF");
 
     // A manager assigned to another branch must not see or mutate this branch's orders,
     // even when their role grants VIEW_ALL_ORDERS and PROCESS_REFUNDS.
@@ -470,6 +479,13 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       timezone: "Asia/Kabul", currency: "AFN",
     } });
     otherBranchId = otherBranch.id;
+    otherBranchCategoryId = `api-it-other-category-${suffix}`;
+    otherBranchProductId = `api-it-other-product-${suffix}`;
+    await prisma.category.create({ data: { id: otherBranchCategoryId, branchId: otherBranch.id, name: `Other Branch Category ${suffix}` } });
+    await prisma.product.create({ data: {
+      id: otherBranchProductId, branchId: otherBranch.id, name: "Other Branch Test Product",
+      priceMinor: 1200, currency: "AFN", categoryId: otherBranchCategoryId,
+    } });
     otherBranchManagerId = `api-it-other-manager-${suffix}`;
     const otherBranchManagerEmail = `other-manager-${suffix}@api-integration.invalid`;
     await prisma.user.create({ data: {
@@ -484,6 +500,14 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(otherBranchLogin, 200);
     const otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const crossBranchVariantRecipe = await fetch(`${baseUrl}/api/admin/products/${otherBranchProductId}/options`, {
+      method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie, origin: baseUrl },
+      body: JSON.stringify({ variants: [{ name: "Unsafe cross-branch recipe", priceMinor: 1300, recipeItems: [{ ingredientId, quantity: 10 }] }], modifierGroups: [] }),
+    });
+    await expectStatus(crossBranchVariantRecipe, 400);
+    assert.equal(await prisma.productVariant.count({ where: { productId: otherBranchProductId } }), 0,
+      "variant recipes must not attach another branch's ingredients");
+
     const foreignInventory = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: otherBranchCookie } });
     await expectStatus(foreignInventory, 200);
     const foreignInventoryJson = await foreignInventory.json() as { ingredients: { id: string }[] };
@@ -629,6 +653,25 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.orderLineReturn.count({ where: { orderId, orderLineId: lineId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_ITEMS_RETURN_RECORDED" } }), 1);
 
+    const { draftId: _receiptDraftId, ...cashReceiptCheckout } = checkoutBody;
+    const cashReceiptResponse = await request("/api/checkout", {
+      ...cashReceiptCheckout,
+      idempotencyKey: `api-it-cash-receipt-${suffix}`,
+      paymentTenders: [{ method: "CASH", amountMinor: 1500 }],
+      cashReceivedMinor: 2000,
+    });
+    await expectStatus(cashReceiptResponse, 201);
+    const cashReceiptJson = await cashReceiptResponse.json() as { order: { id: string; totalMinor: number } };
+    assert.equal(cashReceiptJson.order.totalMinor, 1500);
+    const savedCashPayment = await prisma.payment.findFirstOrThrow({ where: { orderId: cashReceiptJson.order.id } });
+    assert.equal(savedCashPayment.cashReceivedMinor, 2000);
+    assert.equal(savedCashPayment.changeDueMinor, 500);
+    const cashReceiptPdf = await fetch(`${baseUrl}/api/orders/${cashReceiptJson.order.id}/receipt/pdf`, { headers: { cookie } });
+    await expectStatus(cashReceiptPdf, 200);
+    const cashPdfText = Buffer.from(await cashReceiptPdf.arrayBuffer()).toString("ascii");
+    assert.ok(cashPdfText.includes("Cash received: 20.00 AFN"));
+    assert.ok(cashPdfText.includes("Change due: 5.00 AFN"));
+
     const beforeCashFailure = {
       orders: await prisma.order.count({ where: { cashierId: userId } }),
       payments: await prisma.payment.count({ where: { order: { cashierId: userId } } }),
@@ -718,10 +761,12 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     }
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
+    if (otherBranchProductId) await prisma.product.deleteMany({ where: { id: otherBranchProductId } });
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.stockMovement.deleteMany({ where: { ingredientId } });
     await prisma.ingredient.deleteMany({ where: { id: ingredientId } });
     if (createdCategoryId) await prisma.category.deleteMany({ where: { id: createdCategoryId } });
+    if (otherBranchCategoryId) await prisma.category.deleteMany({ where: { id: otherBranchCategoryId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
     await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId, ...(otherBranchManagerId ? [otherBranchManagerId] : [])] } } });
     if (otherBranchId) await prisma.branch.deleteMany({ where: { id: otherBranchId } });
