@@ -355,7 +355,7 @@ export default function Home() {
         </a>
         <label className="top-search">
           <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name or scan barcode / SKU..." />
+          <input type="search" autoFocus value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key !== "Enter") return; const code = search.trim().toLowerCase(); const match = products.find((product) => product.sku?.toLowerCase() === code); if (!match) return; event.preventDefault(); addToCart(match); setSearch(""); setCategory("All"); setNotice("Scanned " + match.name + " and added it to the cart."); }} placeholder="Search name or scan barcode / SKU..." />
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>

@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { rateLimitPolicy } from "@/lib/rate-limit-policy";
 export async function checkActionRateLimit(scope: string, identity: string, maxAttempts: number, windowSeconds: number) {
   const secret = process.env.POS_SESSION_SECRET;
   if (!secret || secret.length < 32) throw new Error("POS_SESSION_SECRET must contain at least 32 characters");
@@ -16,6 +17,5 @@ export async function checkActionRateLimit(scope: string, identity: string, maxA
     RETURNING "attempts", "windowStartedAt"
   `;
   const attempt = rows[0];
-  const retryAfterSeconds = Math.max(1, Math.ceil((attempt.windowStartedAt.getTime() + windowSeconds * 1000 - Date.now()) / 1000));
-  return { allowed: attempt.attempts <= maxAttempts, retryAfterSeconds, remaining: Math.max(0, maxAttempts - attempt.attempts) };
+  return rateLimitPolicy(attempt.attempts, maxAttempts, attempt.windowStartedAt, windowSeconds);
 }

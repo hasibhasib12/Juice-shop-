@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { calculateExpectedShiftCash } from "@/lib/shift-cash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,18 +46,18 @@ export async function GET(request: NextRequest) {
       user: { select: { name: true, email: true } },
       orders: { where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] } }, include: { payments: { where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } },
       cashMovements: { select: { type: true, amountMinor: true } },
+      refunds: { select: { cashRefundMinor: true, createdAt: true } },
     },
     orderBy: { openedAt: "asc" },
   });
   const rows: (string | number)[][] = [["Cashier", "Email", "Shift opened", "Shift closed", "Opening cash minor", "Cash sales minor", "Cash refunds minor", "Paid in minor", "Paid out minor", "Expected cash minor", "Counted cash minor", "Variance minor", "Orders"]];
   for (const shift of shifts) {
     const endAt = shift.closedAt || new Date();
-    const refunds = await prisma.refund.aggregate({ where: { shiftId: shift.id, createdAt: { lte: endAt } }, _sum: { cashRefundMinor: true } });
+    const cashRefund = shift.refunds.filter((refund) => refund.createdAt <= endAt).reduce((sum, refund) => sum + refund.cashRefundMinor, 0);
     const cashSales = shift.orders.reduce((sum, order) => sum + order.payments.reduce((paymentSum, payment) => paymentSum + payment.amountMinor, 0), 0);
-    const cashRefund = refunds._sum.cashRefundMinor ?? 0;
     const paidIn = shift.cashMovements.filter((movement) => movement.type === "PAID_IN").reduce((sum, movement) => sum + movement.amountMinor, 0);
     const paidOut = shift.cashMovements.filter((movement) => movement.type === "PAID_OUT").reduce((sum, movement) => sum + movement.amountMinor, 0);
-    const expected = shift.openingCashMinor + cashSales - cashRefund + paidIn - paidOut;
+    const expected = calculateExpectedShiftCash(shift.openingCashMinor, cashSales, cashRefund, paidIn, paidOut);
     const counted = shift.closingCashMinor;
     rows.push([shift.user.name, shift.user.email, shift.openedAt.toISOString(), shift.closedAt?.toISOString() || "OPEN", shift.openingCashMinor, cashSales, cashRefund, paidIn, paidOut, expected, counted ?? "", counted === null ? "" : counted - expected, shift.orders.length]);
   }
