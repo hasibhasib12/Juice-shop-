@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
@@ -10,8 +11,9 @@ export const dynamic = "force-dynamic";
 async function managerOnly(): Promise<{ user?: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>; response?: NextResponse }> {
   const user = await getCurrentUser();
   if (!user) return { response: NextResponse.json({ error: "Sign-in required." }, { status: 401 }) };
-  if (user.role !== "OWNER" && user.role !== "MANAGER") {
-    return { response: NextResponse.json({ error: "Manager or owner access required." }, { status: 403 }) };
+  const state = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, state?.permissionOverrides, "MANAGE_CATALOG")) {
+    return { response: NextResponse.json({ error: "Catalogue management access required." }, { status: 403 }) };
   }
   return { user };
 }
