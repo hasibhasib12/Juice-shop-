@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const prisma = new PrismaClient();
 
@@ -16,6 +17,24 @@ const catalog = [
 ];
 
 async function main() {
+  const ownerEmail = process.env.POS_OWNER_EMAIL?.trim().toLowerCase();
+  const ownerPassword = process.env.POS_OWNER_PASSWORD;
+  if (ownerEmail && ownerPassword) {
+    if (ownerPassword.length < 12) throw new Error("POS_OWNER_PASSWORD must be at least 12 characters.");
+    const salt = randomBytes(16).toString("hex");
+    const passwordHash = `scrypt${salt}${scryptSync(ownerPassword, salt, 64).toString("hex")}`;
+    await prisma.user.upsert({
+      where: { email: ownerEmail },
+      update: { active: true },
+      create: {
+        name: process.env.POS_OWNER_NAME?.trim() || "Store Owner",
+        email: ownerEmail,
+        passwordHash,
+        role: UserRole.OWNER,
+      },
+    });
+    console.log("Initial owner account is available.");
+  }
   // Initial store defaults: Afghanistan and Afghan afghani.
   // These are defaults only; future multi-location support should store settings per location.
   const defaultSettings = [
