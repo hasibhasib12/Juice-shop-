@@ -33,8 +33,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
 - [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
 - [x] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; apply migration and verify seeded catalogue.
-- [x] Expand schema for full-order refund/void records and payment tender allocation.
-- [ ] Expand schema for variants, modifiers, cash movements, discounts and customers.
+- [x] Expand schema for full-order refund/void records, payment tender allocation and cash movement ledger.
+- [ ] Expand schema for variants, modifiers, discounts and customers.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
@@ -46,7 +46,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [x] Apply and verify cash-tender, refund/void, cash-allocation and tax-refund migrations on the isolated Neon development branch.
+- [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund and cash-movement migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
