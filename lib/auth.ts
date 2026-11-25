@@ -33,13 +33,13 @@ function sign(value: string) {
 
 export async function authenticate(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() }, include: { branch: { select: { id: true, name: true, code: true } } } });
-  if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
+  if (!user || !user.active || user.approvalStatus !== "APPROVED" || !verifyPassword(password, user.passwordHash)) return null;
   return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId, branch: user.branch };
 }
 
 export async function createSession(user: { id: string }) {
-  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { sessionVersion: true, active: true } });
-  if (!current?.active) throw new Error("Cannot create a session for an inactive user");
+  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { sessionVersion: true, active: true, approvalStatus: true } });
+  if (!current?.active || current.approvalStatus !== "APPROVED") throw new Error("Cannot create a session for an inactive or unapproved user");
   const payload = Buffer.from(JSON.stringify({
     sub: user.id,
     ver: current.sessionVersion,
@@ -75,9 +75,9 @@ export async function getCurrentUser() {
     if (!data.sub || !Number.isSafeInteger(data.ver) || data.ver < 0 || data.exp <= Math.floor(Date.now() / 1000)) return null;
     const user = await prisma.user.findUnique({
       where: { id: data.sub },
-      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true, branchId: true, branch: { select: { id: true, name: true, code: true } } },
+      select: { id: true, name: true, email: true, role: true, active: true, approvalStatus: true, sessionVersion: true, branchId: true, branch: { select: { id: true, name: true, code: true } } },
     });
-    if (!user?.active || user.sessionVersion !== data.ver) return null;
+    if (!user?.active || user.approvalStatus !== "APPROVED" || user.sessionVersion !== data.ver) return null;
     return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId, branch: user.branch };
   } catch {
     return null;
