@@ -91,6 +91,14 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       method, headers: { "content-type": "application/json", cookie: cashierCookie },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
+    const malformedDiscountEmail = await cashierRequest("/api/discounts/authorize", {
+      managerEmail: 123, managerPassword: password, discountMinor: 1, reason: "Test", items: [],
+    });
+    await expectStatus(malformedDiscountEmail, 400);
+    const malformedDiscountReason = await cashierRequest("/api/discounts/authorize", {
+      managerEmail: `${suffix}@api-integration.invalid`, managerPassword: password, discountMinor: 1, reason: 123, items: [],
+    });
+    await expectStatus(malformedDiscountReason, 400);
     const deniedTableCreate = await cashierRequest("/api/tables", { name: "Denied table" });
     await expectStatus(deniedTableCreate, 403);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { MANAGE_TABLES: true } } });
