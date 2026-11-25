@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type ProductVariant = { id: string; name: string; priceMinor: number };
 type ModifierOption = { id: string; name: string; priceDeltaMinor: number };
 type ModifierGroup = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: ModifierOption[] };
-type Product = { id: string; name: string; category: string; priceMinor: number; currency: string; image: string; variants: ProductVariant[]; modifierGroups: ModifierGroup[] };
+type Product = { id: string; name: string; sku?: string | null; category: string; priceMinor: number; currency: string; image: string; variants: ProductVariant[]; modifierGroups: ModifierGroup[] };
 type SelectedModifier = { optionId: string; groupName: string; name: string; priceDeltaMinor: number };
 type CartLine = { key: string; product: Product; quantity: number; variantId?: string; variantName?: string; modifierOptionIds: string[]; selectedModifiers: SelectedModifier[]; unitPriceMinor: number };
 type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
@@ -81,6 +81,7 @@ export default function Home() {
           data.products.map((item: {
             id: string;
             name: string;
+            sku: string | null;
             category: { name: string };
             priceMinor: number;
             currency: string;
@@ -90,6 +91,7 @@ export default function Home() {
           }) => ({
             id: item.id,
             name: item.name,
+            sku: item.sku,
             category: item.category.name,
             priceMinor: item.priceMinor,
             currency: item.currency,
@@ -133,7 +135,7 @@ export default function Home() {
       products.filter(
         (product) =>
           (category === "All" || product.category === category) &&
-          product.name.toLowerCase().includes(search.toLowerCase()),
+          (product.name.toLowerCase().includes(search.trim().toLowerCase()) || (product.sku || "").toLowerCase().includes(search.trim().toLowerCase())),
       ),
     [category, products, search],
   );
@@ -353,7 +355,7 @@ export default function Home() {
         </a>
         <label className="top-search">
           <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products..." />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name or scan barcode / SKU..." />
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
