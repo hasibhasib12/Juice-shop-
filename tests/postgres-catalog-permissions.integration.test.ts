@@ -125,6 +125,34 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
       data: { permissionOverrides: { MANAGE_CATALOG: true } },
     });
 
+    // Force the audit insert to fail for one product update and prove the
+    // product write rolls back with it. This trigger exists only in the
+    // disposable CI PostgreSQL database and is removed in finally.
+    await prisma.$executeRawUnsafe(`
+      CREATE OR REPLACE FUNCTION public.pos_test_reject_audit() RETURNS trigger
+      LANGUAGE plpgsql AS $
+      BEGIN
+        IF NEW."action" = 'PRODUCT_UPDATED' AND NEW."entityId" = '${productId}' THEN
+          RAISE EXCEPTION 'intentional POS audit rollback test';
+        END IF;
+        RETURN NEW;
+      END;
+      $;
+      CREATE TRIGGER pos_test_reject_audit_trigger
+      BEFORE INSERT ON "AuditEvent"
+      FOR EACH ROW EXECUTE FUNCTION public.pos_test_reject_audit();
+    `);
+    const auditFailureUpdate = await request(`/api/admin/products/${productId}`, "PATCH", { name: "Must roll back" });
+    await expectStatus(auditFailureUpdate, 409);
+    assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).name, productName,
+      "product update must roll back when its audit insert fails");
+    assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_UPDATED" } }), 0,
+      "failed product update must not leave an audit event");
+    await prisma.$executeRawUnsafe(`
+      DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent";
+      DROP FUNCTION IF EXISTS public.pos_test_reject_audit();
+    `);
+
     const grantedRead = await request("/api/admin/products", "GET");
     await expectStatus(grantedRead, 200);
     const grantedOptionsRead = await request(`/api/admin/products/${productId}/options`, "GET");
@@ -205,6 +233,7 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
     assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).name, productName);
   } finally {
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent"; DROP FUNCTION IF EXISTS public.pos_test_reject_audit();`).catch(() => undefined);
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
       await Promise.race([
