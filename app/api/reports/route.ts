@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get("format") === "csv") {
     const cell = (value: string | number, untrusted = false) => {
       let text = String(value);
-      if (untrusted && /^[=+@\\-\\t\\r]/.test(text)) text = `'${text}`;
+      if (untrusted && (["=", "+", "@", "-"].includes(text[0] || "") || text.charCodeAt(0) === 9 || text.charCodeAt(0) === 13)) text = "'" + text;
       return `"${text.replace(/"/g, '""')}"`;
     };
     const rows: (string | number)[][] = [
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
       ...report.topProducts.map((item) => ["Product", item.name, item.quantity, item.salesMinor, report.currencies.join("|")]),
       ...report.recentOrders.map((item) => ["Order", `#${item.orderNumber} · ${item.cashier}`, "", item.totalMinor, item.currency]),
     ];
-    const csv = rows.map((row) => row.map((value, index) => cell(value, index === 1)).join(",")).join("\\r\\n");
+    const csv = rows.map((row) => row.map((value, index) => cell(value, index === 1)).join(",")).join(String.fromCharCode(13, 10));
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
