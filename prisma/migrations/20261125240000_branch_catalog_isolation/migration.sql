@@ -14,3 +14,6 @@ DROP INDEX IF EXISTS "Category_name_key";
 CREATE UNIQUE INDEX "Category_branchId_name_key" ON "Category"("branchId", "name");
 CREATE INDEX "Category_branchId_active_sortOrder_idx" ON "Category"("branchId", "active", "sortOrder");
 CREATE INDEX "Product_branchId_status_available_idx" ON "Product"("branchId", "status", "available");
+
+ALTER TABLE "Category" ALTER COLUMN "branchId" SET DEFAULT 'main-branch';
+ALTER TABLE "Product" ALTER COLUMN "branchId" SET DEFAULT 'main-branch';
