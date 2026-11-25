@@ -199,3 +199,13 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Added PostgreSQL-backed HTTP integration coverage for denied reads/writes, no mutation/audit side effects on denial, authorized product/category lifecycle, exactly-once audit events, and permission revocation.
 - No schema migration is required; the permission is stored in the existing JSON permission-overrides field.
 - CI and isolated PostgreSQL execution remain pending. No deployment, production data changes, or `main` changes.
+
+
+## Product and recipe route audit — 2026-11-25 (acceptance follow-up)
+- Reviewed product collection and detail routes plus the recipe route against the current Prisma models and permission helpers.
+- Product collection/detail reads and writes enforce persisted `MANAGE_CATALOG` permission; product mutations apply same-origin checks, a shared catalog write rate limit, and transactional audit events.
+- Recipe reads and writes enforce persisted `MANAGE_INVENTORY` permission; writes apply same-origin checks, a recipe-specific rate limit, input validation, and transactional audit events.
+- Recipe quantities are parsed as Prisma decimals and constrained to finite positive values no greater than 100,000,000. Product/ingredient relations are constrained by database foreign keys and a unique product/ingredient pair.
+- The product schema contains variants, modifier groups and variant recipe relations, but the expected nested variants route path was not found at the inspected location. Route discovery and independent authorization review for variant/modifier APIs remain open; do not infer that product-route authorization protects separate endpoints.
+- The source review is recorded in `docs/PRODUCT-RECIPE-SECURITY-REVIEW.md`. Explicit route-level integration assertions for product and recipe permission grant/revoke, denied-write side effects, malformed recipe payloads and audit rollback still need to be verified against the complete test suite.
+- No schema migration, production database operation, environment change, deployment, or `main` branch modification.
