@@ -34,6 +34,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Each return needs a valid line, quantity, condition, disposition and reason." }, { status: 400 });
     }
     if (item.condition === "PREPARED" && item.disposition !== "WASTE") return NextResponse.json({ error: "Prepared drinks must be recorded as waste; ingredients cannot be restocked." }, { status: 400 });
+    if (item.condition === "SEALED_UNUSED" && item.disposition !== "NOT_RESTOCKABLE") return NextResponse.json({ error: "Sealed returns cannot be restocked until finished-product inventory is implemented." }, { status: 400 });
     seen.add(item.orderLineId);
   }
 
