@@ -76,6 +76,43 @@ export default function Home() {
   }, [configProduct, discountBusy, discountOpen, draftsOpen, draftBusy, loginBusy, loginOpen, notesOpen]);
 
   useEffect(() => {
+    const modalOpen = Boolean(configProduct || draftsOpen || notesOpen || discountOpen || loginOpen);
+    if (!modalOpen) return;
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
+    if (!dialog) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter((element) => element.getAttribute("aria-hidden") !== "true");
+    const focusables = getFocusable();
+    (focusables[0] ?? dialog).focus();
+
+    function containTabFocus(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const current = getFocusable();
+      if (current.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = current[0];
+      const last = current[current.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", containTabFocus);
+    return () => {
+      document.removeEventListener("keydown", containTabFocus);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [configProduct, discountOpen, draftsOpen, loginOpen, notesOpen]);
+
+  useEffect(() => {
     let active = true;
     fetch("/api/settings", { cache: "no-store" })
       .then((response) => response.json())
@@ -507,7 +544,7 @@ export default function Home() {
       )}
       {notesOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setNotesOpen(false); }}>
-          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
+          <form className="login-panel" role="dialog" aria-modal="true" aria-label="Customer and order notes" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
             <button className="login-close" type="button" aria-label="Close order notes" onClick={() => setNotesOpen(false)}>×</button>
             <span className="login-kicker">CURRENT ORDER</span>
             <h2>Customer & order notes</h2>
@@ -520,7 +557,7 @@ export default function Home() {
       )}
       {discountOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !discountBusy) setDiscountOpen(false); }}>
-          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={requestDiscount}>
+          <form className="login-panel" role="dialog" aria-modal="true" aria-label="Apply a discount" onSubmit={requestDiscount}>
             <button className="login-close" type="button" aria-label="Close discount approval" onClick={() => setDiscountOpen(false)}>×</button>
             <span className="login-kicker">MANAGER APPROVAL · ONE-TIME</span>
             <h2>Apply a discount</h2>
@@ -535,7 +572,7 @@ export default function Home() {
       )}
       {loginOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLoginOpen(false); }}>
-          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={signIn}>
+          <form className="login-panel" role="dialog" aria-modal="true" aria-label="Staff sign in" onSubmit={signIn}>
             <button className="login-close" type="button" aria-label="Close sign-in" onClick={() => setLoginOpen(false)}>×</button>
             <span className="login-kicker">JUICE SHOP · STAFF ACCESS</span>
             <h2>Welcome back</h2>
