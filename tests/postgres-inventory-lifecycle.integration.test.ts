@@ -240,6 +240,7 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
       if (server.exitCode === null) server.kill("SIGKILL");
     }
     await prisma.recipeItem.deleteMany({ where: { productId } });
+    await prisma.auditEvent.deleteMany({ where: { userId } });
     await prisma.auditEvent.deleteMany({ where: { entityId: productId } });
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
