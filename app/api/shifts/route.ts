@@ -13,7 +13,13 @@ export async function GET() {
     where: { userId: user.id, closedAt: null },
     orderBy: { openedAt: "desc" },
   });
-  return NextResponse.json({ shift }, { headers: { "Cache-Control": "no-store" } });
+  if (!shift) return NextResponse.json({ shift: null }, { headers: { "Cache-Control": "no-store" } });
+  const cashPayments = await prisma.payment.aggregate({
+    where: { method: "CASH", status: "COMPLETED", order: { cashierId: user.id, createdAt: { gte: shift.openedAt } } },
+    _sum: { amountMinor: true },
+  });
+  const cashSalesMinor = cashPayments._sum.amountMinor ?? 0;
+  return NextResponse.json({ shift, cashSalesMinor, expectedCashMinor: shift.openingCashMinor + cashSalesMinor }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
