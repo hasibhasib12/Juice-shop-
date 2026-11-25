@@ -16,14 +16,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Initial setup is not enabled." }, { status: 503 });
   }
 
-  let body: { setupKey?: string; name?: string; email?: string; password?: string };
+  let parsed: unknown;
   try {
-    body = await request.json();
+    parsed = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+  const body = parsed as { setupKey?: unknown; name?: unknown; email?: unknown; password?: unknown };
 
-  const supplied = typeof body.setupKey === "string" ? Buffer.from(body.setupKey) : Buffer.alloc(0);
+  const supplied = typeof body.setupKey === "string" && body.setupKey.length <= 256 ? Buffer.from(body.setupKey) : Buffer.alloc(0);
   const expected = Buffer.from(setupSecret);
   if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
     return NextResponse.json({ error: "Invalid setup key." }, { status: 401 });
