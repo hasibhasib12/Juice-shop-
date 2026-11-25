@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true } });
       if (!order) throw new Error("ORDER_NOT_FOUND");
       if (order.status === "DRAFT") throw new Error("ORDER_NOT_COMPLETED");
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         details: { returns: created.map((entry) => ({ returnId: entry.id, orderLineId: entry.orderLineId, quantity: entry.quantity, condition: entry.condition, disposition: entry.disposition, reason: entry.reason })), inventoryRestocked: false },
       }});
       return created;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ returns: result, inventoryRestocked: false }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
