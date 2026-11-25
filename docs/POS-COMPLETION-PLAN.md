@@ -42,7 +42,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 2 — Catalogue and checkout
 - [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
 - [x] Category rename, ordering, archive and restore APIs with audit events. Category management UI controls for rename, archive and restore are integrated.
-- [ ] Image upload/storage, sizes, variants, extras, modifier pricing, and price rules.
+- [ ] Image upload/storage and advanced price rules.
+- [x] Product sizes/variants with independent prices and optional variant-specific ingredient recipes; configurable modifier groups/options with selection limits and extra pricing; POS selection, saved draft snapshots, checkout validation/pricing, discount authorization, idempotency fingerprints, ingredient deductions and receipt/order-history display are implemented. Migration and end-to-end acceptance remain release gates.
 - [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
 - [x] Server-created persistent draft orders: cashier-scoped save/list/update/delete, manager visibility, resume in the POS, and conversion into a completed order during the same checkout transaction. Draft conversion refreshes product prices and tax, requires an open shift, records payment/stock/audit entries, and prevents a draft from being completed twice.\n- [ ] Table management, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
