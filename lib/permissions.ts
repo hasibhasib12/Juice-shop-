@@ -1,5 +1,6 @@
 export const PERMISSIONS = [
   { key: "VIEW_REPORTS", label: "View sales, staff and shift reports" },
+  { key: "VIEW_ALL_ORDERS", label: "View all cashier orders and order details" },
   { key: "MANAGE_INVENTORY", label: "Manage ingredient inventory and stock adjustments" },
   { key: "MANAGE_PURCHASING", label: "Manage suppliers, purchase orders and invoices" },
   { key: "PROCESS_REFUNDS", label: "Process refunds and voids" },
@@ -9,9 +10,9 @@ export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
 export type PermissionOverrides = Partial<Record<PermissionKey, boolean>>;
 export type Role = "OWNER" | "MANAGER" | "CASHIER";
 const DEFAULTS: Record<Role, Record<PermissionKey, boolean>> = {
-  OWNER: { VIEW_REPORTS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
-  MANAGER: { VIEW_REPORTS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
-  CASHIER: { VIEW_REPORTS: false, MANAGE_INVENTORY: false, MANAGE_PURCHASING: false, PROCESS_REFUNDS: false, MANAGE_TABLES: false },
+  OWNER: { VIEW_REPORTS: true, VIEW_ALL_ORDERS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
+  MANAGER: { VIEW_REPORTS: true, VIEW_ALL_ORDERS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true },
+  CASHIER: { VIEW_REPORTS: false, VIEW_ALL_ORDERS: false, MANAGE_INVENTORY: false, MANAGE_PURCHASING: false, PROCESS_REFUNDS: false, MANAGE_TABLES: false },
 };
 export function normalizePermissionOverrides(value: unknown): PermissionOverrides {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
