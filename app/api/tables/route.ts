@@ -14,7 +14,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
-  const visibleOrderFilter = { status: "DRAFT" as const, ...(canViewAllOrders ? {} : { cashierId: user.id }) };
+  const visibleOrderFilter = { status: "DRAFT" as const, cashier: { branchId: user.branchId }, ...(canViewAllOrders ? {} : { cashierId: user.id }) };
   try {
     const [tables, openOrders] = await Promise.all([
       prisma.diningTable.findMany({
