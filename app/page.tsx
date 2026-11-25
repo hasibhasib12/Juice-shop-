@@ -200,24 +200,15 @@ export default function Home() {
         setCategoryNames(data.categories.map((item: { name: string }) => item.name));
         setCatalogSource("database");
       })
-      .catch(() => {
+      .catch((error) => {
         if (!active) return;
-        // Keep the preview usable while the first database migration is pending.
-        setProducts([
-          { id: "demo-orange", name: "Orange Juice", category: "Juices", priceMinor: 8000, currency: "AFN", image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-mango", name: "Mango Juice", category: "Juices", priceMinor: 9000, currency: "AFN", image: "https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-pomegranate", name: "Pomegranate Juice", category: "Juices", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-berry", name: "Berry Blast", category: "Smoothies", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-strawberry", name: "Strawberry Smoothie", category: "Smoothies", priceMinor: 11000, currency: "AFN", image: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-banana", name: "Banana Smoothie", category: "Smoothies", priceMinor: 11000, currency: "AFN", image: "https://images.unsplash.com/photo-1570696516188-ade861b84a49?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-milkshake", name: "Classic Milkshake", category: "Milkshakes", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-chocolate-shake", name: "Chocolate Milkshake", category: "Milkshakes", priceMinor: 12000, currency: "AFN", image: "https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-cake", name: "Chocolate Cake", category: "Desserts", priceMinor: 13000, currency: "AFN", image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-          { id: "demo-fruit-dessert", name: "Fruit Dessert", category: "Desserts", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
-        ]);
-        setCategoryNames(["Juices", "Smoothies", "Milkshakes", "Desserts"]);
+        // Never substitute invented products in a live POS: doing so can mislead a cashier.
+        setProducts([]);
+        setCategoryNames([]);
         setCatalogSource("demo");
-        setNotice("DEMO CATALOGUE — the live catalogue could not be loaded. Orders are preview-only.");
+        setNotice(error instanceof Error
+          ? `Live catalogue unavailable: ${error.message}. Check the connection and reload before taking sales.`
+          : "Live catalogue unavailable. Check the connection and reload before taking sales.");
       })
       .finally(() => {
         if (active) setLoadingProducts(false);
