@@ -128,7 +128,7 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     // Force the audit insert to fail for one product update and prove the
     // product write rolls back with it. This trigger exists only in the
     // disposable CI PostgreSQL database and is removed in finally.
-    const auditFailureFunction = `CREATE OR REPLACE FUNCTION public.pos_test_reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityId" = '${productId}' THEN RAISE EXCEPTION 'intentional POS audit rollback test'; END IF; RETURN NEW; END; $$`;
+    const auditFailureFunction = `CREATE OR REPLACE FUNCTION public.pos_test_reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityId" IN ('${productId}', '${baseCategoryId}') THEN RAISE EXCEPTION 'intentional POS audit rollback test'; END IF; RETURN NEW; END; $$`;
     await prisma.$executeRawUnsafe(auditFailureFunction);
     await prisma.$executeRawUnsafe(`CREATE TRIGGER pos_test_reject_audit_trigger BEFORE INSERT ON "AuditEvent" FOR EACH ROW EXECUTE FUNCTION public.pos_test_reject_audit()`);
     const auditFailureUpdate = await request(`/api/admin/products/${productId}`, "PATCH", { name: "Must roll back" });
@@ -137,6 +137,12 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
       "product update must roll back when its audit insert fails");
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_UPDATED" } }), 0,
       "failed product update must not leave an audit event");
+    const auditFailureCategoryUpdate = await request("/api/admin/categories", "PATCH", { id: baseCategoryId, name: "Must also roll back" });
+    await expectStatus(auditFailureCategoryUpdate, 404);
+    assert.equal((await prisma.category.findUniqueOrThrow({ where: { id: baseCategoryId } })).name, categoryName,
+      "category update must roll back when its audit insert fails");
+    assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: baseCategoryId, action: "CATEGORY_UPDATED" } }), 0,
+      "failed category update must not leave an audit event");
     await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS pos_test_reject_audit_trigger ON "AuditEvent"`);
     await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS public.pos_test_reject_audit()`);
 
