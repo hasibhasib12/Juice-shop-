@@ -211,7 +211,7 @@ export default function Home() {
   }
 
   function action(label: string) {
-    setNotice(`${label} is not connected yet. Checkout and staff permissions will be enabled after authentication is implemented.`);
+    setNotice(`${label} is not connected yet.`);
   }
 
   return (
