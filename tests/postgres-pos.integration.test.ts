@@ -10,6 +10,8 @@ const enabled = process.env.POS_TEST_DATABASE === "1";
 test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
   const suffix = randomUUID();
   const userId = `it-user-${suffix}`;
+  const refundUserId = `it-refund-user-${suffix}`;
+  const refundShiftId = `it-refund-shift-${suffix}`;
   const categoryId = `it-category-${suffix}`;
   const productId = `it-product-${suffix}`;
   const ingredientId = `it-ingredient-${suffix}`;
@@ -20,6 +22,10 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
   try {
     await prisma.user.create({ data: {
       id: userId, name: "Integration cashier", email: `${suffix}@integration.invalid`,
+      passwordHash: "integration-only-not-a-real-password", role: "CASHIER",
+    } });
+    await prisma.user.create({ data: {
+      id: refundUserId, name: "Integration refund cashier", email: `refund-${suffix}@integration.invalid`,
       passwordHash: "integration-only-not-a-real-password", role: "CASHIER",
     } });
     await prisma.category.create({ data: { id: categoryId, name: `Integration ${suffix}` } });
@@ -35,6 +41,7 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
       id: `it-recipe-${suffix}`, productId, ingredientId, quantity: new Prisma.Decimal(1),
     } });
     await prisma.shift.create({ data: { id: shiftId, userId, openingCashMinor: 500 } });
+    await prisma.shift.create({ data: { id: refundShiftId, userId: refundUserId, openingCashMinor: 1000 } });
     
     const consumeStock = () => withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const changed = await tx.ingredient.updateMany({
@@ -115,6 +122,26 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
     const paidOut = movements.find((row) => row.type === "PAID_OUT")?._sum.amountMinor ?? 0;
     const expectedCash = 500 + (cashSales._sum.amountMinor ?? 0) + paidIn - paidOut;
     assert.equal(expectedCash, 1650);
+
+    // A cash refund is paid from the refunding cashier's drawer, not the
+    // original sale's drawer. Keep the original cash sale on its source shift.
+    const cashOrderId = `it-cash-order-${suffix}`;
+    await prisma.refund.create({ data: {
+      orderId: cashOrderId, processedById: refundUserId, shiftId: refundShiftId,
+      kind: "REFUND", amountMinor: 300, currency: "AFN", reason: "cross-shift drawer allocation",
+      cashRefundMinor: 300, otherRefundMinor: 0, taxRefundMinor: 0,
+    } });
+    const originShiftRefunds = await prisma.refund.aggregate({
+      where: { shiftId }, _sum: { cashRefundMinor: true },
+    });
+    const refundShiftRefunds = await prisma.refund.aggregate({
+      where: { shiftId: refundShiftId }, _sum: { cashRefundMinor: true },
+    });
+    const originalDrawerExpected = 500 + (cashSales._sum.amountMinor ?? 0)
+      - (originShiftRefunds._sum.cashRefundMinor ?? 0) + paidIn - paidOut;
+    const refundDrawerExpected = 1000 - (refundShiftRefunds._sum.cashRefundMinor ?? 0);
+    assert.equal(originalDrawerExpected, 1650);
+    assert.equal(refundDrawerExpected, 700);
   } finally {
     await prisma.refund.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
@@ -125,8 +152,8 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.ingredient.deleteMany({ where: { id: ingredientId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
-    await prisma.shift.deleteMany({ where: { id: shiftId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.shift.deleteMany({ where: { id: { in: [shiftId, refundShiftId] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [userId, refundUserId] } } });
   }
 });
 
