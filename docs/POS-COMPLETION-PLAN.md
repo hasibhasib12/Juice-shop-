@@ -170,5 +170,14 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
   - corresponding create endpoints deny before payload validation (403);
   - granting MANAGE_INVENTORY enables inventory read access, and revoking it removes access;
   - granting MANAGE_PURCHASING enables supplier, purchase-order, and supplier-invoice reads, and revoking it removes access.
-- These checks cover API authorization and permission override consistency, not all purchasing object-level mutation cases. Cross-user object identifiers, invoice/payment mutations, and complete inventory lifecycle authorization still need dedicated cases.
+- These checks cover API authorization and permission override consistency, not the complete inventory lifecycle. Invoice/payment mutation and purchase-order line relationship cases are now covered by the additional integration test described below.
 - Integration execution and latest-head CI are not confirmed yet. No deployment; production and main remain untouched.
+
+
+## Purchasing invoice authorization and relationship coverage — 2026-11-25 (CI pending)
+- Added a dedicated PostgreSQL-backed HTTP integration test for supplier invoice/payment authorization.
+- A cashier without `MANAGE_PURCHASING` receives 403 for invoice creation and payment attempts; assertions verify no invoice, payment, or related audit event is written.
+- After granting the permission, an invoice attempt that references a line belonging to a different purchase order is rejected (409) without creating an invoice or audit event.
+- A valid invoice and a partial bank-transfer payment are then created successfully, with persisted status and audit assertions.
+- The schema already enforces invoice-number uniqueness per supplier with `@@unique([supplierId, invoiceNumber])`; no redundant index or migration was added.
+- The integration test has been committed on `feature/pos-foundation`; CI and PostgreSQL execution are pending. No deployment or production data changes.
