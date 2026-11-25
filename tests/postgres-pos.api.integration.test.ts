@@ -380,6 +380,35 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const revokedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: null });
     await expectStatus(revokedForeignTableAssignment, 403);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: draftId }, select: { tableId: true } })).tableId, createdTableId);
+
+    const hiddenTableOverview = await cashierRequest("/api/tables", undefined, "GET");
+    await expectStatus(hiddenTableOverview, 200);
+    const hiddenTableOverviewJson = await hiddenTableOverview.json() as {
+      tables: Array<{ id: string; currentOrder: { id: string } | null }>;
+      openOrders: Array<{ id: string }>;
+    };
+    assert.equal(hiddenTableOverviewJson.tables.find((table) => table.id === createdTableId)?.currentOrder, null);
+    assert.equal(hiddenTableOverviewJson.openOrders.some((order) => order.id === draftId), false);
+
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true } } });
+    const visibleTableOverview = await cashierRequest("/api/tables", undefined, "GET");
+    await expectStatus(visibleTableOverview, 200);
+    const visibleTableOverviewJson = await visibleTableOverview.json() as {
+      tables: Array<{ id: string; currentOrder: { id: string } | null }>;
+      openOrders: Array<{ id: string }>;
+    };
+    assert.equal(visibleTableOverviewJson.tables.find((table) => table.id === createdTableId)?.currentOrder?.id, draftId);
+    assert.equal(visibleTableOverviewJson.openOrders.some((order) => order.id === draftId), true);
+
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const revokedTableOverview = await cashierRequest("/api/tables", undefined, "GET");
+    await expectStatus(revokedTableOverview, 200);
+    const revokedTableOverviewJson = await revokedTableOverview.json() as {
+      tables: Array<{ id: string; currentOrder: { id: string } | null }>;
+      openOrders: Array<{ id: string }>;
+    };
+    assert.equal(revokedTableOverviewJson.tables.find((table) => table.id === createdTableId)?.currentOrder, null);
+    assert.equal(revokedTableOverviewJson.openOrders.some((order) => order.id === draftId), false);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: {} } });
 
     const draftUpdate = await request("/api/orders/drafts", {
