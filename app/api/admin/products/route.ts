@@ -37,8 +37,10 @@ export async function POST(request: NextRequest) {
   if (access.response) return access.response;
   const rate = await checkActionRateLimit("catalog-write", access.user!.id, 60, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many catalogue changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
-  let body: { name?: string; description?: string; imageUrl?: string; sku?: string; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  let parsed: unknown;
+  try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  const body = parsed as { name?: string; description?: string; imageUrl?: string; sku?: string; priceMinor?: number; currency?: string; categoryId?: string; available?: boolean };
   const name = body.name?.trim();
   const currency = body.currency?.trim().toUpperCase();
   if (!name || name.length > 100 || !body.categoryId || !Number.isSafeInteger(body.priceMinor) || (body.priceMinor ?? 0) < 1 || !currency || !/^[A-Z]{3}$/.test(currency)) {
