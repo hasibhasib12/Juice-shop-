@@ -73,7 +73,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
 - [x] Cash shift open/close UI, checkout shift enforcement, expected cash and counted-cash variance calculation.
 - [x] Paid-in/out drawer movements with reasons, audit trail, insufficient-cash protection, and expected-cash reconciliation.
-- [ ] Shift-to-order association and shift report export.
+- [x] Associate each new completed order with the active cashier shift and reconcile cash sales by that exact shift.
+- [ ] Shift report export.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting full refund/void amounts in the refund processing period, including tender-level cash/other reductions.
 - [ ] Stock valuation, staff performance reports and CSV/PDF export.
