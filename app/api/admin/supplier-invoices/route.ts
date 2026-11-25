@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_INVOICE_CREATED", entityType: "SupplierInvoice", entityId: created.id, details: { invoiceNumber: created.invoiceNumber, purchaseOrderNumber: order.orderNumber, totalMinor, currency: order.currency } } });
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-      return NextResponse.json({ invoice }, { status: 201 });
+      return NextResponse.json({ invoice }, { status: 201, headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       if (error instanceof Error && error.message === "ORDER_NOT_RECEIVED") return NextResponse.json({ error: "Invoices can only be matched to received purchase orders." }, { status: 409 });
       if (error instanceof Error && error.message === "LINE_NOT_RECEIVED") return NextResponse.json({ error: "Invoice quantities cannot exceed quantities already received on the purchase order." }, { status: 409 });
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_PAYMENT_RECORDED", entityType: "SupplierInvoice", entityId: invoice.id, details: { paymentId: payment.id, amountMinor: amount, method: payment.method, reference: payment.reference, balanceMinor: invoice.totalMinor - nextPaid } } });
         return { payment, invoice: updated, balanceMinor: invoice.totalMinor - nextPaid };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-      return NextResponse.json(result, { status: 201 });
+      return NextResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       if (error instanceof Error && error.message === "INVOICE_UNAVAILABLE") return NextResponse.json({ error: "Invoice not found or unavailable." }, { status: 404 });
       if (error instanceof Error && error.message === "OVERPAYMENT") return NextResponse.json({ error: "Payment exceeds the outstanding invoice balance." }, { status: 409 });
