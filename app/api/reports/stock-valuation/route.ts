@@ -21,13 +21,12 @@ export async function GET() {
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);
   const currency = typeof currencySetting?.value === "string" ? currencySetting.value : "AFN";
+  const values = ingredients.map((item) => item.quantityOnHand.mul(item.averageCostMinor).toDecimalPlaces(0).toFixed(0));
+  const totalValue = values.reduce((sum, value) => sum + BigInt(value), 0n).toString();
   const rows: (string | number)[][] = [
     ["Ingredient", "Unit", "Quantity on hand", "Reorder level", "Average unit cost minor", "Stock value minor", "Currency", "Stock status"],
-    ...ingredients.map((item) => {
-      const value = Math.round(Number(item.quantityOnHand) * item.averageCostMinor);
-      return [item.name, item.unit, item.quantityOnHand.toString(), item.reorderLevel.toString(), item.averageCostMinor, value, currency, item.quantityOnHand.lte(item.reorderLevel) ? "LOW" : "OK"];
-    }),
-    ["TOTAL", "", "", "", "", ingredients.reduce((sum, item) => sum + Math.round(Number(item.quantityOnHand) * item.averageCostMinor), 0), currency, ""],
+    ...ingredients.map((item, index) => [item.name, item.unit, item.quantityOnHand.toString(), item.reorderLevel.toString(), item.averageCostMinor, values[index], currency, item.quantityOnHand.lte(item.reorderLevel) ? "LOW" : "OK"]),
+    ["TOTAL", "", "", "", "", totalValue, currency, ""],
   ];
   const csv = rows.map((row) => row.map((value, index) => csvCell(value, index === 0 || index === 1 || index === 7)).join(",")).join("\r\n");
   return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="juice-shop-stock-valuation.csv"', "Cache-Control": "no-store" } });
