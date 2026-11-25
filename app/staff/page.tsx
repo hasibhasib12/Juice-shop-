@@ -5,10 +5,16 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 type PermissionKey = "VIEW_REPORTS" | "VIEW_ALL_ORDERS" | "MANAGE_INVENTORY" | "MANAGE_PURCHASING" | "PROCESS_REFUNDS" | "MANAGE_TABLES";
-type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; createdAt?: string; permissions?: Record<PermissionKey, boolean> };
+type Branch = { id: string; name: string; code: string; timezone: string; currency: string };
+type Staff = { id: string; name: string; email: string; role: "OWNER" | "MANAGER" | "CASHIER"; active: boolean; phone?: string | null; photoUrl?: string | null; employeeCode?: string | null; branch?: { id: string; name: string; code: string }; createdAt?: string; permissions?: Record<PermissionKey, boolean> };
 const permissionLabels: Record<PermissionKey, string> = { VIEW_REPORTS: "Reports", VIEW_ALL_ORDERS: "All orders", MANAGE_INVENTORY: "Inventory", MANAGE_PURCHASING: "Purchasing", PROCESS_REFUNDS: "Refunds", MANAGE_TABLES: "Tables" };
 export default function StaffPage() {
   const [users, setUsers] = useState<Staff[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
+  const [phone, setPhone] = useState("");
+  const [employeeCode, setEmployeeCode] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [currentRole, setCurrentRole] = useState("CASHIER");
   const [currentUserId, setCurrentUserId] = useState("");
   const [name, setName] = useState("");
@@ -24,15 +30,20 @@ export default function StaffPage() {
     setUsers(data.users);
     setCurrentRole(data.currentRole);
     setCurrentUserId(data.currentUserId);
+    const branchResponse = await fetch("/api/admin/branches", { cache: "no-store" });
+    const branchData = await branchResponse.json();
+    if (!branchResponse.ok) throw new Error(branchData.error || "Could not load branches.");
+    setBranches(branchData.branches);
+    setBranchId((current) => current || branchData.branches[0]?.id || "");
   }
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role }) });
+      const response = await fetch("/api/admin/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role, branchId, phone, employeeCode, photoUrl }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not create staff account.");
-      setName(""); setEmail(""); setPassword(""); setRole("CASHIER"); setNotice("Staff account created."); await load();
+      setName(""); setEmail(""); setPassword(""); setPhone(""); setEmployeeCode(""); setPhotoUrl(""); setRole("CASHIER"); setNotice("Staff account created."); await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create staff account."); }
     finally { setBusy(false); }
   }
@@ -79,11 +90,15 @@ export default function StaffPage() {
           <label>Full name<input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
           <label>Email address<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in.</small></label>
+          <label>Phone number<input type="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional"/></label>
+          <label>Employee ID<input maxLength={24} value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} placeholder="Optional unique staff code"/></label>
+          <label>Profile photo URL<input type="url" maxLength={2048} value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://…"/><small>Secure image URL for now; direct photo upload will be added with staff image storage.</small></label>
+          <label>Assigned branch<select required value={branchId} onChange={(e) => setBranchId(e.target.value)}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name} · {branch.code}</option>)}</select></label>
           <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option>{currentRole === "OWNER" && <option value="MANAGER">Manager</option>}</select></label>
-          <button className="catalog-primary" disabled={busy}>{busy ? "Creating…" : "Create staff account"}</button>
+          <button className="catalog-primary" disabled={busy || !branchId}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
-          {users.map((user) => <article className="catalog-product" key={user.id}><div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div><div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small>{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <>{(currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void resetPassword(user)}>Reset password</button>}{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
+          {users.map((user) => <article className="catalog-product" key={user.id}>{user.photoUrl ? <img className="catalog-placeholder" src={user.photoUrl} alt={user.name}/> : <div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div>}<div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small><small>Branch: {user.branch?.name ?? "Not assigned"}{user.employeeCode ? ` · ID ${user.employeeCode}` : ""}</small>{user.phone && <small>Phone: {user.phone}</small>}{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <>{(currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void resetPassword(user)}>Reset password</button>}{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
           {!users.length && <p>No staff accounts found.</p>}
         </section>
       </section>
