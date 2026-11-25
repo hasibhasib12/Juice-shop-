@@ -83,7 +83,7 @@ export default function Home() {
         return;
       }
       setPendingCheckout(saved);
-      setCheckoutKey(payload.idempotencyKey);
+      setCheckoutKey(saved.payload.idempotencyKey);
       setCheckoutUncertain(true);
       setNotice("A pending checkout was recovered from this tab. Resume it to check whether the sale completed; the original payment request will be replayed unchanged.");
     } catch {
