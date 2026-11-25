@@ -28,6 +28,13 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [discountApprovalId, setDiscountApprovalId] = useState<string | null>(null);
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [managerPassword, setManagerPassword] = useState("");
+  const [discountBusy, setDiscountBusy] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "demo">("loading");
   const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN", taxRateBps: 0, taxLabel: "Tax" });
@@ -122,7 +129,7 @@ export default function Home() {
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.product.priceMinor * line.quantity, 0);
   // Tax stays at zero until the business jurisdiction and tax rules are configured.
-  const tax = 0;
+  const tax = Math.round(Math.max(0, subtotal - discount) * storeInfo.taxRateBps / 10000);
   const total = Math.max(0, subtotal - discount) + tax;
   const tenderMatch = /^(?:\d+)(?:\.\d{1,2})?$/.test(cashTender.trim());
   const cashReceivedMinor = tenderMatch ? Math.round(Number(cashTender) * 100) : 0;
@@ -134,6 +141,8 @@ export default function Home() {
 
   function addToCart(product: Product) {
     setNotice("");
+    setDiscount(0);
+    setDiscountApprovalId(null);
     setCart((current) => {
       const existing = current.find((line) => line.product.id === product.id);
       return existing
@@ -145,6 +154,8 @@ export default function Home() {
   }
 
   function changeQuantity(id: string, delta: number) {
+    setDiscount(0);
+    setDiscountApprovalId(null);
     setCart((current) =>
       current
         .map((line) =>
@@ -183,6 +194,37 @@ export default function Home() {
     setNotice("You have signed out.");
   }
 
+  async function requestDiscount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (discountBusy || cart.length === 0) return;
+    const amountMatch = /^(?:\\d+)(?:\\.\\d{1,2})?$/.test(discountAmount.trim());
+    const discountMinor = amountMatch ? Math.round(Number(discountAmount) * 100) : 0;
+    if (!Number.isSafeInteger(discountMinor) || discountMinor <= 0 || discountMinor > subtotal) {
+      setNotice("Enter a valid discount amount no greater than the cart subtotal.");
+      return;
+    }
+    setDiscountBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/discounts/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerEmail, managerPassword, discountMinor, reason: discountReason, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Discount authorization failed.");
+      setDiscount(data.approval.discountMinor);
+      setDiscountApprovalId(data.approval.id);
+      setDiscountOpen(false);
+      setManagerPassword("");
+      setNotice(`Discount approved by ${data.managerName}. It is valid for this cart for five minutes.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Discount authorization failed.");
+    } finally {
+      setDiscountBusy(false);
+    }
+  }
+
   async function completeCheckout() {
     if (checkoutBusy) return;
     if (!staff) {
@@ -207,6 +249,7 @@ export default function Home() {
           cashReceivedMinor,
           paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
           idempotencyKey: requestKey,
+          ...(discountApprovalId ? { discountApprovalId } : {}),
         }),
       });
       const data = await response.json();
@@ -215,6 +258,7 @@ export default function Home() {
       setLastOrderId(data.order.id);
       setCart([]);
       setDiscount(0);
+      setDiscountApprovalId(null);
       setCashTender("0.00");
       setSplitPayment(false);
       setOtherPaymentConfirmed(false);
@@ -284,7 +328,7 @@ export default function Home() {
           <div className="quick-actions">
             <button onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
-            <button onClick={() => { setDiscount(0); setNotice("Discounts are disabled until manager authorization is implemented."); }}><span>%</span>Discount</button>
+            <button onClick={() => { if (cart.length === 0) { setNotice("Add products before requesting a discount."); return; } setDiscountAmount(""); setDiscountReason(""); setDiscountOpen(true); }}><span>%</span>Discount</button>
             <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
             <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
           </div>
@@ -331,7 +375,7 @@ export default function Home() {
             {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
           <div className="payment-actions">
-            <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
+            <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
             <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
           <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
@@ -339,6 +383,21 @@ export default function Home() {
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
+      {discountOpen && (
+        <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !discountBusy) setDiscountOpen(false); }}>
+          <form className="login-panel" onSubmit={requestDiscount}>
+            <button className="login-close" type="button" aria-label="Close discount approval" onClick={() => setDiscountOpen(false)}>×</button>
+            <span className="login-kicker">MANAGER APPROVAL · ONE-TIME</span>
+            <h2>Apply a discount</h2>
+            <p>Manager or owner credentials are required. Approval is tied to this exact cart and expires in five minutes.</p>
+            <label>Discount amount ({storeInfo.currency})<input inputMode="decimal" autoComplete="off" required value={discountAmount} onChange={(event) => setDiscountAmount(event.target.value)} placeholder="0.00" /></label>
+            <label>Reason<input required minLength={3} maxLength={200} value={discountReason} onChange={(event) => setDiscountReason(event.target.value)} placeholder="e.g. Customer service recovery" /></label>
+            <label>Manager email<input type="email" autoComplete="username" required value={managerEmail} onChange={(event) => setManagerEmail(event.target.value)} /></label>
+            <label>Manager password<input type="password" autoComplete="current-password" required value={managerPassword} onChange={(event) => setManagerPassword(event.target.value)} /></label>
+            <button className="login-submit" type="submit" disabled={discountBusy}>{discountBusy ? "Requesting approval…" : "Approve discount"}</button>
+          </form>
+        </div>
+      )}
       {loginOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLoginOpen(false); }}>
           <form className="login-panel" onSubmit={signIn}>
