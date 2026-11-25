@@ -16,7 +16,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
 - Checkout API currently supports cash only. It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
 - Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
-- The POS remains preview-only. Card processing, tax configuration, inventory deduction, printer workflow, manager discount approval, full shift UI, reports, and automated end-to-end tests are not complete.
+- The POS remains preview-only. Card processing is intentionally deferred. Tax configuration, inventory deduction, manager discounts, shift UI, and sales reports are implemented; direct printer integration, automated end-to-end tests, and other checklist items remain incomplete.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -45,7 +45,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
-- [ ] Apply and verify cash-tender, refund/void and refund cash-allocation migrations on the isolated Neon development branch.
+- [x] Apply and verify cash-tender, refund/void, cash-allocation and tax-refund migrations on the isolated Neon development branch.
 
 ## Milestone 3 — Payments and receipts
 - [x] Cash payment record, server-validated tender amount, persisted cash received/change due, cashier tender entry, quick tender presets, change preview, and receipt display.
