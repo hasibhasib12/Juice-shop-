@@ -23,7 +23,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       },
     });
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    const canViewAll = hasPermission(user.role, user.permissionOverrides, "VIEW_ALL_ORDERS");
+    const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+    const canViewAll = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
     if (!canViewAll && order.cashierId !== user.id) {
       return NextResponse.json({ error: "You cannot view this order." }, { status: 403 });
     }
