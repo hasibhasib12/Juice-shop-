@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
 
+  const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const date = request.nextUrl.searchParams.get("date");
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
   const setting = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
   const endDate = new Date(Date.UTC(year, month - 1, day + 1));
   const end = localMidnightUtc(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), timezone);
   const shifts = await prisma.shift.findMany({
-    where: { openedAt: { gte: start, lt: end } },
+    where: { openedAt: { gte: start, lt: end }, ...(branchId ? { branchId } : {}) },
     include: {
       user: { select: { name: true, email: true } },
       orders: { where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] } }, include: { payments: { where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } },
