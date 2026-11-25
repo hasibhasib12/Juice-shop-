@@ -197,7 +197,7 @@ export default function Home() {
   async function requestDiscount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (discountBusy || cart.length === 0) return;
-    const amountMatch = /^(?:\\d+)(?:\\.\\d{1,2})?$/.test(discountAmount.trim());
+    const amountMatch = /^(?:\d+)(?:\.\d{1,2})?$/.test(discountAmount.trim());
     const discountMinor = amountMatch ? Math.round(Number(discountAmount) * 100) : 0;
     if (!Number.isSafeInteger(discountMinor) || discountMinor <= 0 || discountMinor > subtotal) {
       setNotice("Enter a valid discount amount no greater than the cart subtotal.");
