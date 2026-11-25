@@ -35,6 +35,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
   const userId = `api-it-user-${suffix}`;
   const cashierId = `api-it-cashier-${suffix}`;
   let createdTableId: string | undefined;
+  let createdCategoryId: string | undefined;
   let createdCashierShiftId: string | undefined;
   const categoryId = `api-it-category-${suffix}`;
   const productId = `api-it-product-${suffix}`;
@@ -87,6 +88,31 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(login, 200);
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
+
+    const categoryCreate = await fetch(`${baseUrl}/api/admin/categories`, {
+      method: "POST", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name: `Audit Integration ${suffix}`, sortOrder: 17 }),
+    });
+    await expectStatus(categoryCreate, 201);
+    const categoryCreateJson = await categoryCreate.json() as { category: { id: string } };
+    createdCategoryId = categoryCreateJson.category.id;
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCategoryId, action: "CATEGORY_CREATED", userId } }), 1);
+
+    const categoryUpdate = await fetch(`${baseUrl}/api/admin/categories`, {
+      method: "PATCH", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ id: createdCategoryId, name: `Updated Audit ${suffix}` }),
+    });
+    await expectStatus(categoryUpdate, 200);
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCategoryId, action: "CATEGORY_UPDATED", userId } }), 1);
+
+    const categoryArchive = await fetch(`${baseUrl}/api/admin/categories`, {
+      method: "DELETE", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ id: createdCategoryId }),
+    });
+    await expectStatus(categoryArchive, 200);
+    assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCategoryId, action: "CATEGORY_ARCHIVED", userId } }), 1);
+    assert.equal((await prisma.category.findUniqueOrThrow({ where: { id: createdCategoryId } })).active, false);
+
 
     const request = (path: string, body: unknown) => fetch(`${baseUrl}${path}`, {
       method: "POST",
@@ -197,6 +223,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.payment.deleteMany({ where: { order: { cashierId: userId } } });
     await prisma.order.deleteMany({ where: { cashierId: userId } });
     await prisma.auditEvent.deleteMany({ where: { userId: { in: [userId, cashierId] } } });
+    if (createdCategoryId) await prisma.auditEvent.deleteMany({ where: { entityId: createdCategoryId } });
     if (createdTableId) {
       await prisma.auditEvent.deleteMany({ where: { entityId: createdTableId } });
       await prisma.diningTable.deleteMany({ where: { id: createdTableId } });
@@ -211,6 +238,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.stockMovement.deleteMany({ where: { ingredientId } });
     await prisma.ingredient.deleteMany({ where: { id: ingredientId } });
+    if (createdCategoryId) await prisma.category.deleteMany({ where: { id: createdCategoryId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
     await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId] } } });
     await prisma.$disconnect();
