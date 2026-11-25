@@ -473,7 +473,7 @@ export default function Home() {
       </div>
       {configProduct && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfigProduct(null); }}>
-          <section className="login-panel" aria-label={`Configure ${configProduct.name}`}>
+          <section className="login-panel" role="dialog" aria-modal="true" aria-label={`Configure ${configProduct.name}`}>
             <button className="login-close" type="button" aria-label="Close options" onClick={() => setConfigProduct(null)}>×</button>
             <span className="catalog-eyebrow">CUSTOMIZE PRODUCT</span>
             <h2>{configProduct.name}</h2>
@@ -492,7 +492,7 @@ export default function Home() {
       )}
       {draftsOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDraftsOpen(false); }}>
-          <section className="login-panel" aria-label="Saved draft orders">
+          <section className="login-panel" role="dialog" aria-modal="true" aria-label="Saved draft orders">
             <button className="login-close" type="button" aria-label="Close drafts" onClick={() => setDraftsOpen(false)}>×</button>
             <span className="login-kicker">SAVED SALES</span><h2>Draft orders</h2>
             <p>Saved carts can be resumed by their cashier or a manager.</p>
@@ -507,7 +507,7 @@ export default function Home() {
       )}
       {notesOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setNotesOpen(false); }}>
-          <form className="login-panel" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
+          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={(event) => { event.preventDefault(); setNotesOpen(false); setNotice("Customer details and order notes saved for this checkout."); }}>
             <button className="login-close" type="button" aria-label="Close order notes" onClick={() => setNotesOpen(false)}>×</button>
             <span className="login-kicker">CURRENT ORDER</span>
             <h2>Customer & order notes</h2>
@@ -520,7 +520,7 @@ export default function Home() {
       )}
       {discountOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !discountBusy) setDiscountOpen(false); }}>
-          <form className="login-panel" onSubmit={requestDiscount}>
+          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={requestDiscount}>
             <button className="login-close" type="button" aria-label="Close discount approval" onClick={() => setDiscountOpen(false)}>×</button>
             <span className="login-kicker">MANAGER APPROVAL · ONE-TIME</span>
             <h2>Apply a discount</h2>
@@ -535,7 +535,7 @@ export default function Home() {
       )}
       {loginOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLoginOpen(false); }}>
-          <form className="login-panel" onSubmit={signIn}>
+          <form className="login-panel" role="dialog" aria-modal="true" onSubmit={signIn}>
             <button className="login-close" type="button" aria-label="Close sign-in" onClick={() => setLoginOpen(false)}>×</button>
             <span className="login-kicker">JUICE SHOP · STAFF ACCESS</span>
             <h2>Welcome back</h2>
