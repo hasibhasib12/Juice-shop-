@@ -120,3 +120,9 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Supplier invoice integration coverage verifies competing invoices cannot bill more than the received uninvoiced quantity.
 - Supplier payment integration coverage verifies concurrent payments cannot overpay an invoice and that the payment, invoice status and audit record remain consistent.
 - These checks ran in the isolated CI development database. No production database or environment was changed.
+
+
+## Verified progress — purchasing and authorization
+- Commit `b2d699ad9f407547f210946fa8e6d8371d54ba24` passed CI run `45637110572`, including Prisma validation, development migrations, lint, tests, TypeScript and production build. It verifies concurrent purchase receiving, duplicate supplier invoice quantity protection, and concurrent supplier payment overpayment protection.
+- Commit `89461616847f51816d0c6c1a570096cb6d579976` passed CI run `45637573377`, including the same complete workflow. API integration tests now verify purchasing permission denial, permission grant and revocation, and cross-origin supplier mutation rejection.
+- Neon recovery review: the isolated development branch is a child branch of production. A clone/branch rehearsal has been verified, but it is not a PITR restore. The available branch/snapshot tools do not expose the required self-history restore operation for a controlled rehearsal; the Neon API/Console restore workflow must be exercised by an authorized operator on the disposable development branch. Production remains untouched.
