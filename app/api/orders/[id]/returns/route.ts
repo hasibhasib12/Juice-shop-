@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true } });
       if (!order) throw new Error("ORDER_NOT_FOUND");
-      if (order.status === "DRAFT") throw new Error("ORDER_NOT_COMPLETED");
+      if (order.status !== "COMPLETED" && order.status !== "REFUNDED") throw new Error("ORDER_NOT_COMPLETED");
       const created = [];
       for (const item of body.items!) {
         const line = await tx.orderLine.findFirst({ where: { id: item.orderLineId, orderId: order.id }, select: { id: true, quantity: true, productName: true } });
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "ORDER_NOT_FOUND") return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    if (message === "ORDER_NOT_COMPLETED") return NextResponse.json({ error: "Draft orders cannot have item returns." }, { status: 409 });
+    if (message === "ORDER_NOT_COMPLETED") return NextResponse.json({ error: "Only completed or refunded sales can have item returns." }, { status: 409 });
     if (message === "LINE_NOT_FOUND") return NextResponse.json({ error: "An order line was not found on this order." }, { status: 404 });
     if (message === "RETURN_EXCEEDS_SOLD") return NextResponse.json({ error: "Returned quantity exceeds the quantity originally sold." }, { status: 409 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "Another return was recorded at the same time. Refresh and try again." }, { status: 409 });
