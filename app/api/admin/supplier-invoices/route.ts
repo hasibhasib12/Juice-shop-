@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       }
     } catch { return NextResponse.json({ error: "Invoice lines need unique purchase-order lines, positive quantities and non-negative unit costs." }, { status: 400 }); }
     try {
-      const invoice = await prisma.$transaction(async (tx) => {
+      const invoice = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
         const order = await tx.purchaseOrder.findUnique({ where: { id: body.purchaseOrderId as string }, include: { lines: true } });
         if (!order || !["RECEIVED", "PARTIALLY_RECEIVED"].includes(order.status)) throw new Error("ORDER_NOT_RECEIVED");
         const byId = new Map(order.lines.map((line) => [line.id, line]));
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
         });
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_INVOICE_CREATED", entityType: "SupplierInvoice", entityId: created.id, details: { invoiceNumber: created.invoiceNumber, purchaseOrderNumber: order.orderNumber, totalMinor, currency: order.currency } } });
         return created;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
       return NextResponse.json({ invoice }, { status: 201 });
     } catch (error) {
       if (error instanceof Error && error.message === "ORDER_NOT_RECEIVED") return NextResponse.json({ error: "Invoices can only be matched to received purchase orders." }, { status: 409 });
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
     const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date();
     if (!Number.isFinite(paidAt.getTime())) return NextResponse.json({ error: "Enter a valid payment date." }, { status: 400 });
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
         const invoice = await tx.supplierInvoice.findUnique({ where: { id: body.invoiceId as string }, include: { payments: true } });
         if (!invoice || invoice.status === "VOIDED") throw new Error("INVOICE_UNAVAILABLE");
         const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountMinor, 0);
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
         const updated = await tx.supplierInvoice.update({ where: { id: invoice.id }, data: { status: nextPaid === invoice.totalMinor ? "PAID" : "PARTIALLY_PAID" } });
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "SUPPLIER_PAYMENT_RECORDED", entityType: "SupplierInvoice", entityId: invoice.id, details: { paymentId: payment.id, amountMinor: amount, method: payment.method, reference: payment.reference, balanceMinor: invoice.totalMinor - nextPaid } } });
         return { payment, invoice: updated, balanceMinor: invoice.totalMinor - nextPaid };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
       return NextResponse.json(result, { status: 201 });
     } catch (error) {
       if (error instanceof Error && error.message === "INVOICE_UNAVAILABLE") return NextResponse.json({ error: "Invoice not found or unavailable." }, { status: 404 });
