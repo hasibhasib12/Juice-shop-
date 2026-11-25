@@ -34,8 +34,6 @@ export async function POST(request: NextRequest) {
     return true;
   });
   if (!validItems) return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
-    return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
-  }
 
   const manager = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true, role: true, active: true, passwordHash: true } });
   if (!manager?.active || (manager.role !== "MANAGER" && manager.role !== "OWNER") || !verifyPassword(body.managerPassword, manager.passwordHash)) {
