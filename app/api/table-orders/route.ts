@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       await tx.auditEvent.create({ data: { userId: user.id, action: tableId ? (order.tableId ? "DINING_ORDER_TRANSFERRED" : "DINING_ORDER_ASSIGNED") : "DINING_ORDER_UNASSIGNED", entityType: "Order", entityId: order.id, details: { fromTableId: order.tableId, toTableId: tableId } } });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-    return NextResponse.json({ order: result });
+    return NextResponse.json({ order: result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "ORDER_NOT_FOUND") return NextResponse.json({ error: "Open order not found." }, { status: 404 });
