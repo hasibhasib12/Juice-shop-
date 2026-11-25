@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { useEffect, useState } from "react";
 
-type Report = { period: string; start: string; end: string; orderCount: number; refundCount: number; refundTotalMinor: number; currencies: string[]; totalMinor: number; taxMinor: number; discountMinor: number; averageOrderMinor: number; tenders: { method: string; amountMinor: number }[]; topProducts: { name: string; quantity: number; salesMinor: number }[]; recentOrders: { orderNumber: number; totalMinor: number; currency: string; cashier: string }[] };
+type CurrencyBreakdown = { currency: string; orderCount: number; refundCount: number; grossTotalMinor: number; refundTotalMinor: number; totalMinor: number; taxMinor: number; discountMinor: number; averageOrderMinor: number; tenders: { method: string; amountMinor: number }[]; topProducts: { name: string; quantity: number; salesMinor: number }[] };
+type Report = { period: string; start: string; end: string; orderCount: number; refundCount: number; refundTotalMinor: number | null; currencies: string[]; totalMinor: number | null; taxMinor: number | null; discountMinor: number | null; averageOrderMinor: number | null; currencyBreakdown: CurrencyBreakdown[]; tenders: { method: string; amountMinor: number }[]; topProducts: { name: string; quantity: number; salesMinor: number }[]; recentOrders: { orderNumber: number; totalMinor: number; currency: string; cashier: string }[] };
 const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(minor / 100);
 
 export default function ReportsPage() {
@@ -36,18 +37,29 @@ export default function ReportsPage() {
       </section>
       {notice && <p className="catalog-notice">{notice}</p>}
       {report && <>
-        {report.currencies.length > 1 && <p className="catalog-notice">Multiple currencies are present in this period. Totals below are raw minor-unit sums and should not be combined for accounting.</p>}
-        <section className="report-metrics">
-          <article><span>NET SALES</span><strong>{money(report.totalMinor, currency)}</strong></article>
+        {report.currencies.length > 1 ? report.currencyBreakdown.map((item) => <section className="catalog-list" key={item.currency}>
+          <div className="catalog-section-head"><div><span>FINANCIAL SUMMARY</span><h2>{item.currency}</h2></div></div>
+          <section className="report-metrics">
+            <article><span>NET SALES</span><strong>{money(item.totalMinor, item.currency)}</strong></article>
+            <article><span>ORDERS</span><strong>{item.orderCount}</strong></article>
+            <article><span>AVERAGE ORDER</span><strong>{money(item.averageOrderMinor, item.currency)}</strong></article>
+            <article><span>TAX RECORDED</span><strong>{money(item.taxMinor, item.currency)}</strong></article>
+            <article><span>REFUNDS</span><strong>{item.refundCount} · {money(item.refundTotalMinor, item.currency)}</strong></article>
+          </section>
+        </section>) : <section className="report-metrics">
+          <article><span>NET SALES</span><strong>{money(report.totalMinor ?? 0, currency)}</strong></article>
           <article><span>ORDERS</span><strong>{report.orderCount}</strong></article>
-          <article><span>AVERAGE ORDER</span><strong>{money(report.averageOrderMinor, currency)}</strong></article>
-          <article><span>TAX RECORDED</span><strong>{money(report.taxMinor, currency)}</strong></article>
-          <article><span>REFUNDS / VOIDS</span><strong>{report.refundCount} · {money(report.refundTotalMinor, currency)}</strong></article>
-        </section>
-        <section className="report-columns">
+          <article><span>AVERAGE ORDER</span><strong>{money(report.averageOrderMinor ?? 0, currency)}</strong></article>
+          <article><span>TAX RECORDED</span><strong>{money(report.taxMinor ?? 0, currency)}</strong></article>
+          <article><span>REFUNDS</span><strong>{report.refundCount} · {money(report.refundTotalMinor ?? 0, currency)}</strong></article>
+        </section>}
+        {report.currencies.length > 1 ? report.currencyBreakdown.map((item) => <section className="report-columns" key={item.currency}>
+          <div className="catalog-list"><div className="catalog-section-head"><div><span>{item.currency} · PRODUCT MIX</span><h2>Top products</h2></div></div>{item.topProducts.map((p) => <article className="report-row" key={p.name}><b>{p.name}</b><span>{p.quantity} sold</span><strong>{money(p.salesMinor, item.currency)}</strong></article>)}{!item.topProducts.length && <p>No completed sales in this currency.</p>}</div>
+          <div className="catalog-list"><div className="catalog-section-head"><div><span>{item.currency} · PAYMENT MIX</span><h2>Tenders</h2></div></div>{item.tenders.map((t) => <article className="report-row" key={t.method}><b>{t.method}</b><strong>{money(t.amountMinor, item.currency)}</strong></article>)}{!item.tenders.length && <p>No payments recorded.</p>}<div className="report-row"><span>Discounts</span><strong>{money(item.discountMinor, item.currency)}</strong></div></div>
+        </section>) : <section className="report-columns">
           <div className="catalog-list"><div className="catalog-section-head"><div><span>PRODUCT MIX</span><h2>Top products</h2></div></div>{report.topProducts.map((p) => <article className="report-row" key={p.name}><b>{p.name}</b><span>{p.quantity} sold</span><strong>{money(p.salesMinor, currency)}</strong></article>)}{!report.topProducts.length && <p>No completed sales in this period.</p>}</div>
-          <div className="catalog-list"><div className="catalog-section-head"><div><span>PAYMENT MIX</span><h2>Tenders</h2></div></div>{report.tenders.map((t) => <article className="report-row" key={t.method}><b>{t.method}</b><strong>{money(t.amountMinor, currency)}</strong></article>)}{!report.tenders.length && <p>No payments recorded.</p>}<div className="report-row"><span>Discounts</span><strong>{money(report.discountMinor, currency)}</strong></div></div>
-        </section>
+          <div className="catalog-list"><div className="catalog-section-head"><div><span>PAYMENT MIX</span><h2>Tenders</h2></div></div>{report.tenders.map((t) => <article className="report-row" key={t.method}><b>{t.method}</b><strong>{money(t.amountMinor, currency)}</strong></article>)}{!report.tenders.length && <p>No payments recorded.</p>}<div className="report-row"><span>Discounts</span><strong>{money(report.discountMinor ?? 0, currency)}</strong></div></div>
+        </section>}
         <section className="catalog-list"><div className="catalog-section-head"><div><span>TRANSACTION LOG</span><h2>Recent orders</h2></div></div>{report.recentOrders.map((o) => <article className="report-row" key={o.orderNumber}><b>#{o.orderNumber}</b><span>{o.cashier}</span><strong>{money(o.totalMinor, o.currency)}</strong></article>)}{!report.recentOrders.length && <p>No orders to show.</p>}</section>
         <p className="report-footnote">Report window: {new Date(report.start).toLocaleString()} – {new Date(report.end).toLocaleString()}. Refunds and voids are deducted on the date they are processed; average order and product mix reflect gross sales.</p>
       </>}
