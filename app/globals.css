@@ -257,3 +257,5 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .cash-tender-change{display:flex;justify-content:space-between;align-items:center;padding-top:3px;font-size:12px;color:#625a60}
 .cash-tender-change strong{font-size:16px;color:#168b24}
 .cash-tender-error{font-size:10px;color:#c42d40}
+
+.split-payment-toggle,.other-payment-confirm{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:#5d5960}.split-payment-toggle input,.other-payment-confirm input{accent-color:#8e284d;width:14px;height:14px}.other-payment-confirm{font-weight:600;line-height:1.35;color:#6e5b64}.cash-tender-panel .split-payment-toggle{padding:2px 0}
