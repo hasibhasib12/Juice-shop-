@@ -200,3 +200,14 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .report-row strong{white-space:nowrap}
 .report-footnote{font-size:10px;color:#e4c2cf}
 @media(max-width:760px){.report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.report-columns{grid-template-columns:1fr}.report-controls{flex-wrap:wrap}}
+
+
+.shift-panel{max-width:720px;padding:22px;border:1px solid #713047;border-radius:17px;background:linear-gradient(160deg,#50152b,#310b1b);box-shadow:0 12px 30px #0003}
+.shift-status{display:flex;flex-direction:column;gap:5px;padding:15px;border:1px solid #287e36;border-radius:11px;background:#153d27;margin-bottom:16px}
+.shift-status span{font-size:10px;font-weight:900;letter-spacing:.14em;color:#8ee69a}
+.shift-status strong{font-size:15px}
+.shift-status.closed{border-color:#82405a;background:#3c1023}
+.shift-status.closed span{color:#f1a8bd}
+.shift-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.shift-metrics article{display:flex;flex-direction:column;gap:7px;padding:15px;border:1px solid #713047;border-radius:10px}
+.shift-metrics span{font-size:11px;color:#e4c2cf}.shift-metrics b{font-size:21px;letter-spacing:-.03em}
