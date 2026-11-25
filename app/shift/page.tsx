@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useState } from "react";
 
 type Shift = { id: string; openingCashMinor: number; openedAt: string; closingCashMinor: number | null; expectedCashMinor: number | null };
@@ -57,7 +59,7 @@ export default function ShiftPage() {
   }
   return (
     <main className="catalog-admin">
-      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · CASH MANAGEMENT</span><h1>Cash shift</h1><p>Open your drawer before sales and reconcile it at close.</p></div></header>
+      <header className="catalog-admin-header"><Link href="/" className="catalog-back">← Back to POS</Link><div><span>JUICE SHOP · CASH MANAGEMENT</span><h1>Cash shift</h1><p>Open your drawer before sales and reconcile it at close.</p></div></header>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
       <section className="shift-panel">
         {shift ? <>
