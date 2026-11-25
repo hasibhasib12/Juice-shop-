@@ -96,12 +96,12 @@ export async function POST(request: NextRequest) {
         const product = products.find((candidate) => candidate.id === item.productId)!;
         const variant = item.variantId ? product.variants.find((candidate) => candidate.id === item.variantId) : null;
         if (item.variantId && !variant) throw new Error("INVALID_VARIANT");
-        const selected = product.modifierGroups.flatMap((group) => group.options.filter((option) => item.modifierOptionIds.includes(option.id)).map((option) => ({ groupId: group.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
+        const selected = product.modifierGroups.flatMap((group) => group.options.filter((option) => item.modifierOptionIds.includes(option.id)).map((option) => ({ groupId: group.id, optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
         if (selected.length !== item.modifierOptionIds.length || product.modifierGroups.some((group) => { const count = selected.filter((option) => option.groupId === group.id).length; return count < group.minSelections || count > group.maxSelections; })) throw new Error("INVALID_MODIFIER");
         const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selected.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
         const lineTotalMinor = unitPriceMinor * item.quantity;
         if (!Number.isSafeInteger(lineTotalMinor) || lineTotalMinor < 0) throw new Error("INVALID_TOTAL");
-        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selected.length ? selected.map(({ groupId, groupName, name, priceDeltaMinor }) => ({ groupId, groupName, name, priceDeltaMinor })) : undefined };
+        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selected.length ? selected.map(({ groupId, optionId, groupName, name, priceDeltaMinor }) => ({ groupId, optionId, groupName, name, priceDeltaMinor })) : undefined };
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor)) throw new Error("INVALID_TOTAL");
