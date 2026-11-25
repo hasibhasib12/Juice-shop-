@@ -34,7 +34,12 @@ export async function POST(request: NextRequest) {
         _sum: { amountMinor: true },
       });
       const cashSalesMinor = cashPayments._sum.amountMinor ?? 0;
-      const expectedCashMinor = shift.openingCashMinor + cashSalesMinor;
+      const cashRefunds = await tx.refund.aggregate({
+        where: { processedById: user.id, createdAt: { gte: shift.openedAt, lte: closedAt } },
+        _sum: { cashRefundMinor: true },
+      });
+      const cashRefundMinor = cashRefunds._sum.cashRefundMinor ?? 0;
+      const expectedCashMinor = shift.openingCashMinor + cashSalesMinor - cashRefundMinor;
       const updated = await tx.shift.update({
         where: { id: shift.id },
         data: { closingCashMinor: closingCashMinor as number, expectedCashMinor, closedAt },
@@ -45,10 +50,10 @@ export async function POST(request: NextRequest) {
           action: "SHIFT_CLOSED",
           entityType: "Shift",
           entityId: shift.id,
-          details: { closingCashMinor, expectedCashMinor, cashSalesMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor },
+          details: { closingCashMinor, expectedCashMinor, cashSalesMinor, cashRefundMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor },
         },
       });
-      return { ...updated, cashSalesMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor };
+      return { ...updated, cashSalesMinor, cashRefundMinor, varianceMinor: (closingCashMinor as number) - expectedCashMinor };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json({ shift: closed });
   } catch (error) {
