@@ -19,7 +19,7 @@ export function hashPassword(password: string) {
   return `scrypt$${salt}$${hash}`;
 }
 
-function verifyPassword(password: string, stored: string) {
+export function verifyPassword(password: string, stored: string) {
   const [scheme, salt, expected] = stored.split("$");
   if (scheme !== "scrypt" || !salt || !expected) return false;
   const actual = scryptSync(password, salt, 64);
