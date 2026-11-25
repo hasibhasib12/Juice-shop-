@@ -340,6 +340,16 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(cashierDraftList, 200);
     const cashierDraftListJson = await cashierDraftList.json() as { drafts: { id: string }[] };
     assert.equal(cashierDraftListJson.drafts.some((draft) => draft.id === draftId), false);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true } } });
+    const grantedCashierDraftList = await cashierRequest("/api/orders/drafts", undefined, "GET");
+    await expectStatus(grantedCashierDraftList, 200);
+    const grantedCashierDraftListJson = await grantedCashierDraftList.json() as { drafts: { id: string }[] };
+    assert.equal(grantedCashierDraftListJson.drafts.some((draft) => draft.id === draftId), true);
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const revokedCashierDraftList = await cashierRequest("/api/orders/drafts", undefined, "GET");
+    await expectStatus(revokedCashierDraftList, 200);
+    const revokedCashierDraftListJson = await revokedCashierDraftList.json() as { drafts: { id: string }[] };
+    assert.equal(revokedCashierDraftListJson.drafts.some((draft) => draft.id === draftId), false);
 
     const forbiddenDraftEdit = await cashierRequest("/api/orders/drafts", {
       id: draftId, items: checkoutItems, customerName: "Unauthorized edit",
