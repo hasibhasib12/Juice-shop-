@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       const lines = [...lineMap.values()].map((item) => {
         const product = products.find((candidate) => candidate.id === item.productId)!;
         const variant = item.variantId ? product.variants.find((candidate) => candidate.id === item.variantId) : null;
-        if (item.variantId && !variant) throw new Error("INVALID_VARIANT");
+        if ((item.variantId && !variant) || (!item.variantId && product.variants.length > 0)) throw new Error("INVALID_VARIANT");
         const selected = product.modifierGroups.flatMap((group) => group.options.filter((option) => item.modifierOptionIds.includes(option.id)).map((option) => ({ groupId: group.id, optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
         if (selected.length !== item.modifierOptionIds.length || product.modifierGroups.some((group) => { const count = selected.filter((option) => option.groupId === group.id).length; return count < group.minSelections || count > group.maxSelections; })) throw new Error("INVALID_MODIFIER");
         const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selected.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
