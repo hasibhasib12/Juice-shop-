@@ -85,7 +85,8 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Manager/owner daily shift CSV export with cashier, opening/closing timestamps, opening float, cash sales/refunds, paid-in/out, expected/count/variance and order count; timezone-aware date filtering.
 - [x] Daily/weekly/monthly sales, product mix, average order and tender summary API/UI using configured store timezone.
 - [x] Report net sales and tax by subtracting partial/full refund amounts in the refund processing period, including tender-level cash/other reductions.
-- [ ] Staff performance reports and PDF report export. Sales, shift and stock valuation CSV exports are implemented; inventory valuation uses weighted-average ingredient cost.
+- [x] Daily staff performance report and CSV export by cashier/processor, with currency-separated sales, discounts, average order, refunds processed and shift/drawer activity. Sales, shift and stock valuation CSV exports are implemented.
+- [ ] PDF report export.
 
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
