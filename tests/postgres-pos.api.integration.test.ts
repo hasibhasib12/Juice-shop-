@@ -250,12 +250,6 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.auditEvent.count({ where: { entityId: invoiceId, action: "SUPPLIER_PAYMENT_RECORDED", userId } }), 1);
 
 
-    const cashierLogin = await fetch(`${baseUrl}/api/auth/login`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: `cashier-${suffix}@api-integration.invalid`, password }),
-    });
-    await expectStatus(cashierLogin, 200);
-    const cashierCookie = cashierLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     const cashierRequest = (path: string, body: unknown, method = "POST") => fetch(`${baseUrl}${path}`, {
       method, headers: { "content-type": "application/json", cookie: cashierCookie },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
