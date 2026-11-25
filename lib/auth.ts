@@ -34,7 +34,7 @@ function sign(value: string) {
 export async function authenticate(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
   if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId };
 }
 
 export async function createSession(user: { id: string }) {
@@ -75,10 +75,10 @@ export async function getCurrentUser() {
     if (!data.sub || !Number.isSafeInteger(data.ver) || data.ver < 0 || data.exp <= Math.floor(Date.now() / 1000)) return null;
     const user = await prisma.user.findUnique({
       where: { id: data.sub },
-      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true },
+      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true, branchId: true },
     });
     if (!user?.active || user.sessionVersion !== data.ver) return null;
-    return { id: user.id, name: user.name, email: user.email, role: user.role };
+    return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId };
   } catch {
     return null;
   }
