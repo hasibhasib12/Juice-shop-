@@ -10,10 +10,11 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
 
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "20");
   const limit = Number.isInteger(rawLimit) ? Math.min(50, Math.max(1, rawLimit)) : 20;
   const cursor = request.nextUrl.searchParams.get("cursor");
-  const canViewAll = hasPermission(user.role, user.permissionOverrides, "VIEW_ALL_ORDERS");
+  const canViewAll = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
 
   try {
     const orders = await prisma.order.findMany({
