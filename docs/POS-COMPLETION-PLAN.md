@@ -44,11 +44,13 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
 - [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
+- [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
+- [ ] Apply the new cash-tender migration to the isolated Neon development branch and verify it before preview deployment.
 
 ## Milestone 3 — Payments and receipts
-- [x] Cash payment record and transactional order completion (cash received/change due UI still pending).
+- [x] Cash payment record, server-validated tender amount, persisted cash received/change due, and receipt display; POS currently submits exact tender by default.
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
-- [ ] Split tender, failed/voided payments, refunds, reconciliation, and idempotency.
+- [ ] Split tender, card-provider integration, failed/voided payments, refunds, reconciliation, and provider callback idempotency.
 - [x] Printable receipt layout with browser/thermal-width print styles, receipt reprints and authenticated order history.
 - [ ] Direct printer integration, configurable business details/logo/tax fields and printer acceptance tests.
 
