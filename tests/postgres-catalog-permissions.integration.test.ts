@@ -104,6 +104,8 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
       modifierGroups: [],
     });
     await expectStatus(deniedOptionsWrite, 403);
+    const deniedProductImageUpload = await request(`/api/admin/products/${productId}/image`, "POST");
+    await expectStatus(deniedProductImageUpload, 403);
     const deniedCategoryCreate = await request("/api/admin/categories", "POST", { name: `Denied ${suffix}` });
     await expectStatus(deniedCategoryCreate, 403);
     const deniedCategoryUpdate = await request("/api/admin/categories", "PATCH", { id: baseCategoryId, name: "Unauthorized category rename" });
@@ -139,6 +141,8 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     assert.equal(await prisma.productVariant.count({ where: { productId } }), 1);
     assert.equal(await prisma.productModifierGroup.count({ where: { productId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { userId, entityId: productId, action: "PRODUCT_OPTIONS_UPDATED" } }), 1);
+    const deniedImageAfterRevoke = await request(`/api/admin/products/${productId}/image`, "POST");
+    await expectStatus(deniedImageAfterRevoke, 403);
 
     const invalidOptionIngredient = await request(`/api/admin/products/${productId}/options`, "PUT", {
       variants: [{ name: "Invalid recipe", priceMinor: 200, recipeItems: [{ ingredientId: `missing-${suffix}`, quantity: 1 }] }],
