@@ -19,10 +19,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         lines: true,
         payments: true,
         refunds: { orderBy: { createdAt: "desc" } },
-        cashier: { select: { id: true, name: true } },
+        cashier: { select: { id: true, name: true, branchId: true } },
       },
     });
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    if (order.cashier.branchId !== user.branchId) return NextResponse.json({ error: "Order not found." }, { status: 404 });
     const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
     const canViewAll = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
     if (!canViewAll && order.cashierId !== user.id) {
