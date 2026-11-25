@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.$transaction(async (tx) => {
       const branch = await tx.branch.findFirst({ where: { id: branchId, active: true }, select: { id: true } });
       if (!branch) throw new Error("BRANCH_NOT_FOUND");
-      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password!), role, branchId, phone: phone || null, employeeCode: employeeCode || null, photoUrl: photoUrl || null }, select: { id: true, name: true, email: true, role: true, active: actor.role === "OWNER", approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING", phone: true, employeeCode: true, photoUrl: true, branch: { select: { id: true, name: true, code: true } } } });
+      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password!), role, branchId, active: actor.role === "OWNER", approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING", phone: phone || null, employeeCode: employeeCode || null, photoUrl: photoUrl || null }, select: { id: true, name: true, email: true, role: true, active: actor.role === "OWNER", approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING", phone: true, employeeCode: true, photoUrl: true, branch: { select: { id: true, name: true, code: true } } } });
       await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role, branchId, phone: phone || null, employeeCode: employeeCode || null, approvalStatus: actor.role === "OWNER" ? "APPROVED" : "PENDING" } } });
       return created;
     });
