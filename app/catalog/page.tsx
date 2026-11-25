@@ -157,7 +157,7 @@ export default function CataloguePage() {
               <article className={p.status === "ARCHIVED" ? "catalog-product archived" : "catalog-product"} key={p.id}>
                 {p.imageUrl ? <img src={p.imageUrl} alt="" /> : <div className="catalog-placeholder">🍹</div>}
                 <div className="catalog-product-info"><b>{p.name}</b><span>{p.category.name} · {p.currency} {(p.priceMinor / 100).toFixed(2)}</span><small>{p.status === "ARCHIVED" ? "Archived" : p.available ? "Available" : "Hidden from till"}</small></div>
-                <div className="catalog-product-actions"><button type="button" onClick={() => startEdit(p)}>Edit</button>{p.status === "ACTIVE" && <button type="button" onClick={() => void archive(p)}>Archive</button>}</div>
+                <div className="catalog-product-actions"><button type="button" onClick={() => startEdit(p)}>Edit</button><button type="button" onClick={() => { window.location.href = `/catalog/${p.id}/options`; }}>Sizes & extras</button>{p.status === "ACTIVE" && <button type="button" onClick={() => void archive(p)}>Archive</button>}</div>
               </article>
             ))}
           </section>
