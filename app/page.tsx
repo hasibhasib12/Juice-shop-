@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parsePendingCheckout, type CheckoutPayload, type PendingCheckout } from "../lib/pos-checkout-recovery";
 
 type ProductVariant = { id: string; name: string; priceMinor: number };
 type ModifierOption = { id: string; name: string; priceDeltaMinor: number };
@@ -9,8 +10,6 @@ type Product = { id: string; name: string; sku?: string | null; category: string
 type SelectedModifier = { optionId: string; groupName: string; name: string; priceDeltaMinor: number };
 type CartLine = { key: string; product: Product; quantity: number; variantId?: string; variantName?: string; modifierOptionIds: string[]; selectedModifiers: SelectedModifier[]; unitPriceMinor: number };
 type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
-type CheckoutPayload = { items: { productId: string; quantity: number; variantId?: string; modifierOptionIds: string[] }[]; paymentMethod: "CASH"; cashReceivedMinor: number; paymentTenders: { method: "CASH" | "OTHER"; amountMinor: number }[]; idempotencyKey: string; customerName: string; notes: string; draftId?: string; discountApprovalId?: string };
-type PendingCheckout = { version: 1; cashierId: string; createdAt: number; payload: CheckoutPayload };
 const PENDING_CHECKOUT_STORAGE_KEY = "juice-shop.pending-checkout.v1";
 
 const money = (amountMinor: number, currency = "AFN") =>
@@ -72,16 +71,8 @@ export default function Home() {
     try {
       const raw = window.sessionStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as PendingCheckout;
-      const payload = saved?.payload;
-      const valid = saved?.version === 1 && typeof saved.cashierId === "string" &&
-        Number.isSafeInteger(saved.createdAt) && payload && typeof payload === "object" &&
-        typeof payload.idempotencyKey === "string" && payload.idempotencyKey.length >= 12 &&
-        Array.isArray(payload.items) && payload.items.length > 0 &&
-        Array.isArray(payload.paymentTenders) && payload.paymentTenders.length > 0 &&
-        payload.items.every((item) => item && typeof item.productId === "string" && Number.isSafeInteger(item.quantity) && item.quantity >= 1 && Array.isArray(item.modifierOptionIds)) &&
-        payload.paymentTenders.every((tender) => tender && (tender.method === "CASH" || tender.method === "OTHER") && Number.isSafeInteger(tender.amountMinor) && tender.amountMinor > 0);
-      if (!valid) {
+      const saved = parsePendingCheckout(raw);
+      if (!saved) {
         window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
         setNotice("A saved checkout recovery record was invalid and has been discarded. Review Orders before taking payment again.");
         return;
