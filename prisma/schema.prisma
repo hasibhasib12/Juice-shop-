@@ -133,6 +133,7 @@ model Order {
   totalMinor     Int
   currency       String        @default("AFN")
   idempotencyKey String?       @unique
+  requestFingerprint String?
   lines          OrderLine[]
   payments       Payment[]
   refunds        Refund[]
