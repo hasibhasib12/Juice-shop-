@@ -296,6 +296,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     ]);
     assert.deepEqual(concurrentShiftOpens.map((response) => response.status).sort(), [201, 409]);
     const openedShiftResponse = concurrentShiftOpens.find((response) => response.status === 201)!;
+    assert.equal(openedShiftResponse.headers.get("cache-control"), "no-store");
     const openedShiftJson = await openedShiftResponse.json() as { shift: { id: string } };
     createdCashierShiftId = openedShiftJson.shift.id;
     assert.equal(await prisma.auditEvent.count({ where: { entityId: createdCashierShiftId, action: "SHIFT_OPENED", userId: cashierId } }), 1);
