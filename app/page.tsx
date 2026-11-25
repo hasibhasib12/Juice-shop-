@@ -138,7 +138,7 @@ export default function Home() {
           <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products..." />
         </label>
-        <div className="header-date"><span>Juice Shop POS</span><strong>Live catalogue</strong></div>
+        <div className="header-date"><span>Afghanistan · Kabul</span><strong>AFN · Afghan Afghani</strong></div>
         <div className="online-state"><span className="wifi">⌁</span><i/>Database</div>
         <button className="cashier"><span className="cashier-photo">A</span><span><b>Staff preview</b><small>Not signed in</small></span><span className="chevron">⌄</span></button>
       </header>
