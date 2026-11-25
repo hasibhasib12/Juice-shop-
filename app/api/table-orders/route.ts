@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
@@ -15,6 +16,8 @@ export async function POST(request: NextRequest) {
   }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
   const rate = await checkActionRateLimit("table-order-write", user.id, 60, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many table order changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   let body: { orderId?: string; tableId?: string | null };
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
       const order = await tx.order.findUnique({ where: { id: body.orderId! }, select: { id: true, orderNumber: true, status: true, cashierId: true, tableId: true } });
       if (!order) throw new Error("ORDER_NOT_FOUND");
       if (order.status !== "DRAFT") throw new Error("ORDER_NOT_OPEN");
-      if (order.cashierId !== user.id && user.role !== "OWNER" && user.role !== "MANAGER") throw new Error("ORDER_FORBIDDEN");
+      if (order.cashierId !== user.id && !canViewAllOrders) throw new Error("ORDER_FORBIDDEN");
       if (tableId) {
         const table = await tx.diningTable.findUnique({ where: { id: tableId }, select: { id: true, active: true } });
         if (!table || !table.active) throw new Error("TABLE_UNAVAILABLE");
