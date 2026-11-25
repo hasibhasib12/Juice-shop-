@@ -55,7 +55,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       passwordHash: passwordHash(password), role: "CASHIER",
     } });
     await prisma.category.create({ data: { id: categoryId, name: `API Integration ${suffix}` } });
-    await prisma.ingredient.create({ data: { id: ingredientId, name: "Private integration ingredient", unit: "ml" } });
+    await prisma.ingredient.create({ data: { id: ingredientId, name: "Private integration ingredient", unit: "ml", quantityOnHand: "1000.000" } });
     await prisma.product.create({ data: {
       id: productId, name: "API Integration Juice", priceMinor: 1000,
       currency: "AFN", categoryId,
@@ -135,8 +135,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(deniedTableUpdate, 403);
 
     const checkoutBody = {
-      items: [{ productId, quantity: 1 }],
-      paymentTenders: [{ method: "OTHER", amountMinor: 1000 }],
+      items: [{ productId, variantId: (await prisma.productVariant.findFirstOrThrow({ where: { productId } })).id, quantity: 1 }],
+      paymentTenders: [{ method: "OTHER", amountMinor: 1500 }],
       idempotencyKey: `api-it-key-${suffix}`,
       customerName: "API Integration Customer",
       notes: "End-to-end test",
@@ -144,7 +144,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const checkout = await request("/api/checkout", checkoutBody);
     await expectStatus(checkout, 201);
     const checkoutJson = await checkout.json() as { order: { id: string; totalMinor: number; lines: Array<{ id: string; quantity: number }> } };
-    assert.equal(checkoutJson.order.totalMinor, 1000);
+    assert.equal(checkoutJson.order.totalMinor, 1500);
     assert.equal(checkoutJson.order.lines.length, 1);
     const orderId = checkoutJson.order.id;
     const lineId = checkoutJson.order.lines[0].id;
@@ -158,8 +158,8 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_COMPLETED" } }), 1);
 
     const refundAttempts = await Promise.all([
-      request(`/api/orders/${orderId}/refund`, { kind: "REFUND", amountMinor: 1000, reason: "API integration full refund" }),
-      request(`/api/orders/${orderId}/refund`, { kind: "REFUND", amountMinor: 1000, reason: "Competing API refund" }),
+      request(`/api/orders/${orderId}/refund`, { kind: "REFUND", amountMinor: 1500, reason: "API integration full refund" }),
+      request(`/api/orders/${orderId}/refund`, { kind: "REFUND", amountMinor: 1500, reason: "Competing API refund" }),
     ]);
     const refundStatuses = refundAttempts.map((response) => response.status).sort();
     assert.deepEqual(refundStatuses, [201, 409]);
