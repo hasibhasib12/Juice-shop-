@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Product = {
-  id: string;
-  name: string;
-  category: string;
-  priceMinor: number;
-  currency: string;
-  image: string;
-};
-type CartLine = { product: Product; quantity: number };
-type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number }[] };
+type ProductVariant = { id: string; name: string; priceMinor: number };
+type ModifierOption = { id: string; name: string; priceDeltaMinor: number };
+type ModifierGroup = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: ModifierOption[] };
+type Product = { id: string; name: string; category: string; priceMinor: number; currency: string; image: string; variants: ProductVariant[]; modifierGroups: ModifierGroup[] };
+type SelectedModifier = { optionId: string; groupName: string; name: string; priceDeltaMinor: number };
+type CartLine = { key: string; product: Product; quantity: number; variantId?: string; variantName?: string; modifierOptionIds: string[]; selectedModifiers: SelectedModifier[]; unitPriceMinor: number };
+type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
 
 const money = (amountMinor: number, currency = "AFN") =>
   new Intl.NumberFormat("en-US", {
@@ -26,6 +23,9 @@ export default function Home() {
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [configProduct, setConfigProduct] = useState<Product | null>(null);
+  const [configVariantId, setConfigVariantId] = useState("");
+  const [configOptionIds, setConfigOptionIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -85,6 +85,8 @@ export default function Home() {
             priceMinor: number;
             currency: string;
             imageUrl: string | null;
+            variants?: ProductVariant[];
+            modifierGroups?: ModifierGroup[];
           }) => ({
             id: item.id,
             name: item.name,
@@ -92,6 +94,8 @@ export default function Home() {
             priceMinor: item.priceMinor,
             currency: item.currency,
             image: item.imageUrl || "",
+            variants: item.variants ?? [],
+            modifierGroups: item.modifierGroups ?? [],
           })),
         );
         setCategoryNames(data.categories.map((item: { name: string }) => item.name));
@@ -101,7 +105,7 @@ export default function Home() {
         if (!active) return;
         // Keep the preview usable while the first database migration is pending.
         setProducts([
-          { id: "demo-orange", name: "Orange Juice", category: "Juices", priceMinor: 8000, currency: "AFN", image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=700&q=85" },
+          { id: "demo-orange", name: "Orange Juice", category: "Juices", priceMinor: 8000, currency: "AFN", image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=700&q=85", variants: [], modifierGroups: [] },
           { id: "demo-mango", name: "Mango Juice", category: "Juices", priceMinor: 9000, currency: "AFN", image: "https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=700&q=85" },
           { id: "demo-pomegranate", name: "Pomegranate Juice", category: "Juices", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=700&q=85" },
           { id: "demo-berry", name: "Berry Blast", category: "Smoothies", priceMinor: 10000, currency: "AFN", image: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?auto=format&fit=crop&w=700&q=85" },
@@ -135,7 +139,7 @@ export default function Home() {
   );
 
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const subtotal = cart.reduce((sum, line) => sum + line.product.priceMinor * line.quantity, 0);
+  const subtotal = cart.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
   // Tax stays at zero until the business jurisdiction and tax rules are configured.
   const tax = Math.round(Math.max(0, subtotal - discount) * storeInfo.taxRateBps / 10000);
   const total = Math.max(0, subtotal - discount) + tax;
@@ -148,28 +152,37 @@ export default function Home() {
   useEffect(() => { setCashTender((total / 100).toFixed(2)); }, [total]);
 
   function addToCart(product: Product) {
-    setNotice("");
-    setDiscount(0);
-    setDiscountApprovalId(null);
+    if (product.variants.length || product.modifierGroups.length) {
+      setConfigProduct(product);
+      setConfigVariantId(product.variants[0]?.id ?? "");
+      setConfigOptionIds([]);
+      return;
+    }
+    addConfiguredLine(product, undefined, []);
+  }
+
+  function addConfiguredLine(product: Product, variantId: string | undefined, optionIds: string[]) {
+    const variant = product.variants.find((item) => item.id === variantId);
+    const selectedModifiers = product.modifierGroups.flatMap((group) => group.options.filter((option) => optionIds.includes(option.id)).map((option) => ({ optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
+    const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selectedModifiers.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
+    const sortedIds = [...optionIds].sort();
+    const key = JSON.stringify([product.id, variantId ?? null, sortedIds]);
+    setNotice(""); setDiscount(0); setDiscountApprovalId(null);
     setCart((current) => {
-      const existing = current.find((line) => line.product.id === product.id);
-      return existing
-        ? current.map((line) =>
-            line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line,
-          )
-        : [...current, { product, quantity: 1 }];
+      const existing = current.find((line) => line.key === key);
+      return existing ? current.map((line) => line.key === key ? { ...line, quantity: line.quantity + 1 } : line) : [...current, { key, product, quantity: 1, variantId, variantName: variant?.name, modifierOptionIds: sortedIds, selectedModifiers, unitPriceMinor }];
     });
   }
 
-  function changeQuantity(id: string, delta: number) {
+  function changeQuantity(key: string, delta: number) {
     setDiscount(0);
     setDiscountApprovalId(null);
     setCart((current) =>
       current
         .map((line) =>
-          line.product.id === id ? { ...line, quantity: line.quantity + delta } : line,
+          line.key === key ? { ...line, quantity: line.quantity + delta } : line,
         )
-        .filter((line) => line.quantity > 0),
+         .filter((line) => line.quantity > 0),
     );
   }
 
@@ -217,7 +230,7 @@ export default function Home() {
       const response = await fetch("/api/discounts/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ managerEmail, managerPassword, discountMinor, reason: discountReason, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })) }),
+        body: JSON.stringify({ managerEmail, managerPassword, discountMinor, reason: discountReason, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Discount authorization failed.");
@@ -238,7 +251,7 @@ export default function Home() {
     if (cart.some((line) => line.product.id.startsWith("demo-"))) { setNotice("Drafts require the live database catalogue."); return; }
     setDraftBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/orders/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(draftId ? { id: draftId } : {}), items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })), customerName, notes: orderNotes }) });
+      const response = await fetch("/api/orders/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(draftId ? { id: draftId } : {}), items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })), customerName, notes: orderNotes }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save draft.");
       setDraftId(data.draft.id);
@@ -261,7 +274,12 @@ export default function Home() {
   function resumeDraft(draft: SavedDraft) {
     const lines = draft.lines.map((line) => {
       const product = products.find((item) => item.id === line.productId);
-      return product ? { product, quantity: line.quantity } : null;
+      if (!product) return null;
+      const variant = line.variantName ? product.variants.find((item) => item.name === line.variantName) : undefined;
+      const optionIds = (line.selectedModifiers ?? []).map((item) => item.optionId).filter((id): id is string => typeof id === "string");
+      const selectedModifiers = product.modifierGroups.flatMap((group) => group.options.filter((option) => optionIds.includes(option.id)).map((option) => ({ optionId: option.id, groupName: group.name, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
+      const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selectedModifiers.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
+      return { key: JSON.stringify([product.id, variant?.id ?? null, [...optionIds].sort()]), product, quantity: line.quantity, variantId: variant?.id, variantName: variant?.name, modifierOptionIds: optionIds, selectedModifiers, unitPriceMinor };
     }).filter((line): line is CartLine => line !== null);
     if (lines.length !== draft.lines.length) { setNotice("Some products in this draft are no longer in the live catalogue. Review it in Orders."); return; }
     setCart(lines); setDraftId(draft.id); setCustomerName(draft.customerName || ""); setOrderNotes(draft.notes || "");
@@ -288,7 +306,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+          items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })),
           paymentMethod: "CASH",
           cashReceivedMinor,
           paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
@@ -391,19 +409,20 @@ export default function Home() {
             {cart.length === 0 ? (
               <div className="cart-empty"><span>🛍</span><b>Your order is empty</b><small>Add a drink to get started</small></div>
             ) : cart.map((line) => (
-              <div className="order-item" key={line.product.id}>
+              <div className="order-item" key={line.key}>
                 {line.product.image ? <img src={line.product.image} alt=""/> : <span className="order-image-fallback">🍹</span>}
                 <div className="order-item-info">
                   <b>{line.product.name}</b>
-                  <span>{money(line.product.priceMinor, line.product.currency)}</span>
+                  <span>{money(line.unitPriceMinor, line.product.currency)}{line.variantName ? ` · ${line.variantName}` : ""}</span>
+                  {line.selectedModifiers.length > 0 && <small>{line.selectedModifiers.map((item) => item.name).join(", ")}</small>}
                   <div className="stepper">
-                    <button onClick={() => changeQuantity(line.product.id, -1)}>−</button>
+                    <button onClick={() => changeQuantity(line.key, -1)}>−</button>
                     <b>{line.quantity}</b>
-                    <button onClick={() => changeQuantity(line.product.id, 1)}>+</button>
+                    <button onClick={() => changeQuantity(line.key, 1)}>+</button>
                   </div>
                 </div>
-                <strong>{money(line.product.priceMinor * line.quantity, line.product.currency)}</strong>
-                <button className="remove-line" aria-label="Remove item" onClick={() => changeQuantity(line.product.id, -line.quantity)}>×</button>
+                <strong>{money(line.unitPriceMinor * line.quantity, line.product.currency)}</strong>
+                <button className="remove-line" aria-label="Remove item" onClick={() => changeQuantity(line.key, -line.quantity)}>×</button>
               </div>
             ))}
           </div>
@@ -434,6 +453,25 @@ export default function Home() {
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
+      {configProduct && (
+        <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfigProduct(null); }}>
+          <section className="login-panel" aria-label={`Configure ${configProduct.name}`}>
+            <button className="login-close" type="button" aria-label="Close options" onClick={() => setConfigProduct(null)}>×</button>
+            <span className="catalog-eyebrow">CUSTOMIZE PRODUCT</span>
+            <h2>{configProduct.name}</h2>
+            {configProduct.variants.length > 0 && <fieldset className="modifier-fieldset"><legend>Size</legend>{configProduct.variants.map((variant) => <label key={variant.id} className="modifier-choice"><input type="radio" name="product-variant" checked={configVariantId === variant.id} onChange={() => setConfigVariantId(variant.id)}/><span>{variant.name}</span><b>{money(variant.priceMinor, configProduct.currency)}</b></label>)}</fieldset>}
+            {configProduct.modifierGroups.map((group) => {
+              const chosen = configOptionIds.filter((id) => group.options.some((option) => option.id === id));
+              return <fieldset className="modifier-fieldset" key={group.id}><legend>{group.name} {group.minSelections > 0 ? `· choose at least ${group.minSelections}` : ""}</legend>{group.options.map((option) => {
+                const checked = configOptionIds.includes(option.id);
+                return <label className="modifier-choice" key={option.id}><input type="checkbox" checked={checked} onChange={(event) => setConfigOptionIds((current) => event.target.checked ? (chosen.length < group.maxSelections ? [...current, option.id] : current) : current.filter((id) => id !== option.id))}/><span>{option.name}</span><b>{option.priceDeltaMinor ? `+${money(option.priceDeltaMinor, configProduct.currency)}` : "Included"}</b></label>;
+              })}</fieldset>;
+            })}
+            <p className="modifier-total">Unit price <strong>{money((configProduct.variants.find((item) => item.id === configVariantId)?.priceMinor ?? configProduct.priceMinor) + configProduct.modifierGroups.flatMap((group) => group.options.filter((option) => configOptionIds.includes(option.id))).reduce((sum, option) => sum + option.priceDeltaMinor, 0), configProduct.currency)}</strong></p>
+            <button className="catalog-primary" disabled={configProduct.modifierGroups.some((group) => { const count = group.options.filter((option) => configOptionIds.includes(option.id)).length; return count < group.minSelections || count > group.maxSelections; }) || (configProduct.variants.length > 0 && !configVariantId)} onClick={() => { addConfiguredLine(configProduct, configVariantId || undefined, configOptionIds); setConfigProduct(null); }}>Add to order</button>
+          </section>
+        </div>
+      )}
       {draftsOpen && (
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDraftsOpen(false); }}>
           <section className="login-panel" aria-label="Saved draft orders">
