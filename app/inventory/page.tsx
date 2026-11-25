@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useState } from "react";
 
 type Ingredient = { id: string; name: string; unit: string; quantityOnHand: string; reorderLevel: string; averageCostMinor: number; recipeItems: { product: { id: string; name: string } }[] };
@@ -138,7 +140,7 @@ export default function InventoryPage() {
   return (
     <main className="catalog-admin">
       <header className="catalog-admin-header">
-        <a href="/" className="catalog-back">← Back to POS</a>
+        <Link href="/" className="catalog-back">← Back to POS</Link>
         <div><span>JUICE SHOP · MANAGEMENT</span><h1>Inventory & recipes</h1><p>Track ingredients and define what each menu item consumes.</p></div>
       </header>
       {notice && <p className="catalog-notice" role="status">{notice}</p>}
