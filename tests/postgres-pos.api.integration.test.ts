@@ -113,6 +113,35 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(blockedCurrencyChange, 409);
 
+    const cashierLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: `cashier-${suffix}@api-integration.invalid`, password }),
+    });
+    await expectStatus(cashierLogin, 200);
+    const cashierCookie = cashierLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    assert.ok(cashierCookie.includes("juice_shop_session="));
+
+    const cashierSettingsWrite = await fetch(`${baseUrl}/api/settings`, {
+      method: "PUT", headers: { "content-type": "application/json", cookie: cashierCookie },
+      body: JSON.stringify(settingsJson.settings),
+    });
+    await expectStatus(cashierSettingsWrite, 403);
+    assert.equal(await prisma.auditEvent.count({ where: { userId: cashierId, action: "STORE_SETTINGS_UPDATED" } }), 0,
+      "cashier must not write store settings");
+
+    const cashierShiftRead = await fetch(`${baseUrl}/api/shifts`, { headers: { cookie: cashierCookie } });
+    await expectStatus(cashierShiftRead, 200);
+    const cashierShiftJson = await cashierShiftRead.json() as { shift: { id: string } | null };
+    assert.equal(cashierShiftJson.shift, null, "cashier must not see another user's active shift");
+
+    const cashierCloseOwnerShift = await fetch(`${baseUrl}/api/shifts/close`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: cashierCookie },
+      body: JSON.stringify({ closingCashMinor: 500 }),
+    });
+    await expectStatus(cashierCloseOwnerShift, 409);
+    assert.equal((await prisma.shift.findUniqueOrThrow({ where: { id: shiftId } })).closedAt, null,
+      "cashier must not close another user's shift");
+
     const categoryCreate = await fetch(`${baseUrl}/api/admin/categories`, {
       method: "POST", headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ name: `Audit Integration ${suffix}`, sortOrder: 17 }),
