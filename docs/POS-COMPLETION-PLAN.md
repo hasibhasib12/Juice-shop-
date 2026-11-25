@@ -224,3 +224,9 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Checkout idempotency fingerprints now include the saved draft ID when converting a draft into a completed sale. Ordinary non-draft fingerprints remain unchanged for compatibility; regression tests prove different drafts cannot share an equivalent fingerprint.
 - In-session uncertain checkout handling locks order/payment inputs and retries with the same idempotency key. Durable recovery after page reload or browser crash is still not implemented; do not describe this as offline checkout or reload-safe recovery.
 - No deployment, production database operation, production environment change, or `main` modification.
+
+
+## Authenticated mutation response caching review — 2026-11-25 (CI pending)
+- Reviewed successful write responses that return staff, table, inventory, supplier, invoice, payment, or order data.
+- Added explicit `Cache-Control: no-store` to table assignment/transfer, table create/update, inventory ingredient creation/stock movement, supplier creation, and supplier invoice/payment success responses. Existing read and other mutation response policies were left unchanged.
+- This is targeted cache hardening, not a claim that every API route has completed a full security audit. CI must pass on the final branch head before verification.
