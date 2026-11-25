@@ -235,7 +235,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       paymentTenders: [{ method: "OTHER", amountMinor: 999 }],
     });
     await expectStatus(invalidCheckout, 400);
-    assert.equal(await prisma.order.count({ where: { cashierId: userId } }), 1);
+    assert.equal(await prisma.order.count({ where: { cashierId: userId } }), 2, "invalid checkout must not create an order (original sale plus separately voided sale remain)");
   } finally {
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
