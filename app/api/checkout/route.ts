@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
         if (previous.cashierId !== cashier.id) throw new Error("IDEMPOTENCY_CONFLICT");
         return previous;
       }
+      const activeShift = await tx.shift.findFirst({ where: { userId: cashier.id, closedAt: null }, select: { id: true } });
+      if (!activeShift) throw new Error("NO_OPEN_SHIFT");
 
       const products = await tx.product.findMany({
         where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
@@ -142,6 +144,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
+    if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
     if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key belongs to another cashier." }, { status: 409 });
