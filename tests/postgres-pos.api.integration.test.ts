@@ -61,7 +61,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
 
     const origin = baseUrl;
     const login = await fetch(`${baseUrl}/api/auth/login`, {
-      method: "POST", headers: { "content-type": "application/json", origin },
+      method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: `${suffix}@api-integration.invalid`, password }),
     });
     await expectStatus(login, 200);
@@ -70,7 +70,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
 
     const request = (path: string, body: unknown) => fetch(`${baseUrl}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin, cookie },
+      headers: { "content-type": "application/json", cookie },
       body: JSON.stringify(body),
     });
 
