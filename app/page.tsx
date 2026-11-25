@@ -388,6 +388,7 @@ export default function Home() {
     if (checkoutBusy || !staff) return;
     setCheckoutBusy(true);
     setCheckoutUncertain(true);
+    let recoveryRequired = true;
     try {
       const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await response.json();
@@ -395,6 +396,7 @@ export default function Home() {
         if (response.status < 500 && response.status !== 401 && response.status !== 409 && response.status !== 429) {
           window.sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
           setPendingCheckout(null);
+          recoveryRequired = false;
           setCheckoutUncertain(false);
         }
         throw new Error(data.error || "Checkout failed.");
@@ -415,7 +417,7 @@ export default function Home() {
       setCheckoutKey("");
       setCheckoutUncertain(false);
     } catch (error) {
-      setCheckoutUncertain(true);
+      setCheckoutUncertain(recoveryRequired);
       if (error instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine)) {
         setNotice("Connection interrupted. The exact checkout request is saved in this tab. Restore the connection and resume it; the same idempotency key prevents a duplicate sale.");
       } else if (recovered) {
