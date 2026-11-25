@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       }
 
       const products = await tx.product.findMany({
-        where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
+        where: { id: { in: [...quantities.keys()] }, branchId: user.branchId, status: "ACTIVE", available: true, category: { active: true } },
         select: { id: true, name: true, priceMinor: true, currency: true,
           variants: { where: { active: true }, select: { id: true, name: true, priceMinor: true } },
           modifierGroups: { where: { active: true }, include: { options: { where: { active: true } } } },
