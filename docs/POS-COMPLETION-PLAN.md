@@ -178,6 +178,6 @@ Commit \`65a2db95bcc57cd7f8f2d0058a0e97eaadf0ad61\` passed GitHub Actions: Prism
 - Added a dedicated PostgreSQL-backed HTTP integration test for supplier invoice/payment authorization.
 - A cashier without `MANAGE_PURCHASING` receives 403 for invoice creation and payment attempts; assertions verify no invoice, payment, or related audit event is written.
 - After granting the permission, an invoice attempt that references a line belonging to a different purchase order is rejected (409) without creating an invoice or audit event.
-- A valid invoice and a partial bank-transfer payment are then created successfully, with persisted status and audit assertions.
+- A valid invoice and a partial bank-transfer payment are then created successfully, with persisted status and audit assertions. A subsequent payment above the remaining balance is rejected (409), with no extra payment or audit record.
 - The schema already enforces invoice-number uniqueness per supplier with `@@unique([supplierId, invoiceNumber])`; no redundant index or migration was added.
 - The integration test has been committed on `feature/pos-foundation`; CI and PostgreSQL execution are pending. No deployment or production data changes.
