@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 
 type Order = { id: string; orderNumber: number; status: string; totalMinor: number; currency: string; createdAt: string; cashier: { name: string }; lines: { id: string; productName: string; quantity: number; returns: { quantity: number; condition: string; disposition: string; reason: string; createdAt: string }[] }[]; payments: { method: string; status: string; amountMinor: number; currency: string }[]; refunds: { kind: string; amountMinor: number; reason: string; createdAt: string }[] };
@@ -91,7 +93,7 @@ export default function OrdersPage() {
   }
   return (
     <main className="catalog-admin">
-      <header className="catalog-admin-header"><a href="/" className="catalog-back">← Back to POS</a><div><span>JUICE SHOP · SALES</span><h1>Order history</h1><p>Find completed sales and reprint receipts.</p></div></header>
+      <header className="catalog-admin-header"><Link href="/" className="catalog-back">← Back to POS</Link><div><span>JUICE SHOP · SALES</span><h1>Order history</h1><p>Find completed sales and reprint receipts.</p></div></header>
       {notice && <p className="catalog-notice">{notice}</p>}
       <section className="catalog-list order-history">
         <div className="catalog-section-head"><div><span>TRANSACTION LOG</span><h2>Recent orders</h2></div></div>
