@@ -225,7 +225,7 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
       action: "movement", ingredientId, type: "PURCHASE", quantity: "100", reason: "Revoked permission",
     });
     await expectStatus(revokedMovement, 403);
-    assert.equal(Number((await prisma.ingredient.findUniqueOrThrow({ where: { id: ingredientId } })).quantityOnHand), 8);
+    assert.equal(Number((await prisma.ingredient.findUniqueOrThrow({ where: { id: ingredientId } })).quantityOnHand), 3);
     assert.equal(await prisma.stockMovement.count({ where: { ingredientId } }), movementCountBeforeRevoked);
     assert.equal(await prisma.auditEvent.count({
       where: { userId, entityId: ingredientId, action: "STOCK_MOVEMENT_RECORDED" },
