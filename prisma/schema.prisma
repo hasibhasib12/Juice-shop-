@@ -57,6 +57,7 @@ model User {
   shifts       Shift[]
   auditEvents  AuditEvent[]
   refundsProcessed Refund[]
+  itemReturnsProcessed OrderLineReturn[]
   cashMovements CashMovement[]
   discountApprovalsAsCashier DiscountApproval[] @relation("DiscountCashier")
   discountApprovalsAsManager DiscountApproval[] @relation("DiscountManager")
