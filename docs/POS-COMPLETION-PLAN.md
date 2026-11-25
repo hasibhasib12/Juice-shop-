@@ -38,6 +38,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Broader unit/integration tests for critical calculations and transaction rollback, including saved-draft conversion and cross-cashier permissions. Focused unit tests cover canonical checkout idempotency fingerprints, including item/tender order invariance, split-tender amount sensitivity, duplicate-line aggregation, cash received and discount approval changes; CI runs `npm test` alongside Prisma validation, lint, TypeScript and production build.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
+- [x] Apply and verify the product variants/modifiers migration on the isolated Neon development branch; CI validates Prisma schema, lint, six tests, TypeScript and production build.
 
 ## Milestone 2 — Catalogue and checkout
 - [x] Basic admin product create/edit/archive, category create, HTTPS image URL, SKU, availability, and price editing.
