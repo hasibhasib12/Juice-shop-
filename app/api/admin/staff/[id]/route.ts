@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (!rate.allowed) return NextResponse.json({ error: "Too many staff changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   const { id } = await context.params;
-  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER" };
+  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER"; approvalStatus?: "APPROVED" | "REJECTED" };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -35,7 +35,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (body.role !== undefined && !["OWNER", "MANAGER", "CASHIER"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid staff role." }, { status: 400 });
   }
-  if (body.active === undefined && body.role === undefined) {
+  if (body.approvalStatus !== undefined && !["APPROVED", "REJECTED"].includes(body.approvalStatus)) return NextResponse.json({ error: "Invalid approval decision." }, { status: 400 });
+  if (body.approvalStatus !== undefined && actor.role !== "OWNER") return NextResponse.json({ error: "Only the platform owner can approve or reject staff requests." }, { status: 403 });
+  if (body.active === undefined && body.role === undefined && body.approvalStatus === undefined) {
     return NextResponse.json({ error: "No staff changes supplied." }, { status: 400 });
   }
   if (id === actor.id) {
@@ -49,7 +51,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const user = await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({
         where: { id },
-        select: { id: true, role: true, active: true, sessionVersion: true, branchId: true },
+        select: { id: true, role: true, active: true, approvalStatus: true, sessionVersion: true, branchId: true },
       });
       if (!target) throw new Error("STAFF_NOT_FOUND");
       // Managers may only activate/deactivate cashier accounts, never manager or owner accounts.
@@ -61,10 +63,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         data: {
           ...(body.active !== undefined ? { active: body.active } : {}),
           ...(body.role !== undefined ? { role: body.role } : {}),
+          ...(body.approvalStatus !== undefined ? { approvalStatus: body.approvalStatus, active: body.approvalStatus === "APPROVED" } : {}),
           // Revoke all existing sessions whenever account access or privilege changes.
           sessionVersion: { increment: 1 },
         },
-        select: { id: true, name: true, email: true, role: true, active: true },
+        select: { id: true, name: true, email: true, role: true, active: true, approvalStatus: true },
       });
       await tx.auditEvent.create({
         data: {
@@ -72,7 +75,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
           action: "STAFF_UPDATED",
           entityType: "User",
           entityId: id,
-          details: { previousRole: target.role, previousActive: target.active, active: body.active, role: body.role, sessionsRevoked: true },
+          details: { previousRole: target.role, previousActive: target.active, previousApprovalStatus: target.approvalStatus, active: body.active, role: body.role, approvalStatus: body.approvalStatus, sessionsRevoked: true },
         },
       });
       return updated;
