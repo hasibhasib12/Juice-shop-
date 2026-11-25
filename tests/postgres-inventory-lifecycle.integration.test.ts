@@ -41,10 +41,14 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
   const email = `${suffix}@inventory-integration.invalid`;
   const password = `Integration-${randomUUID()}-Pass`;
   const ingredientName = `Inventory Integration ${suffix}`;
+  const categoryId = `inventory-it-category-${suffix}`;
+  const productId = `inventory-it-product-${suffix}`;
   let ingredientId: string | undefined;
   let server: ChildProcess | undefined;
 
   try {
+    await prisma.category.create({ data: { id: categoryId, name: `Inventory Recipes ${suffix}` } });
+    await prisma.product.create({ data: { id: productId, name: `Recipe Product ${suffix}`, priceMinor: 500, currency: "AFN", categoryId } });
     await prisma.user.create({ data: {
       id: userId,
       name: "Inventory Integration Manager",
@@ -76,6 +80,19 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
       body: JSON.stringify(body),
     });
 
+    const recipeRequest = (method: string, body?: unknown) => fetch(`${baseUrl}/api/admin/recipes`, {
+      method, headers: { "content-type": "application/json", cookie },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const deniedRecipeRead = await recipeRequest("GET");
+    await expectStatus(deniedRecipeRead, 403);
+    const deniedRecipeCreate = await recipeRequest("POST", { productId, ingredientId: "not-created-yet", quantity: "1" });
+    await expectStatus(deniedRecipeCreate, 403);
+    const deniedRecipeDelete = await recipeRequest("DELETE", { productId, ingredientId: "not-created-yet" });
+    await expectStatus(deniedRecipeDelete, 403);
+    assert.equal(await prisma.recipeItem.count({ where: { productId } }), 0);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, action: { in: ["RECIPE_ITEM_SAVED", "RECIPE_ITEM_REMOVED"] } } }), 0);
+
     const openingMovementCountBeforeDenied = await prisma.stockMovement.count({ where: { reason: "Opening stock" } });
     const deniedCreate = await post({
       action: "create", name: ingredientName, unit: "kg", openingQuantity: "10", reorderLevel: "2",
@@ -101,6 +118,28 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     assert.equal(await prisma.auditEvent.count({
       where: { userId, entityId: ingredientId, action: "INGREDIENT_CREATED" },
     }), 1);
+    const grantedRecipeRead = await recipeRequest("GET");
+    await expectStatus(grantedRecipeRead, 200);
+    const savedRecipe = await recipeRequest("POST", { productId, ingredientId, quantity: "0.25" });
+    await expectStatus(savedRecipe, 200);
+    assert.equal(Number((await prisma.recipeItem.findUniqueOrThrow({ where: { productId_ingredientId: { productId, ingredientId } } })).quantity), 0.25);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, action: "RECIPE_ITEM_SAVED" } }), 1);
+
+    for (const quantity of ["0", "-1", "NaN", "Infinity", "100000001"]) {
+      const invalidRecipe = await recipeRequest("POST", { productId, ingredientId, quantity });
+      await expectStatus(invalidRecipe, 400);
+    }
+    const nonexistentIngredientRecipe = await recipeRequest("POST", {
+      productId, ingredientId: `missing-ingredient-${suffix}`, quantity: "1",
+    });
+    await expectStatus(nonexistentIngredientRecipe, 409);
+    const nonexistentProductRecipe = await recipeRequest("POST", {
+      productId: `missing-product-${suffix}`, ingredientId, quantity: "1",
+    });
+    await expectStatus(nonexistentProductRecipe, 409);
+    assert.equal(await prisma.recipeItem.count({ where: { productId } }), 1);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, action: "RECIPE_ITEM_SAVED" } }), 1);
+
 
     const purchase = await post({
       action: "movement", ingredientId, type: "PURCHASE", quantity: "5", reason: "Supplier delivery",
@@ -173,6 +212,15 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
     const auditCountBeforeRevoked = await prisma.auditEvent.count({
       where: { userId, entityId: ingredientId, action: "STOCK_MOVEMENT_RECORDED" },
     });
+    const recipeCountBeforeRevoked = await prisma.recipeItem.count({ where: { productId } });
+    const recipeAuditBeforeRevoked = await prisma.auditEvent.count({ where: { userId, action: { in: ["RECIPE_ITEM_SAVED", "RECIPE_ITEM_REMOVED"] } } });
+    const revokedRecipeCreate = await recipeRequest("POST", { productId, ingredientId, quantity: "2" });
+    await expectStatus(revokedRecipeCreate, 403);
+    const revokedRecipeDelete = await recipeRequest("DELETE", { productId, ingredientId });
+    await expectStatus(revokedRecipeDelete, 403);
+    assert.equal(await prisma.recipeItem.count({ where: { productId } }), recipeCountBeforeRevoked);
+    assert.equal(await prisma.auditEvent.count({ where: { userId, action: { in: ["RECIPE_ITEM_SAVED", "RECIPE_ITEM_REMOVED"] } } }), recipeAuditBeforeRevoked);
+
     const revokedMovement = await post({
       action: "movement", ingredientId, type: "PURCHASE", quantity: "100", reason: "Revoked permission",
     });
@@ -191,6 +239,10 @@ test("POS inventory API: permission, stock lifecycle and rejected-write safety",
       ]);
       if (server.exitCode === null) server.kill("SIGKILL");
     }
+    await prisma.recipeItem.deleteMany({ where: { productId } });
+    await prisma.auditEvent.deleteMany({ where: { entityId: productId } });
+    await prisma.product.deleteMany({ where: { id: productId } });
+    await prisma.category.deleteMany({ where: { id: categoryId } });
     if (ingredientId) {
       await prisma.auditEvent.deleteMany({ where: { entityId: ingredientId } });
       await prisma.stockMovement.deleteMany({ where: { ingredientId } });
