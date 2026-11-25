@@ -141,6 +141,13 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(cashierCloseOwnerShift, 409);
     assert.equal((await prisma.shift.findUniqueOrThrow({ where: { id: shiftId } })).closedAt, null,
       "cashier must not close another user's shift");
+    const cashierCashMovement = await fetch(`${baseUrl}/api/shifts/movements`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: cashierCookie },
+      body: JSON.stringify({ type: "PAID_IN", amountMinor: 100, reason: "Unauthorized shift test" }),
+    });
+    await expectStatus(cashierCashMovement, 409);
+    assert.equal(await prisma.cashMovement.count({ where: { userId: cashierId } }), 0,
+      "cashier without an open shift must not create a cash movement");
 
     const categoryCreate = await fetch(`${baseUrl}/api/admin/categories`, {
       method: "POST", headers: { "content-type": "application/json", cookie },
