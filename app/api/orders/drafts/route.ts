@@ -123,11 +123,17 @@ export async function POST(request: NextRequest) {
         customerName: body.customerName?.trim() || null,
         notes: body.notes?.trim() || null,
         subtotalMinor, discountMinor: 0, taxMinor, totalMinor, currency: products[0].currency,
-        lines: { deleteMany: {}, create: lines },
       };
       const saved = body.id
-        ? await tx.order.update({ where: { id: body.id }, data, include: { lines: true } })
-        : await tx.order.create({ data: { ...data, status: "DRAFT", cashierId: user.id }, include: { lines: true } });
+        ? await tx.order.update({
+            where: { id: body.id },
+            data: { ...data, lines: { deleteMany: {}, create: lines } },
+            include: { lines: true },
+          })
+        : await tx.order.create({
+            data: { ...data, status: "DRAFT", cashierId: user.id, lines: { create: lines } },
+            include: { lines: true },
+          });
       await tx.auditEvent.create({
         data: { userId: user.id, action: body.id ? "ORDER_DRAFT_UPDATED" : "ORDER_DRAFT_CREATED", entityType: "Order", entityId: saved.id, details: { lineCount: lines.length, subtotalMinor, currency: saved.currency } },
       });
