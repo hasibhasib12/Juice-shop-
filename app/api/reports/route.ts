@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
     select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
     orderBy: { completedAt: "desc" },
   });
-  const currencies = [...new Set(orders.map((order) => order.currency))];
-  const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, kind: true } });
+  const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
+  const refundRows = await prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amountMinor: true, taxRefundMinor: true, cashRefundMinor: true, otherRefundMinor: true, currency: true, kind: true } });
   const refundTotalMinor = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
   const taxRefundMinor = refundRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
   const grossTotalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({
     period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor, currencies, totalMinor, taxMinor, discountMinor,
-    averageOrderMinor: orders.length ? Math.round(totalMinor / orders.length) : 0,
+    averageOrderMinor: orders.length ? Math.round(grossTotalMinor / orders.length) : 0,
     tenders: [...tenders.entries()].map(([method, amountMinor]) => ({ method, amountMinor })),
     topProducts: [...products.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
     recentOrders: orders.slice(0, 20).map((order) => ({ orderNumber: order.orderNumber, totalMinor: order.totalMinor, currency: order.currency, cashier: order.cashier.name })),
