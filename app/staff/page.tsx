@@ -15,6 +15,7 @@ export default function StaffPage() {
   const [phone, setPhone] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [branchName, setBranchName] = useState("");
   const [branchCode, setBranchCode] = useState("");
   const [branchTimezone, setBranchTimezone] = useState("Asia/Kabul");
@@ -56,10 +57,19 @@ export default function StaffPage() {
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role, branchId, phone, employeeCode, photoUrl }) });
+      let uploadedPhotoUrl = photoUrl;
+      if (photoFile) {
+        const uploadBody = new FormData();
+        uploadBody.append("photo", photoFile);
+        const uploadResponse = await fetch("/api/admin/staff/photo", { method: "POST", body: uploadBody });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadData.error || "Could not upload staff photo.");
+        uploadedPhotoUrl = uploadData.photoUrl;
+      }
+      const response = await fetch("/api/admin/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role, branchId, phone, employeeCode, photoUrl: uploadedPhotoUrl }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not create staff account.");
-      setName(""); setEmail(""); setPassword(""); setPhone(""); setEmployeeCode(""); setPhotoUrl(""); setRole("CASHIER"); setNotice("Staff account created."); await load();
+      setName(""); setEmail(""); setPassword(""); setPhone(""); setEmployeeCode(""); setPhotoUrl(""); setPhotoFile(null); setRole("CASHIER"); setNotice("Staff account created."); await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create staff account."); }
     finally { setBusy(false); }
   }
@@ -108,7 +118,7 @@ export default function StaffPage() {
           <label>Temporary password<input required type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} /><small>At least 12 characters. Share it securely and ask the employee to change it after first sign-in.</small></label>
           <label>Phone number<input type="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional"/></label>
           <label>Employee ID<input maxLength={24} value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} placeholder="Optional unique staff code"/></label>
-          <label>Profile photo URL<input type="url" maxLength={2048} value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://…"/><small>Secure image URL for now; direct photo upload will be added with staff image storage.</small></label>
+          <label>Employee photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}/><small>JPG, PNG or WebP · maximum 3 MB. Optional.</small></label>
           <label>Assigned branch<select required value={branchId} onChange={(e) => setBranchId(e.target.value)}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name} · {branch.code}</option>)}</select></label>
           <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option>{currentRole === "OWNER" && <option value="MANAGER">Manager</option>}</select></label>
           <button className="catalog-primary" disabled={busy || !branchId}>{busy ? "Creating…" : "Create staff account"}</button>
