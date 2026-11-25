@@ -134,7 +134,7 @@ model Order {
   idempotencyKey String?       @unique
   lines          OrderLine[]
   payments       Payment[]
-  refund         Refund?
+  refunds        Refund[]
   cashMovements  CashMovement[]
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
@@ -231,7 +231,7 @@ enum RefundKind {
 
 model Refund {
   id            String     @id @default(cuid())
-  orderId       String     @unique
+  orderId       String
   order         Order      @relation(fields: [orderId], references: [id])
   processedById String
   processedBy   User       @relation(fields: [processedById], references: [id])
