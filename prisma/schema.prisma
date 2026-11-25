@@ -157,6 +157,7 @@ model OrderLine {
   returns         OrderLineReturn[]
 
   @@index([orderId])
+  @@unique([id, orderId])
 }
 
 model Payment {
@@ -310,7 +311,7 @@ model OrderLineReturn {
   reason         String
   createdAt      DateTime          @default(now())
   order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderLine      OrderLine         @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  orderLine      OrderLine         @relation(fields: [orderLineId, orderId], references: [id, orderId], onDelete: Cascade)
   processedBy    User              @relation(fields: [processedById], references: [id])
 
   @@index([orderId, createdAt])
