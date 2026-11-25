@@ -31,6 +31,15 @@ export default function Home() {
   const [discount, setDiscount] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN" });
+  const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -130,6 +139,65 @@ export default function Home() {
     );
   }
 
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Sign-in failed.");
+      setStaff(data.user);
+      setLoginPassword("");
+      setLoginOpen(false);
+      setNotice(`Signed in as ${data.user.name}.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Sign-in failed.");
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setStaff(null);
+    setNotice("You have signed out.");
+  }
+
+  async function completeCheckout() {
+    if (!staff) {
+      setLoginOpen(true);
+      setNotice("Staff sign-in is required before checkout.");
+      return;
+    }
+    if (cart.some((line) => line.product.id.startsWith("demo-"))) {
+      setNotice("The demo catalogue is preview-only. Apply the database migration and seed the catalogue before live checkout.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+          paymentMethod: "CASH",
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Checkout failed.");
+      setNotice(`Order #${data.order.orderNumber} completed. Cash payment recorded.`);
+      setCart([]);
+      setDiscount(0);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Checkout failed.");
+    }
+  }
+
   function action(label: string) {
     setNotice(`${label} is not connected yet. Checkout and staff permissions will be enabled after authentication is implemented.`);
   }
@@ -147,7 +215,7 @@ export default function Home() {
         </label>
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className="online-state"><span className="wifi">⌁</span><i/>Database</div>
-        <button className="cashier"><span className="cashier-photo">A</span><span><b>Staff preview</b><small>Not signed in</small></span><span className="chevron">⌄</span></button>
+        <button className="cashier" onClick={() => staff ? void signOut() : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
       </header>
 
       <div className="pos-layout">
@@ -224,13 +292,26 @@ export default function Home() {
           <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
           <div className="payment-actions">
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
-            <button className="pay-button" onClick={() => action("Payment")} disabled={cart.length === 0}>▣ <span>Pay Now</span></button>
+            <button className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0}>▣ <span>Pay Now</span></button>
           </div>
           <button className="place-order" onClick={() => action("Order")} disabled={cart.length === 0}><span>⚒</span>Order</button>
           {notice && <p className="pos-notice" role="status">{notice}</p>}
           <p className="preview-note">PREVIEW MODE · NOT FOR LIVE SALES</p>
         </aside>
       </div>
+      {loginOpen && (
+        <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLoginOpen(false); }}>
+          <form className="login-panel" onSubmit={signIn}>
+            <button className="login-close" type="button" aria-label="Close sign-in" onClick={() => setLoginOpen(false)}>×</button>
+            <span className="login-kicker">JUICE SHOP · STAFF ACCESS</span>
+            <h2>Welcome back</h2>
+            <p>Sign in with your staff account to process cash sales.</p>
+            <label>Email address<input type="email" autoComplete="username" required value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} /></label>
+            <label>Password<input type="password" autoComplete="current-password" required value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} /></label>
+            <button className="login-submit" type="submit" disabled={loginBusy}>{loginBusy ? "Signing in…" : "Sign in"}</button>
+          </form>
+        </div>
+      )}
     </main>
   );
 }
