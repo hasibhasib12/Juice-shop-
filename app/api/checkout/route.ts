@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type CheckoutItem = { productId: string; quantity: number };
+type CheckoutItem = { productId: string; quantity: number; variantId?: string; modifierOptionIds?: string[] };
 type PaymentTender = { method: "CASH" | "OTHER"; amountMinor: number };
 const fingerprint = (items: CheckoutItem[]) => createHash("sha256").update([...items].sort((a,b) => a.productId.localeCompare(b.productId)).map((item) => `${item.productId}:${item.quantity}`).join("|")).digest("hex");
 
@@ -38,7 +38,9 @@ export async function POST(request: NextRequest) {
   if (!Array.isArray(items) || items.length < 1 || items.length > 50 ||
       !items.every((item) => item && typeof item.productId === "string" &&
         item.productId.length <= 64 && Number.isSafeInteger(item.quantity) &&
-        item.quantity >= 1 && item.quantity <= 100)) {
+        item.quantity >= 1 && item.quantity <= 100 &&
+        (item.variantId === undefined || (typeof item.variantId === "string" && item.variantId.length <= 64)) &&
+        (item.modifierOptionIds === undefined || (Array.isArray(item.modifierOptionIds) && item.modifierOptionIds.length <= 30 && item.modifierOptionIds.every((id) => typeof id === "string" && id.length <= 64) && new Set(item.modifierOptionIds).size === item.modifierOptionIds.length)))) {
     return NextResponse.json({ error: "Add between 1 and 50 valid order lines." }, { status: 400 });
   }
   if (typeof key !== "string" || key.length < 12 || key.length > 100) {
@@ -75,17 +77,37 @@ export async function POST(request: NextRequest) {
         select: {
           id: true, name: true, priceMinor: true, currency: true,
           recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } },
+          variants: { where: { active: true }, include: { recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } } } },
+          modifierGroups: { where: { active: true }, include: { options: { where: { active: true } } } },
         },
       });
       if (products.length !== quantities.size) throw new Error("PRODUCT_UNAVAILABLE");
       const currencies = new Set(products.map((product) => product.currency));
       if (currencies.size !== 1) throw new Error("MIXED_CURRENCIES");
 
-      const lines = products.map((product) => {
-        const quantity = quantities.get(product.id)!;
-        const lineTotalMinor = product.priceMinor * quantity;
-        if (!Number.isSafeInteger(lineTotalMinor) || lineTotalMinor < 0) throw new Error("INVALID_PRICE");
-        return { productId: product.id, productName: product.name, quantity, unitPriceMinor: product.priceMinor, lineTotalMinor };
+      const normalizedLines = new Map<string, { productId: string; variantId?: string; modifierOptionIds: string[]; quantity: number }>();
+      for (const item of items) {
+        const modifierOptionIds = [...(item.modifierOptionIds ?? [])].sort();
+        const signature = JSON.stringify([item.productId, item.variantId ?? null, modifierOptionIds]);
+        const current = normalizedLines.get(signature);
+        if (current) current.quantity += item.quantity;
+        else normalizedLines.set(signature, { productId: item.productId, ...(item.variantId ? { variantId: item.variantId } : {}), modifierOptionIds, quantity: item.quantity });
+      }
+      const lines = [...normalizedLines.values()].map((item) => {
+        const product = products.find((candidate) => candidate.id === item.productId)!;
+        const variant = item.variantId ? product.variants.find((candidate) => candidate.id === item.variantId) : null;
+        if (item.variantId && !variant) throw new Error("INVALID_VARIANT");
+        const selectedOptions = product.modifierGroups.flatMap((group) => group.options.filter((option) => item.modifierOptionIds.includes(option.id)).map((option) => ({ groupId: group.id, groupName: group.name, optionId: option.id, name: option.name, priceDeltaMinor: option.priceDeltaMinor })));
+        if (selectedOptions.length !== item.modifierOptionIds.length) throw new Error("INVALID_MODIFIER");
+        for (const group of product.modifierGroups) {
+          const count = selectedOptions.filter((option) => option.groupId === group.id).length;
+          if (count < group.minSelections || count > group.maxSelections) throw new Error("INVALID_MODIFIER_SELECTION");
+        }
+        const basePrice = variant?.priceMinor ?? product.priceMinor;
+        const unitPriceMinor = basePrice + selectedOptions.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
+        const lineTotalMinor = unitPriceMinor * item.quantity;
+        if (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 1 || !Number.isSafeInteger(lineTotalMinor)) throw new Error("INVALID_PRICE");
+        return { productId: product.id, productName: product.name, quantity: item.quantity, unitPriceMinor, lineTotalMinor, variantName: variant?.name ?? null, selectedModifiers: selectedOptions.length ? selectedOptions.map(({ groupName, name, priceDeltaMinor }) => ({ groupName, name, priceDeltaMinor })) : undefined, _variant: variant, _product: product };
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0) throw new Error("INVALID_TOTAL");
@@ -120,19 +142,20 @@ export async function POST(request: NextRequest) {
       if (cashReceivedMinor !== null && (!Number.isSafeInteger(cashReceivedMinor) || cashReceivedMinor < cashPayment!.amountMinor || cashReceivedMinor > 2_000_000_000)) throw new Error("INSUFFICIENT_TENDER");
       const changeDueMinor = cashReceivedMinor === null ? null : cashReceivedMinor - cashPayment!.amountMinor;
       const ingredientDemand = new Map<string, Prisma.Decimal>();
-      for (const product of products) {
-        const soldQuantity = quantities.get(product.id)!;
-        for (const recipeItem of product.recipeItems) {
-          const required = recipeItem.quantity.mul(soldQuantity);
+      for (const line of lines) {
+        const recipe = line._variant?.recipeItems.length ? line._variant.recipeItems : line._product.recipeItems;
+        for (const recipeItem of recipe) {
+          const required = recipeItem.quantity.mul(line.quantity);
           ingredientDemand.set(recipeItem.ingredientId, (ingredientDemand.get(recipeItem.ingredientId) ?? new Prisma.Decimal(0)).plus(required));
         }
       }
       for (const [ingredientId, required] of ingredientDemand) {
-        const ingredient = products.flatMap((product) => product.recipeItems).find((item) => item.ingredientId === ingredientId)?.ingredient;
+        const ingredient = [...products.flatMap((product) => product.recipeItems), ...products.flatMap((product) => product.variants.flatMap((variant) => variant.recipeItems))].find((item) => item.ingredientId === ingredientId)?.ingredient;
         if (!ingredient || ingredient.quantityOnHand.lt(required)) throw new Error("INSUFFICIENT_STOCK");
       }
 
       let order;
+      const persistedLines = lines.map(({ _variant, _product, ...line }) => line);
       const paymentCreates = normalizedTenders.map((tender) => ({ method: tender.method, status: "COMPLETED" as const, amountMinor: tender.amountMinor, currency, ...(tender.method === "CASH" ? { cashReceivedMinor, changeDueMinor } : {}) }));
       const orderFields = {
         status: "COMPLETED" as const, cashierId: cashier.id, shiftId: activeShift.id,
@@ -146,9 +169,9 @@ export async function POST(request: NextRequest) {
         if (draft.cashierId !== cashier.id && cashier.role !== "OWNER" && cashier.role !== "MANAGER") throw new Error("DRAFT_FORBIDDEN");
         const changed = await tx.order.updateMany({ where: { id: body.draftId, status: "DRAFT" }, data: orderFields });
         if (changed.count !== 1) throw new Error("DRAFT_NOT_FOUND");
-        order = await tx.order.update({ where: { id: body.draftId }, data: { lines: { deleteMany: {}, create: lines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
+        order = await tx.order.update({ where: { id: body.draftId }, data: { lines: { deleteMany: {}, create: persistedLines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
       } else {
-        order = await tx.order.create({ data: { ...orderFields, lines: { create: lines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
+        order = await tx.order.create({ data: { ...orderFields, lines: { create: persistedLines }, payments: { create: paymentCreates } }, include: { lines: true, payments: true } });
       }
 
       for (const [ingredientId, required] of ingredientDemand) {
@@ -195,6 +218,8 @@ export async function POST(request: NextRequest) {
     if (message === "DISCOUNT_LIMIT_EXCEEDED") return NextResponse.json({ error: "The approved discount exceeds the current store limit. Request a smaller discount." }, { status: 409 });
     if (message === "INSUFFICIENT_TENDER") return NextResponse.json({ error: "Cash received must cover the cash portion." }, { status: 400 });
     if (message === "TENDER_TOTAL_MISMATCH") return NextResponse.json({ error: "Payment amounts must add up exactly to the order total." }, { status: 400 });
+    if (message === "INVALID_VARIANT") return NextResponse.json({ error: "A selected product size is no longer available." }, { status: 409 });
+    if (message === "INVALID_MODIFIER" || message === "INVALID_MODIFIER_SELECTION") return NextResponse.json({ error: "Selected extras are invalid or do not meet the required choices." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "NO_OPEN_SHIFT") return NextResponse.json({ error: "Open your cash shift before completing a sale." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
