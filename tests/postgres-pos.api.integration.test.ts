@@ -134,7 +134,6 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.order.deleteMany({ where: { cashierId: userId } });
     await prisma.auditEvent.deleteMany({ where: { userId } });
     await prisma.cashMovement.deleteMany({ where: { shiftId } });
-    await prisma.stockMovement.deleteMany({ where: { referenceId: { not: null }, ingredient: { movements: { some: { referenceId: { not: null } } } } } }).catch(() => undefined);
     await prisma.shift.deleteMany({ where: { id: shiftId } });
     await prisma.product.deleteMany({ where: { id: productId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
