@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
   if (body.role === "MANAGER" && actor.role !== "OWNER") return NextResponse.json({ error: "Only the owner can create manager accounts." }, { status: 403 });
   const role = body.role === "MANAGER" ? "MANAGER" : "CASHIER";
   try {
-    const user = await prisma.user.create({ data: { name, email, passwordHash: hashPassword(body.password), role }, select: { id: true, name: true, email: true, role: true, active: true } });
-    await prisma.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: user.id, details: { name, email, role } } });
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { name, email, passwordHash: hashPassword(body.password), role }, select: { id: true, name: true, email: true, role: true, active: true } });
+      await tx.auditEvent.create({ data: { userId: actor.id, action: "STAFF_CREATED", entityType: "User", entityId: created.id, details: { name, email, role } } });
+      return created;
+    });
     return NextResponse.json({ user }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "That email is already registered or staff could not be created." }, { status: 409 });
