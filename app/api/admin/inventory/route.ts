@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "INGREDIENT_CREATED", entityType: "Ingredient", entityId: created.id, details: { name, unit, openingQuantity: opening.toString() } } });
         return created;
       });
-      return NextResponse.json({ ingredient }, { status: 201 });
+      return NextResponse.json({ ingredient }, { status: 201, headers: { "Cache-Control": "no-store" } });
     }
 
     if (body.action === "movement") {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "STOCK_MOVEMENT_RECORDED", entityType: "Ingredient", entityId: ingredient.id, details: { type: body.type, delta: delta.toString(), reason: body.reason || null } } });
         return updated;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-      return NextResponse.json({ ingredient: result });
+      return NextResponse.json({ ingredient: result }, { headers: { "Cache-Control": "no-store" } });
     }
     return NextResponse.json({ error: "Unknown inventory action." }, { status: 400 });
   } catch (error) {
