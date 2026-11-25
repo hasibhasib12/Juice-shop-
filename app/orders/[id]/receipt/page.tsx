@@ -30,7 +30,7 @@ export default function ReceiptPage() {
         <div className="receipt-rule"/>
         <div className="receipt-total"><span>Subtotal</span><b>{money(order.subtotalMinor, order.currency)}</b><span>Discount</span><b>− {money(order.discountMinor, order.currency)}</b><span>Tax</span><b>{money(order.taxMinor, order.currency)}</b><strong>Total</strong><strong>{money(order.totalMinor, order.currency)}</strong></div>
         <div className="receipt-rule"/>
-        <div className="receipt-payments"><b>Payment</b>{order.payments.map((payment, index) => <span key={index}>{payment.method} · {payment.status} <strong>{money(payment.amountMinor, payment.currency || order.currency)}</strong></span>)}</div>
+        <div className="receipt-payments"><b>Payment</b>{order.payments.map((payment, index) => <span key={index}>{payment.method === "OTHER" ? "Other (manual)" : payment.method} · {payment.status} <strong>{money(payment.amountMinor, payment.currency || order.currency)}</strong></span>)}{order.payments.some((payment) => payment.cashReceivedMinor != null) && <><span>Cash received <strong>{money(order.payments.reduce((sum, payment) => sum + (payment.cashReceivedMinor ?? 0), 0), order.currency)}</strong></span><span>Change due <strong>{money(order.payments.reduce((sum, payment) => sum + (payment.changeDueMinor ?? 0), 0), order.currency)}</strong></span></>}</div>
         <p className="receipt-thanks">Thank you for choosing Juice Shop!</p>
         <small className="receipt-footer">Please keep this receipt for your records.</small>
       </article>
