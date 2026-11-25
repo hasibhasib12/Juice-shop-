@@ -15,7 +15,7 @@ Staff-facing POS only: catalogue, checkout, orders, tables, staff, inventory, su
 - [x] Isolated Neon development branch and preview database configuration; production branch remains untouched.
 - [x] Owner/manager/cashier authentication, scrypt password hashing, secure HMAC HttpOnly sessions, session versioning, login throttling, one-time owner setup and audited manager/owner staff password resets.
 - [x] Owner-configurable staff permissions for reports, inventory, purchasing, refunds and table administration, enforced in server APIs.
-- [x] Database-backed action rate limits for checkout, refunds, item returns, supplier invoice/payment writes, password resets and product image uploads. Rate-limit identities are HMAC hashed and 429 responses include Retry-After.
+- [x] Database-backed action rate limits for checkout, refunds, item returns, supplier invoice/payment writes, purchase orders, inventory movements, shift open/close and cash-drawer movements, catalogue/product/category writes, supplier writes, staff writes, password resets and product image uploads. Rate-limit identities are HMAC hashed and 429 responses include Retry-After.
 - [x] Product/category CRUD, SKU, currency/price, variants, variant recipes, modifier groups/options, availability and archive controls.
 - [x] POS search matches product names and SKU. Keyboard-wedge scanners can scan a product SKU and press Enter to add it directly to the cart; physical scanner model acceptance remains outstanding.
 - [x] Product image upload implementation: JPEG/PNG/WebP signature validation, 5 MB limit, unique object keys, manager/owner authorization, audit events and Neon Object Storage integration. The \`pos-product-images\` bucket and scoped development-branch storage credentials are configured for the Preview environment only.
@@ -25,7 +25,7 @@ Staff-facing POS only: catalogue, checkout, orders, tables, staff, inventory, su
 - [x] Ingredient inventory, recipes, stock movements, waste/count adjustments, suppliers, purchase orders, partial receiving, weighted-average costs, supplier invoices and partial supplier payments.
 - [x] Serializable purchasing transactions retry Prisma serialization conflicts with bounded retries; tests cover retry, non-retryable failures and exhaustion.
 - [x] Full/partial refunds and item-level return records with audit history.
-- [x] Shift open/close, paid-in/out, cash reconciliation and shift CSV export. Shift exports now fetch refunds in one query rather than querying once per shift.
+- [x] Shift open/close, paid-in/out, cash reconciliation and shift CSV export. Cash paid-in/out calculations attribute refunds to the exact shift via refund.shiftId; shift exports fetch refunds in one query rather than querying once per shift.
 - [x] Sales, staff, shift and stock valuation CSV reports; timezone-aware sales periods and currency-separated staff reporting.
 - [x] Server-generated, paginated PDF exports for sales, staff and shift reports. Sales PDF totals are separated by currency.
 - [x] Thermal receipt print stylesheet targets 80 mm paper using the browser print dialog.
