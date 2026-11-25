@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   if (user.role !== "OWNER" && user.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
 
   const date = request.nextUrl.searchParams.get("date");
-  if (date && !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
   const [timezoneSetting, currencySetting] = await Promise.all([
     prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
