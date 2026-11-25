@@ -38,6 +38,8 @@ export default function Home() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [cashTender, setCashTender] = useState("");
+  const [splitPayment, setSplitPayment] = useState(false);
+  const [otherPaymentConfirmed, setOtherPaymentConfirmed] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState("");
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
 
@@ -124,8 +126,9 @@ export default function Home() {
   const total = Math.max(0, subtotal - discount) + tax;
   const tenderMatch = /^(?:\d+)(?:\.\d{1,2})?$/.test(cashTender.trim());
   const cashReceivedMinor = tenderMatch ? Math.round(Number(cashTender) * 100) : 0;
-  const tenderValid = Number.isSafeInteger(cashReceivedMinor) && cashReceivedMinor >= total && cashReceivedMinor <= 2_000_000_000;
-  const changeDueMinor = tenderValid ? cashReceivedMinor - total : 0;
+  const tenderValid = Number.isSafeInteger(cashReceivedMinor) && cashReceivedMinor <= 2_000_000_000 && (splitPayment ? cashReceivedMinor > 0 && cashReceivedMinor < total && otherPaymentConfirmed : cashReceivedMinor >= total);
+  const changeDueMinor = tenderValid && !splitPayment ? cashReceivedMinor - total : 0;
+  const otherPaymentMinor = splitPayment && tenderValid ? total - cashReceivedMinor : 0;
 
   useEffect(() => { setCashTender((total / 100).toFixed(2)); }, [total]);
 
@@ -201,7 +204,8 @@ export default function Home() {
         body: JSON.stringify({
           items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
           paymentMethod: "CASH",
-          cashReceivedMinor,
+          cashReceivedMinor: splitPayment ? cashReceivedMinor : cashReceivedMinor,
+          paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
           idempotencyKey: requestKey,
         }),
       });
@@ -212,6 +216,8 @@ export default function Home() {
       setCart([]);
       setDiscount(0);
       setCashTender("0.00");
+      setSplitPayment(false);
+      setOtherPaymentConfirmed(false);
       setCheckoutKey("");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Checkout failed.");
@@ -313,14 +319,16 @@ export default function Home() {
           </div>
           <div className="order-total"><b>Total:</b><strong>{money(total)}</strong></div>
           <div className="cash-tender-panel">
-            <label htmlFor="cash-tender">Cash received ({storeInfo.currency})</label>
+            <label htmlFor="cash-tender">{splitPayment ? `Cash portion (${storeInfo.currency})` : `Cash received (${storeInfo.currency})`}</label>
             <input id="cash-tender" inputMode="decimal" autoComplete="off" value={cashTender} onChange={(event) => setCashTender(event.target.value)} disabled={checkoutBusy || cart.length === 0} aria-invalid={cashTender.length > 0 && !tenderValid}/>
+            <label className="split-payment-toggle"><input type="checkbox" checked={splitPayment} onChange={(event) => { setSplitPayment(event.target.checked); setOtherPaymentConfirmed(false); setCashTender(event.target.checked ? (total / 2 / 100).toFixed(2) : (total / 100).toFixed(2)); }} disabled={checkoutBusy || cart.length === 0 || total < 2}/> Split payment</label>
             <div className="cash-tender-presets">
               <button type="button" onClick={() => setCashTender((total / 100).toFixed(2))} disabled={cart.length === 0}>Exact</button>
               {[5000, 10000, 20000].filter((extra) => total > 0 && total + extra <= 2_000_000_000).map((extra) => <button type="button" key={extra} onClick={() => setCashTender(((total + extra) / 100).toFixed(2))}>{money(total + extra, storeInfo.currency)}</button>)}
             </div>
-            <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>
-            {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">Enter a valid amount equal to or greater than the total.</small>}
+            {splitPayment && <><div className="cash-tender-change"><span>Other payment remaining</span><strong>{tenderValid ? money(otherPaymentMinor, storeInfo.currency) : "—"}</strong></div><label className="other-payment-confirm"><input type="checkbox" checked={otherPaymentConfirmed} onChange={(event) => setOtherPaymentConfirmed(event.target.checked)}/> I confirm the other payment has been received outside this POS.</label></>}
+            {!splitPayment && <div className="cash-tender-change"><span>Change due</span><strong>{tenderValid ? money(changeDueMinor, storeInfo.currency) : "—"}</strong></div>}
+            {cashTender.trim() !== "" && !tenderValid && <small className="cash-tender-error">{splitPayment ? "Enter a cash portion below the total and confirm the other payment." : "Enter a valid amount equal to or greater than the total."}</small>}
           </div>
           <div className="payment-actions">
             <button className="clear-order" onClick={() => { setCart([]); setDiscount(0); setNotice(""); }}>♜ <span>Clear</span></button>
