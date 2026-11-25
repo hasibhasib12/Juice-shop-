@@ -41,7 +41,7 @@ export default function Home() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "demo">("loading");
   const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN", taxRateBps: 0, taxLabel: "Tax" });
-  const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string; branchId?: string; branch?: { id: string; name: string; code: string } } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -530,8 +530,8 @@ export default function Home() {
         <div className="header-date"><span>{storeInfo.countryName} · {storeInfo.timezone}</span><strong>{storeInfo.currency} · {storeInfo.currency === "AFN" ? "Afghan Afghani" : "Store currency"}</strong></div>
         <div className={catalogSource === "database" ? "online-state" : "online-state offline-state"}><span className="wifi">⌁</span><i/>{catalogSource === "database" ? "Database" : catalogSource === "demo" ? "Demo data" : "Connecting"}</div>
         <div className="profile-menu-wrap">
-          <button type="button" className="cashier" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => staff ? setProfileMenuOpen((open) => !open) : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? staff.role : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
-          {staff && profileMenuOpen && <div className="profile-menu" role="menu"><div className="profile-menu-heading"><b>{staff.name}</b><small>{staff.email}</small><small>{staff.role}</small></div><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); setNotice(`Signed in as ${staff.name} · ${staff.role}. Manage your details through your manager.`); }}>My profile</button><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); window.location.assign("/shift"); }}>Cash shift</button><button type="button" role="menuitem" onClick={() => void signOut()}>Log out</button></div>}
+          <button type="button" className="cashier" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => staff ? setProfileMenuOpen((open) => !open) : setLoginOpen(true)}><span className="cashier-photo">{staff ? staff.name.slice(0, 1).toUpperCase() : "A"}</span><span><b>{staff ? staff.name : "Staff sign-in"}</b><small>{staff ? `${staff.role} · ${staff.branch?.name ?? "Branch not assigned"}` : "Not signed in · Tap to sign in"}</small></span><span className="chevron">⌄</span></button>
+          {staff && profileMenuOpen && <div className="profile-menu" role="menu"><div className="profile-menu-heading"><b>{staff.name}</b><small>{staff.email}</small><small>{staff.role}</small><small>Branch: {staff.branch?.name ?? "Not assigned"}</small></div><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); setNotice(`Signed in as ${staff.name} · ${staff.role}. Manage your details through your manager.`); }}>My profile</button><button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); window.location.assign("/shift"); }}>Cash shift</button><button type="button" role="menuitem" onClick={() => void signOut()}>Log out</button></div>}
         </div>
       </header>
 
