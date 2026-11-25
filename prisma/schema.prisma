@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  DRAFT
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum StockMovementType {
+  PURCHASE
+  SALE
+  WASTE
+  ADJUSTMENT
+  RETURN
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  role         UserRole    @default(CASHIER)
+  active       Boolean     @default(true)
+  orders       Order[]
+  shifts       Shift[]
+  auditEvents  AuditEvent[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  sku         String?       @unique
+  priceMinor  Int
+  currency    String        @default("AFN")
+  status      ProductStatus @default(ACTIVE)
+  available   Boolean       @default(true)
+  categoryId  String
+  category    Category      @relation(fields: [categoryId], references: [id])
+  orderLines  OrderLine[]
+  recipeItems RecipeItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([categoryId, status, available])
+}
+
+model Ingredient {
+  id             String          @id @default(cuid())
+  name           String
+  unit           String
+  quantityOnHand Decimal         @default(0) @db.Decimal(14, 3)
+  reorderLevel   Decimal         @default(0) @db.Decimal(14, 3)
+  recipeItems    RecipeItem[]
+  movements      StockMovement[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model RecipeItem {
+  id           String     @id @default(cuid())
+  productId    String
+  ingredientId String
+  quantity     Decimal    @db.Decimal(14, 3)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  orderNumber    Int           @unique @default(autoincrement())
+  status         OrderStatus   @default(DRAFT)
+  cashierId      String
+  cashier        User          @relation(fields: [cashierId], references: [id])
+  customerName   String?
+  subtotalMinor  Int
+  discountMinor  Int           @default(0)
+  taxMinor       Int           @default(0)
+  totalMinor     Int
+  currency       String        @default("AFN")
+  idempotencyKey String?       @unique
+  lines          OrderLine[]
+  payments       Payment[]
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+model OrderLine {
+  id              String  @id @default(cuid())
+  orderId         String
+  productId       String
+  productName     String
+  quantity        Int
+  unitPriceMinor  Int
+  lineTotalMinor  Int
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  method            PaymentMethod
+  status            PaymentStatus  @default(PENDING)
+  amountMinor       Int
+  currency          String         @default("AFN")
+  providerReference String?
+  createdAt         DateTime       @default(now())
+
+  @@index([orderId, status])
+}
+
+model Shift {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id])
+  openingCashMinor  Int
+  closingCashMinor  Int?
+  expectedCashMinor Int?
+  openedAt          DateTime     @default(now())
+  closedAt          DateTime?
+
+  @@index([userId, closedAt])
+}
+
+model StockMovement {
+  id           String            @id @default(cuid())
+  ingredientId String
+  ingredient   Ingredient        @relation(fields: [ingredientId], references: [id])
+  type         StockMovementType
+  quantity     Decimal           @db.Decimal(14, 3)
+  reason       String?
+  referenceId  String?
+  createdAt    DateTime          @default(now())
+
+  @@index([ingredientId, createdAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+}
+
+model PosSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
