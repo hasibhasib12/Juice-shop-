@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 type Shift = { id: string; openingCashMinor: number; openedAt: string; closingCashMinor: number | null; expectedCashMinor: number | null };
+type CashMovement = { id: string; type: "PAID_IN" | "PAID_OUT"; amountMinor: number; reason: string; createdAt: string };
 const money = (minor: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "AFN" }).format(minor / 100);
 
 export default function ShiftPage() {
@@ -12,12 +13,17 @@ export default function ShiftPage() {
   const [closing, setClosing] = useState("0");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [movementType, setMovementType] = useState<"PAID_IN" | "PAID_OUT">("PAID_IN");
+  const [movementAmount, setMovementAmount] = useState("");
+  const [movementReason, setMovementReason] = useState("");
+  const [movements, setMovements] = useState<CashMovement[]>([]);
   async function load() {
     const response = await fetch("/api/shifts", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not load shift.");
     setShift(data.shift);
     setExpected(data.expectedCashMinor ?? 0);
+    setMovements(data.movements ?? []);
   }
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
   async function submit(event: FormEvent<HTMLFormElement>, action: "open" | "close") {
@@ -42,7 +48,7 @@ export default function ShiftPage() {
         {shift ? <>
           <div className="shift-status"><span>SHIFT OPEN</span><strong>Started {new Date(shift.openedAt).toLocaleString()}</strong></div>
           <div className="shift-metrics"><article><span>Opening float</span><b>{money(shift.openingCashMinor)}</b></article><article><span>Expected cash now</span><b>{money(expected)}</b></article></div>
-          <form className="catalog-editor" onSubmit={(e) => void submit(e, "close")}><div className="catalog-section-head"><div><span>END OF SHIFT</span><h2>Close and reconcile</h2></div></div><label>Counted cash in drawer (AFN)<input required type="number" min="0" step="0.01" value={closing} onChange={(e) => setClosing(e.target.value)}/></label><p className="inventory-hint">Expected cash includes the opening float plus completed cash payments by this cashier. Card and other tenders are excluded.</p><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Close shift"}</button></form>
+          <form className="catalog-editor" onSubmit={(e) => void submit(e, "close")}><div className="catalog-section-head"><div><span>END OF SHIFT</span><h2>Close and reconcile</h2></div></div><label>Counted cash in drawer (AFN)<input required type="number" min="0" step="0.01" value={closing} onChange={(e) => setClosing(e.target.value)}/></label><p className="inventory-hint">Expected cash includes opening float, cash sales, refunds, and paid-in/paid-out movements. Non-cash tenders are excluded.</p><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Close shift"}</button></form>
         </> : <>
           <div className="shift-status closed"><span>NO OPEN SHIFT</span><strong>Open a drawer to enable checkout.</strong></div>
           <form className="catalog-editor" onSubmit={(e) => void submit(e, "open")}><div className="catalog-section-head"><div><span>START OF SHIFT</span><h2>Open cash drawer</h2></div></div><label>Opening float (AFN)<input required type="number" min="0" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}/></label><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Open shift"}</button></form>
