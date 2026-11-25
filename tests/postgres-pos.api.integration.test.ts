@@ -14,7 +14,7 @@ function passwordHash(password: string) {
   return `scrypt$${salt}$${scryptSync(password, salt, 64).toString("hex")}`;
 }
 
-async function waitForServer(child: ChildProcess) {
+async function expectStatus(response: Response, expected: number) {\n  if (response.status !== expected) throw new Error(`Expected HTTP ${expected}, received ${response.status}: ${await response.text()}`);\n}\n\nasync function waitForServer(child: ChildProcess) {
   for (let attempt = 0; attempt < 90; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`Next.js integration server exited with ${child.exitCode}`);
     try {
@@ -60,7 +60,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       method: "POST", headers: { "content-type": "application/json", origin },
       body: JSON.stringify({ email: `${suffix}@api-integration.invalid`, password }),
     });
-    assert.equal(login.status, 200, await login.text());
+    await expectStatus(login, 200);
     const cookie = login.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     assert.ok(cookie.includes("juice_shop_session="));
 
@@ -78,7 +78,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       notes: "End-to-end test",
     };
     const checkout = await request("/api/checkout", checkoutBody);
-    assert.equal(checkout.status, 201, await checkout.text());
+    await expectStatus(checkout, 201);
     const checkoutJson = await checkout.json() as { order: { id: string; totalMinor: number; lines: Array<{ id: string; quantity: number }> } };
     assert.equal(checkoutJson.order.totalMinor, 1000);
     assert.equal(checkoutJson.order.lines.length, 1);
@@ -86,7 +86,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const lineId = checkoutJson.order.lines[0].id;
 
     const replay = await request("/api/checkout", checkoutBody);
-    assert.equal(replay.status, 201, await replay.text());
+    await expectStatus(replay, 201);
     const replayJson = await replay.json() as { order: { id: string } };
     assert.equal(replayJson.order.id, orderId);
     assert.equal(await prisma.order.count({ where: { idempotencyKey: checkoutBody.idempotencyKey } }), 1);
@@ -117,7 +117,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       ...checkoutBody, idempotencyKey: `api-it-invalid-${suffix}`,
       paymentTenders: [{ method: "OTHER", amountMinor: 999 }],
     });
-    assert.equal(invalidCheckout.status, 400);
+    await expectStatus(invalidCheckout, 400);
     assert.equal(await prisma.order.count({ where: { cashierId: userId } }), 1);
   } finally {
     if (server && server.exitCode === null) {
