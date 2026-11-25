@@ -18,7 +18,7 @@ export async function GET() {
   try {
     const [tables, openOrders] = await Promise.all([
       prisma.diningTable.findMany({
-        where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        where: { branchId: user.branchId, active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: { id: true, name: true, section: true, capacity: true, sortOrder: true,
           orders: { where: visibleOrderFilter, take: 1, select: { id: true, orderNumber: true, customerName: true, totalMinor: true, currency: true, cashier: { select: { name: true } } } } },
       }),
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const table = await prisma.$transaction(async (tx) => {
-      const created = await tx.diningTable.create({ data: { name, section, capacity, sortOrder } });
+      const created = await tx.diningTable.create({ data: { branchId: user.branchId, name, section, capacity, sortOrder } });
       await tx.auditEvent.create({ data: { userId: user.id, action: "DINING_TABLE_CREATED", entityType: "DiningTable", entityId: created.id, details: { name, section, capacity } } });
       return created;
     });
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest) {
   if (body.active !== undefined) { if (typeof body.active !== "boolean") return NextResponse.json({ error: "Active must be true or false." }, { status: 400 }); data.active = body.active; }
   try {
     const table = await prisma.$transaction(async (tx) => {
-      const current = await tx.diningTable.findUnique({ where: { id: body.id }, select: { id: true, name: true, active: true } });
+      const current = await tx.diningTable.findFirst({ where: { id: body.id, branchId: user.branchId }, select: { id: true, name: true, active: true } });
       if (!current) throw new Error("TABLE_NOT_FOUND");
       if (body.active === false) {
         const open = await tx.order.count({ where: { tableId: current.id, status: "DRAFT" } });
