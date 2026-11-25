@@ -15,6 +15,10 @@ export default function StaffPage() {
   const [phone, setPhone] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [branchName, setBranchName] = useState("");
+  const [branchCode, setBranchCode] = useState("");
+  const [branchTimezone, setBranchTimezone] = useState("Asia/Kabul");
+  const [branchCurrency, setBranchCurrency] = useState("AFN");
   const [currentRole, setCurrentRole] = useState("CASHIER");
   const [currentUserId, setCurrentUserId] = useState("");
   const [name, setName] = useState("");
@@ -37,6 +41,18 @@ export default function StaffPage() {
     setBranchId((current) => current || branchData.branches[0]?.id || "");
   }
   useEffect(() => { void load().catch((error) => setNotice(error.message)); }, []);
+  async function createBranch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: branchName, code: branchCode, timezone: branchTimezone, currency: branchCurrency }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not create branch.");
+      setBranchName(""); setBranchCode(""); setBranchId(data.branch.id); setNotice(`Branch ${data.branch.name} created.`); await load();
+      setBranchId(data.branch.id);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create branch."); }
+    finally { setBusy(false); }
+  }
+
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
@@ -97,6 +113,7 @@ export default function StaffPage() {
           <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="CASHIER">Cashier</option>{currentRole === "OWNER" && <option value="MANAGER">Manager</option>}</select></label>
           <button className="catalog-primary" disabled={busy || !branchId}>{busy ? "Creating…" : "Create staff account"}</button>
         </form>
+        {currentRole === "OWNER" && <form className="catalog-editor" onSubmit={createBranch}><div className="catalog-section-head"><div><span>BRANCH DIRECTORY</span><h2>Add a branch</h2></div></div><label>Branch name<input required minLength={2} maxLength={80} value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder="e.g. Kabul City Centre"/></label><label>Branch code<input required minLength={2} maxLength={12} value={branchCode} onChange={(e) => setBranchCode(e.target.value.toUpperCase())} placeholder="e.g. KBL01"/></label><label>Timezone<input required value={branchTimezone} onChange={(e) => setBranchTimezone(e.target.value)} placeholder="Asia/Kabul"/></label><label>Currency<input required minLength={3} maxLength={3} value={branchCurrency} onChange={(e) => setBranchCurrency(e.target.value.toUpperCase())}/></label><button className="catalog-primary" disabled={busy}>{busy ? "Saving…" : "Create branch"}</button><small>New employees can be assigned to this branch.</small></form>}
         <section className="catalog-list"><div className="catalog-section-head"><div><span>ACCESS DIRECTORY</span><h2>Team members <small>{users.length}</small></h2></div></div>
           {users.map((user) => <article className="catalog-product" key={user.id}>{user.photoUrl ? <img className="catalog-placeholder" src={user.photoUrl} alt={user.name}/> : <div className="catalog-placeholder">{user.name.slice(0,1).toUpperCase()}</div>}<div className="catalog-product-info"><b>{user.name}</b><span>{user.email}</span><small>{user.role} · {user.active ? "Active" : "Disabled"}</small><small>Branch: {user.branch?.name ?? "Not assigned"}{user.employeeCode ? ` · ID ${user.employeeCode}` : ""}</small>{user.phone && <small>Phone: {user.phone}</small>}{currentRole === "OWNER" && user.role !== "OWNER" && <details className="staff-permissions"><summary>Configure permissions</summary><div className="staff-permission-grid">{(Object.keys(permissionLabels) as PermissionKey[]).map((permission) => <label key={permission}><input type="checkbox" checked={Boolean(user.permissions?.[permission])} onChange={(event) => void updatePermission(user, permission, event.target.checked)} />{permissionLabels[permission]}</label>)}</div><small>Changes take effect on the next API request.</small></details>}</div><div className="catalog-product-actions">{user.id !== currentUserId && <>{(currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void resetPassword(user)}>Reset password</button>}{user.role !== "OWNER" && (currentRole === "OWNER" || user.role === "CASHIER") && <button type="button" onClick={() => void update(user, { active: !user.active })}>{user.active ? "Disable" : "Enable"}</button>}</>}</div></article>)}
           {!users.length && <p>No staff accounts found.</p>}
