@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const rows: (string | number)[][] = [["Cashier", "Email", "Shift opened", "Shift closed", "Opening cash minor", "Cash sales minor", "Cash refunds minor", "Paid in minor", "Paid out minor", "Expected cash minor", "Counted cash minor", "Variance minor", "Orders"]];
   for (const shift of shifts) {
     const endAt = shift.closedAt || new Date();
-    const [refunds] = await Promise.all([prisma.refund.aggregate({ where: { processedById: shift.userId, createdAt: { gte: shift.openedAt, lte: endAt } }, _sum: { cashRefundMinor: true } })]);
+    const refunds = await prisma.refund.aggregate({ where: { shiftId: shift.id, createdAt: { lte: endAt } }, _sum: { cashRefundMinor: true } });
     const cashSales = shift.orders.reduce((sum, order) => sum + order.payments.reduce((paymentSum, payment) => paymentSum + payment.amountMinor, 0), 0);
     const cashRefund = refunds._sum.cashRefundMinor ?? 0;
     const paidIn = shift.cashMovements.filter((movement) => movement.type === "PAID_IN").reduce((sum, movement) => sum + movement.amountMinor, 0);

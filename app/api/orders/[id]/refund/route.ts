@@ -65,13 +65,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       if (cashRefundMinor > remainingCashMinor || cashRefundMinor + otherRefundMinor !== amountMinor) throw new Error("REFUND_LEDGER_MISMATCH");
       const taxRefundMinor = isFinalRefund ? remainingTaxMinor : Math.min(remainingTaxMinor, Number((BigInt(amountMinor) * BigInt(remainingTaxMinor)) / BigInt(remainingMinor)));
 
+      let refundShiftId: string | null = null;
       if (cashRefundMinor > 0) {
         const activeShift = await tx.shift.findFirst({ where: { userId: actor.id, closedAt: null }, select: { id: true } });
         if (!activeShift) throw new Error("NO_OPEN_SHIFT_FOR_CASH_REFUND");
+        refundShiftId = activeShift.id;
       }
 
       const refund = await tx.refund.create({
-        data: { orderId: order.id, processedById: actor.id, kind, amountMinor, currency: order.currency, reason, cashRefundMinor, otherRefundMinor, taxRefundMinor },
+        data: { orderId: order.id, processedById: actor.id, shiftId: refundShiftId, kind, amountMinor, currency: order.currency, reason, cashRefundMinor, otherRefundMinor, taxRefundMinor },
       });
       const updatedOrder = await tx.order.update({
         where: { id: order.id },

@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       });
       const cashSalesMinor = cashPayments._sum.amountMinor ?? 0;
       const cashRefunds = await tx.refund.aggregate({
-        where: { processedById: user.id, createdAt: { gte: shift.openedAt, lte: closedAt } },
+        where: { shiftId: shift.id, createdAt: { lte: closedAt } },
         _sum: { cashRefundMinor: true },
       });
       const cashRefundMinor = cashRefunds._sum.cashRefundMinor ?? 0;

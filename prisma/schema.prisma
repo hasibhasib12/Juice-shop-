@@ -196,6 +196,7 @@ model Shift {
   user              User         @relation(fields: [userId], references: [id])
   orders            Order[]
   cashMovements     CashMovement[]
+  refunds           Refund[]
   openingCashMinor  Int
   closingCashMinor  Int?
   expectedCashMinor Int?
@@ -263,6 +264,8 @@ model Refund {
   order         Order      @relation(fields: [orderId], references: [id])
   processedById String
   processedBy   User       @relation(fields: [processedById], references: [id])
+  shiftId       String?
+  shift         Shift?     @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   kind          RefundKind
   amountMinor   Int
   currency      String
@@ -274,6 +277,7 @@ model Refund {
 
   @@index([orderId, createdAt])
   @@index([processedById, createdAt])
+  @@index([shiftId, createdAt])
 }
 
 

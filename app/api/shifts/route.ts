@@ -16,7 +16,7 @@ export async function GET() {
   if (!shift) return NextResponse.json({ shift: null }, { headers: { "Cache-Control": "no-store" } });
   const [cashPayments, cashRefunds, cashMovements, movements] = await Promise.all([
     prisma.payment.aggregate({ where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] }, order: { shiftId: shift.id } }, _sum: { amountMinor: true } }),
-    prisma.refund.aggregate({ where: { processedById: user.id, createdAt: { gte: shift.openedAt } }, _sum: { cashRefundMinor: true } }),
+    prisma.refund.aggregate({ where: { shiftId: shift.id }, _sum: { cashRefundMinor: true } }),
     prisma.cashMovement.groupBy({ by: ["type"], where: { shiftId: shift.id }, _sum: { amountMinor: true } }),
     prisma.cashMovement.findMany({ where: { shiftId: shift.id }, orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
