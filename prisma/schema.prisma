@@ -58,6 +58,8 @@ model User {
   auditEvents  AuditEvent[]
   refundsProcessed Refund[]
   cashMovements CashMovement[]
+  discountApprovalsAsCashier DiscountApproval[] @relation("DiscountCashier")
+  discountApprovalsAsManager DiscountApproval[] @relation("DiscountManager")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -259,4 +261,23 @@ model CashMovement {
 
   @@index([shiftId, createdAt])
   @@index([userId, createdAt])
+}
+
+
+model DiscountApproval {
+  id             String   @id @default(cuid())
+  cashierId      String
+  cashier        User     @relation("DiscountCashier", fields: [cashierId], references: [id])
+  managerId      String
+  manager        User     @relation("DiscountManager", fields: [managerId], references: [id])
+  subtotalMinor  Int
+  discountMinor  Int
+  cartFingerprint String
+  reason         String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([cashierId, expiresAt, usedAt])
+  @@index([managerId, createdAt])
 }
