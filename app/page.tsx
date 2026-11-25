@@ -39,6 +39,7 @@ export default function Home() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutKey, setCheckoutKey] = useState("");
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" }).then((response) => response.json()).then((data) => setStaff(data.user ?? null)).catch(() => setStaff(null));
@@ -200,6 +201,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Checkout failed.");
       setNotice(`Order #${data.order.orderNumber} completed. Cash payment recorded.`);
+      setLastOrderId(data.order.id);
       setCart([]);
       setDiscount(0);
       setCheckoutKey("");
@@ -270,7 +272,7 @@ export default function Home() {
             <button onClick={() => { setCustomer(customer === "Walk-in customer" ? "Ahmed Khan" : "Walk-in customer"); action("Customer selection"); }}><span>♟</span>Customer</button>
             <button onClick={() => { setDiscount(0); setNotice("Discounts are disabled until manager authorization is implemented."); }}><span>%</span>Discount</button>
             <button onClick={() => action("Order notes")}><span>▤</span>Notes</button>
-            <button onClick={() => action("Receipt printing")}><span>▣</span>Print Receipt</button>
+            <button onClick={() => lastOrderId ? window.location.assign(`/orders/${lastOrderId}/receipt`) : action("Print receipt (complete a sale first)")}><span>▣</span>Print Receipt</button>
           </div>
         </section>
 
