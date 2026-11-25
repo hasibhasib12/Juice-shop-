@@ -389,6 +389,10 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const grantedForeignOrder = await cashierRequest(`/api/orders/${orderId}`, undefined, "GET");
     await expectStatus(grantedForeignOrder, 200);
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
+    const revokedAllOrders = await cashierRequest("/api/orders", undefined, "GET");
+    await expectStatus(revokedAllOrders, 200);
+    const revokedAllOrdersJson = await revokedAllOrders.json() as { orders: { id: string }[] };
+    assert.equal(revokedAllOrdersJson.orders.some((order) => order.id === orderId), false);
     const revokedForeignOrder = await cashierRequest(`/api/orders/${orderId}`, undefined, "GET");
     await expectStatus(revokedForeignOrder, 403);
 
