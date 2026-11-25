@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,10 +41,23 @@ export async function POST(request: NextRequest) {
 
   try {
     if (body.action === "create") {
-      const name = body.name?.trim();
-      const unit = body.unit?.trim();
-      const opening = new Prisma.Decimal(body.openingQuantity ?? 0);
-      const reorder = new Prisma.Decimal(body.reorderLevel ?? 0);
+      if (typeof body.name !== "string" || typeof body.unit !== "string" ||
+          (body.openingQuantity !== undefined && typeof body.openingQuantity !== "string" && typeof body.openingQuantity !== "number") ||
+          (body.reorderLevel !== undefined && typeof body.reorderLevel !== "string" && typeof body.reorderLevel !== "number") ||
+          (typeof body.openingQuantity === "string" && body.openingQuantity.length > 40) ||
+          (typeof body.reorderLevel === "string" && body.reorderLevel.length > 40)) {
+        return NextResponse.json({ error: "Provide a name, unit and valid non-negative stock quantities." }, { status: 400 });
+      }
+      const name = body.name.trim();
+      const unit = body.unit.trim();
+      let opening: Prisma.Decimal;
+      let reorder: Prisma.Decimal;
+      try {
+        opening = new Prisma.Decimal(body.openingQuantity ?? 0);
+        reorder = new Prisma.Decimal(body.reorderLevel ?? 0);
+      } catch {
+        return NextResponse.json({ error: "Provide a name, unit and valid non-negative stock quantities." }, { status: 400 });
+      }
       if (!name || name.length > 100 || !unit || unit.length > 20 || !opening.isFinite() || opening.lt(0) || !reorder.isFinite() || reorder.lt(0)) {
         return NextResponse.json({ error: "Provide a name, unit and valid non-negative stock quantities." }, { status: 400 });
       }
@@ -57,10 +71,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "movement") {
-      if (!body.ingredientId || !["PURCHASE", "WASTE", "ADJUSTMENT"].includes(body.type || "")) return NextResponse.json({ error: "Choose an ingredient and movement type." }, { status: 400 });
-      const quantity = new Prisma.Decimal(body.quantity ?? "NaN");
+      if (typeof body.ingredientId !== "string" || !body.ingredientId || body.ingredientId.length > 64 ||
+          !["PURCHASE", "WASTE", "ADJUSTMENT"].includes(body.type || "") ||
+          (body.quantity !== undefined && typeof body.quantity !== "string" && typeof body.quantity !== "number") ||
+          (typeof body.quantity === "string" && body.quantity.length > 40) ||
+          (body.reason !== undefined && (typeof body.reason !== "string" || body.reason.length > 250))) {
+        return NextResponse.json({ error: "Choose an ingredient and valid movement details." }, { status: 400 });
+      }
+      let quantity: Prisma.Decimal;
+      try { quantity = new Prisma.Decimal(body.quantity ?? "NaN"); } catch {
+        return NextResponse.json({ error: "Quantity must be a valid positive number." }, { status: 400 });
+      }
       if (!quantity.isFinite() || quantity.lte(0) || quantity.gt(100000000)) return NextResponse.json({ error: "Quantity must be greater than zero." }, { status: 400 });
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
         const ingredient = await tx.ingredient.findUnique({ where: { id: body.ingredientId } });
         if (!ingredient) throw new Error("INGREDIENT_NOT_FOUND");
         let delta = quantity;
@@ -72,13 +95,14 @@ export async function POST(request: NextRequest) {
         await tx.stockMovement.create({ data: { ingredientId: ingredient.id, type: body.type!, quantity: delta, reason: body.reason?.trim().slice(0, 250) || null } });
         await tx.auditEvent.create({ data: { userId: access.user!.id, action: "STOCK_MOVEMENT_RECORDED", entityType: "Ingredient", entityId: ingredient.id, details: { type: body.type, delta: delta.toString(), reason: body.reason || null } } });
         return updated;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
       return NextResponse.json({ ingredient: result });
     }
     return NextResponse.json({ error: "Unknown inventory action." }, { status: 400 });
   } catch (error) {
     if (error instanceof Error && error.message === "INGREDIENT_NOT_FOUND") return NextResponse.json({ error: "Ingredient not found." }, { status: 404 });
     if (error instanceof Error && error.message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "This movement would make stock negative." }, { status: 409 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "Inventory changed concurrently. Please retry." }, { status: 409 });
     return NextResponse.json({ error: "Inventory change could not be saved." }, { status: 409 });
   }
 }
