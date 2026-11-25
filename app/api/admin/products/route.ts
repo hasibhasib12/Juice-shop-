@@ -21,12 +21,14 @@ async function managerOnly(): Promise<{ user?: NonNullable<Awaited<ReturnType<ty
 export async function GET() {
   const access = await managerOnly();
   if (access.response) return access.response;
+  const branchId = access.user!.branchId;
   const [products, categories] = await Promise.all([
     prisma.product.findMany({
+      where: { branchId },
       orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
       include: { category: { select: { id: true, name: true } } },
     }),
-    prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true, active: true } }),
+    prisma.category.findMany({ where: { branchId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, active: true } }),
   ]);
   return NextResponse.json({ products, categories }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -53,11 +55,11 @@ export async function POST(request: NextRequest) {
   if (body.sku !== undefined && (typeof body.sku !== "string" || body.sku.length > 100)) return NextResponse.json({ error: "SKU must be 100 characters or fewer." }, { status: 400 });
   if (body.available !== undefined && typeof body.available !== "boolean") return NextResponse.json({ error: "Availability must be true or false." }, { status: 400 });
   try {
-    const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
+    const category = await prisma.category.findFirst({ where: { id: body.categoryId, branchId: access.user!.branchId } });
     if (!category || !category.active) return NextResponse.json({ error: "Choose an active category." }, { status: 400 });
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
-        data: { name, description: body.description?.trim() || null, imageUrl: body.imageUrl?.trim() || null, sku: body.sku?.trim() || null, priceMinor: body.priceMinor!, currency, categoryId: category.id, available: body.available ?? true },
+        data: { branchId: access.user!.branchId, name, description: body.description?.trim() || null, imageUrl: body.imageUrl?.trim() || null, sku: body.sku?.trim() || null, priceMinor: body.priceMinor!, currency, categoryId: category.id, available: body.available ?? true },
         include: { category: { select: { id: true, name: true } } },
       });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_CREATED", entityType: "Product", entityId: created.id, details: { name, priceMinor: created.priceMinor, currency } } });
