@@ -7,14 +7,15 @@ The application is a preview prototype until every release gate below is impleme
 One staff-facing POS for the Juice Shop. No customer ordering app, delivery marketplace, or unrelated modules. Preserve the approved pomegranate visual design and the reference layout while adding real functionality.
 
 ## Current verified baseline
-- Next.js 15 / React 19 / TypeScript application.
-- Product list is hard-coded in `app/page.tsx`.
-- Search and category filtering run in browser state.
-- Cart quantities, sample discount, subtotal, and hard-coded 10% tax are client-side only.
-- Payment, order saving, printer, authentication, inventory, staff roles, cash management, and reports are not implemented.
-- There is no configured database or payment provider evidenced in the current repository files.
-- The current cashier identity and date/time in the UI are static sample values.
-- Do not treat preview interactions or sample totals as real business operations.
+- Next.js 15 / React 19 / TypeScript application with the approved pomegranate POS layout.
+- PostgreSQL/Neon is connected to the application, but the current Vercel Preview and Production database environment variables share the same integration values. No migration or seed has been run because a separate Preview database branch has not yet been verified.
+- Prisma schema, initial SQL migration, repeatable catalogue seed, and database health endpoint are committed.
+- Product API reads active categories/products from PostgreSQL; the UI falls back to clearly labelled demo cards while tables are missing.
+- Store country, currency, timezone and locale have Afghanistan / AFN / Asia-Kabul defaults and an owner-only settings API.
+- Staff authentication foundation is implemented with scrypt password hashes, HMAC-signed HttpOnly sessions, login/logout/session endpoints, and a one-time first-owner setup page/API.
+- Checkout API currently supports cash only. It validates current database product prices, records order lines/payment/audit event transactionally, and uses idempotency keys. The UI calls this API only for real database product IDs.
+- Authenticated order history/detail APIs and cash shift open/close/reconciliation APIs are present.
+- The POS remains preview-only. Card processing, tax configuration, inventory deduction, printer workflow, manager discount approval, full shift UI, reports, and automated end-to-end tests are not complete.
 
 ## Target architecture
 - PostgreSQL as the authoritative relational store; schema and migrations committed to the repository.
@@ -28,23 +29,24 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - Cash payments can be implemented independently of a card provider.
 
 ## Milestone 1 — Data and business foundation
-- [ ] Database provider and production connection configured securely.
-- [ ] Migrations for users, roles, permissions, categories, products, variants, modifiers, recipes, ingredients, stock movements, orders, order lines, payments, refunds, shifts, cash movements, discounts, customers, settings, and audit logs.
-- [ ] Seed/demo data clearly separated from real business data.
-- [ ] Server-side validation, authorization, transactional services, and error handling.
+- [x] Neon PostgreSQL provisioned and connectivity endpoint verified.
+- [x] Initial Prisma schema/migration and repeatable demo catalogue seed committed.
+- [ ] Create a dedicated Neon Preview branch and point Preview DATABASE_URL to it; current Preview/Production variables are shared, so migration/seed is blocked.
+- [ ] Expand schema for variants, modifiers, refunds, cash movements, discounts and customers.
+- [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
 - [ ] Automated unit/integration tests for critical calculations and transaction rollback.
 
 ## Milestone 2 — Catalogue and checkout
 - [ ] Admin product/category CRUD, image management, availability, sizes, variants, extras, and price rules.
-- [ ] Real search/filter and cart persisted against server-created order drafts.
-- [ ] Table/customer/order notes, discounts with permissions, configurable tax and totals.
-- [ ] Atomic order finalization with unique receipt/order number and immutable line-price snapshots.
+- [x] Database-backed catalogue API, search/filter, cart and server-priced cash checkout foundation.
+- [ ] Server-created draft orders, tables/customer/order notes, discounts with permissions, configurable tax and totals.
+- [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
 
 ## Milestone 3 — Payments and receipts
-- [ ] Cash tender, received amount, change due, and cash payment record.
+- [x] Cash payment record and transactional order completion (cash received/change due UI still pending).
 - [ ] Card payment integration with a selected provider/terminal; verified webhook/callback handling.
 - [ ] Split tender, failed/voided payments, refunds, reconciliation, and idempotency.
-- [ ] Printable receipt layout, thermal printer/browser print support, reprints, and receipt numbering.
+- [ ] Printable receipt layout, thermal printer/browser print support, and reprints (order number is generated).
 
 ## Milestone 4 — Inventory
 - [ ] Ingredient units, recipes/BOM, modifiers, stock receiving and adjustments.
@@ -53,9 +55,10 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [ ] Inventory ledger and audit trail.
 
 ## Milestone 5 — Staff, shifts, cash and reports
-- [ ] Admin/manager/cashier login and least-privilege permissions.
-- [ ] Discount/refund/void approval rules and activity history.
-- [ ] Shift open/close, opening float, paid-in/out, expected cash, counted cash, variance.
+- [x] Owner/manager/cashier roles in schema and staff sign-in/session foundation.
+- [ ] Complete role/permission management and discount/refund/void approval rules.
+- [x] Shift open/close APIs with opening float, expected cash, counted cash and variance.
+- [ ] Paid-in/out, shift management UI and shift-to-order association.
 - [ ] Daily/weekly/monthly sales, product mix, tax, tender, refunds, stock and staff reports.
 
 ## Milestone 6 — Hardening and release
