@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       });
       return created;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
-    return NextResponse.json({ shift }, { status: 201 });
+    return NextResponse.json({ shift }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message === "SHIFT_ALREADY_OPEN") {
       return NextResponse.json({ error: "You already have an open shift." }, { status: 409 });
