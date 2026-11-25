@@ -32,9 +32,9 @@ function sign(value: string) {
 }
 
 export async function authenticate(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() }, include: { branch: { select: { id: true, name: true, code: true } } } });
   if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId, branch: user.branch };
 }
 
 export async function createSession(user: { id: string }) {
@@ -75,10 +75,10 @@ export async function getCurrentUser() {
     if (!data.sub || !Number.isSafeInteger(data.ver) || data.ver < 0 || data.exp <= Math.floor(Date.now() / 1000)) return null;
     const user = await prisma.user.findUnique({
       where: { id: data.sub },
-      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true, branchId: true },
+      select: { id: true, name: true, email: true, role: true, active: true, sessionVersion: true, branchId: true, branch: { select: { id: true, name: true, code: true } } },
     });
     if (!user?.active || user.sessionVersion !== data.ver) return null;
-    return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId };
+    return { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.branchId, branch: user.branch };
   } catch {
     return null;
   }
