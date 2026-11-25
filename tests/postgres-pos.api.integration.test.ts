@@ -379,12 +379,49 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     assert.equal(await prisma.orderLineReturn.count({ where: { orderId, orderLineId: lineId } }), 1);
     assert.equal(await prisma.auditEvent.count({ where: { entityId: orderId, action: "ORDER_ITEMS_RETURN_RECORDED" } }), 1);
 
+    const beforeCashFailure = {
+      orders: await prisma.order.count({ where: { cashierId: userId } }),
+      payments: await prisma.payment.count({ where: { order: { cashierId: userId } } }),
+      movements: await prisma.stockMovement.count({ where: { ingredientId, type: "SALE" } }),
+      completedAudits: await prisma.auditEvent.count({ where: { userId, action: "ORDER_COMPLETED" } }),
+    };
+    const insufficientCash = await request("/api/checkout", {
+      ...checkoutBody, idempotencyKey: `api-it-cash-short-${suffix}`,
+      paymentTenders: [{ method: "CASH", amountMinor: 1500 }], cashReceivedMinor: 1000,
+    });
+    await expectStatus(insufficientCash, 400);
+    assert.deepEqual({
+      orders: await prisma.order.count({ where: { cashierId: userId } }),
+      payments: await prisma.payment.count({ where: { order: { cashierId: userId } } }),
+      movements: await prisma.stockMovement.count({ where: { ingredientId, type: "SALE" } }),
+      completedAudits: await prisma.auditEvent.count({ where: { userId, action: "ORDER_COMPLETED" } }),
+    }, beforeCashFailure, "insufficient cash must not partially persist a checkout");
+
     const invalidCheckout = await request("/api/checkout", {
       ...checkoutBody, idempotencyKey: `api-it-invalid-${suffix}`,
       paymentTenders: [{ method: "OTHER", amountMinor: 999 }],
     });
     await expectStatus(invalidCheckout, 400);
-    assert.equal(await prisma.order.count({ where: { cashierId: userId } }), 2, "invalid checkout must not create an order (original sale plus separately voided sale remain)");
+    assert.deepEqual({
+      orders: await prisma.order.count({ where: { cashierId: userId } }),
+      payments: await prisma.payment.count({ where: { order: { cashierId: userId } } }),
+      movements: await prisma.stockMovement.count({ where: { ingredientId, type: "SALE" } }),
+      completedAudits: await prisma.auditEvent.count({ where: { userId, action: "ORDER_COMPLETED" } }),
+    }, beforeCashFailure, "invalid tender must not partially persist a checkout");
+
+    await prisma.ingredient.update({ where: { id: ingredientId }, data: { quantityOnHand: "0.000" } });
+    const insufficientStock = await request("/api/checkout", {
+      ...checkoutBody, idempotencyKey: `api-it-stock-short-${suffix}`,
+    });
+    await expectStatus(insufficientStock, 409);
+    assert.deepEqual({
+      orders: await prisma.order.count({ where: { cashierId: userId } }),
+      payments: await prisma.payment.count({ where: { order: { cashierId: userId } } }),
+      movements: await prisma.stockMovement.count({ where: { ingredientId, type: "SALE" } }),
+      completedAudits: await prisma.auditEvent.count({ where: { userId, action: "ORDER_COMPLETED" } }),
+    }, beforeCashFailure, "insufficient stock must roll back order, payment, stock movement and audit writes");
+    assert.equal(await prisma.order.count({ where: { idempotencyKey: `api-it-stock-short-${suffix}` } }), 0,
+      "failed checkout must not consume the idempotency key");
   } finally {
     if (server && server.exitCode === null) {
       server.kill("SIGTERM");
