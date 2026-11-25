@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
 
+  const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const date = request.nextUrl.searchParams.get("date");
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
   const [timezoneSetting, currencySetting] = await Promise.all([
@@ -45,11 +46,11 @@ export async function GET(request: NextRequest) {
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const [staff, orders, refunds, shifts, movements] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
-    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } }, select: { cashierId: true, currency: true, totalMinor: true, discountMinor: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } }),
-    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { processedById: true, currency: true, amountMinor: true } }),
-    prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end } }, select: { userId: true, closedAt: true, openingCashMinor: true, closingCashMinor: true } }),
-    prisma.cashMovement.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { userId: true, type: true, amountMinor: true } }),
+    prisma.user.findMany({ where: branchId ? { branchId } : undefined, select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
+    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end }, ...(branchId ? { cashier: { branchId } } : {}) }, select: { cashierId: true, currency: true, totalMinor: true, discountMinor: true, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } }),
+    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { processedBy: { branchId } } : {}) }, select: { processedById: true, currency: true, amountMinor: true } }),
+    prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end }, ...(branchId ? { branchId } : {}) }, select: { userId: true, closedAt: true, openingCashMinor: true, closingCashMinor: true } }),
+    prisma.cashMovement.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { user: { branchId } } : {}) }, select: { userId: true, type: true, amountMinor: true } }),
   ]);
   const rows = staff.flatMap((member) => {
     const currencies = new Set([
