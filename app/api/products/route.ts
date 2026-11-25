@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   try {
     const categories = await prisma.category.findMany({
-      where: { active: true, products: { some: { status: "ACTIVE", available: true } } },
+      where: { branchId: user.branchId, active: true, products: { some: { status: "ACTIVE", available: true } } },
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true, sortOrder: true },
     });
     const products = await prisma.product.findMany({
-      where: { status: "ACTIVE", available: true, category: { active: true } },
+      where: { branchId: user.branchId, status: "ACTIVE", available: true, category: { active: true } },
       orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
       select: {
         id: true,
