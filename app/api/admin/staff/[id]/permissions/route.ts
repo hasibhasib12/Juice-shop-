@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { PERMISSIONS, effectivePermissions, normalizePermissionOverrides } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER") return NextResponse.json({ error: "Only the owner can configure individual permissions." }, { status: 403 });
+  const rate = await checkActionRateLimit("staff-write", actor.id, 10, 900);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many staff permission changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
   const { id } = await context.params;
   let parsed: unknown;
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
