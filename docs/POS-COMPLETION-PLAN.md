@@ -36,7 +36,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Expand schema for multi-event refund records, payment tender allocation and cash movement ledger.
 - [x] Add manager discount-approval records; variants, modifiers and customers remain pending.
 - [x] Server-side validation, staff authentication, owner-only settings, cash checkout transaction and audit events added.
-- [ ] Automated unit/integration tests for critical calculations and transaction rollback.
+- [ ] Automated unit/integration tests for critical calculations and transaction rollback. A feature-branch CI workflow now runs Prisma validation, lint, TypeScript and production build; it does not replace business-logic tests.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, including composite order-line/order ownership constraint.
 
 ## Milestone 2 — Catalogue and checkout
@@ -46,7 +46,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 - [x] Owner-configurable tax label and tax rate (basis-point precision), with server-side calculation and tax stored on each cash order.
 - [ ] Server-created draft orders, tables/customer/order notes, product modifiers, tax-inclusive pricing and jurisdiction-specific tax rules.
 - [x] One-time manager/owner discount approval with password re-authentication, cart binding, five-minute expiry, single-use checkout consumption and audit trail.
-- [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key.
+- [x] Atomic cash order finalization with unique order number, line-price snapshots and idempotency key bound to a canonical request fingerprint; reusing a key for a different cart/tender is rejected.
 - [x] Cash tender cannot be less than the server-calculated total; change due is calculated server-side and stored with the payment.
 - [x] Apply and verify cash-tender, refund/void, cash-allocation, tax-refund, cash-movement, order-to-shift, manager-discount, partial-refund and refund-history-index migrations on the isolated Neon development branch.
 
@@ -84,7 +84,7 @@ One staff-facing POS for the Juice Shop. No customer ordering app, delivery mark
 ## Milestone 6 — Hardening and release
 - [ ] Responsive usability, accessibility, empty/loading/error states and full UI acceptance testing.
 - [ ] Security review, rate limiting, CSRF/session protections, secrets handling, backup/restore test.
-- [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation.
+- [ ] Automated tests for concurrent checkout, duplicate requests, refunds, stock race conditions, and shift reconciliation. Checkout now persists a request fingerprint and rejects mismatched idempotency-key reuse.
 - [x] Manager/owner item-level return records with sold-quantity limits, condition/disposition, reasons and audit trail; prepared drinks are recorded as waste and no ingredient stock is restocked. Sealed returns are also forced to NOT_RESTOCKABLE until finished-product inventory exists.
 - [x] Apply and verify the item-level-return migration on the isolated Neon development branch, then run Prisma validation and build checks (validation/build still pending).
 - [ ] Preview acceptance test with the owner using realistic sample data.
