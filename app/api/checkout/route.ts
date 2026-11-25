@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       if (!activeShift) throw new Error("NO_OPEN_SHIFT");
 
       const products = await tx.product.findMany({
-        where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
+        where: { id: { in: [...quantities.keys()] }, branchId: cashier.branchId, status: "ACTIVE", available: true, category: { active: true } },
         select: {
           id: true, name: true, priceMinor: true, currency: true,
           recipeItems: { select: { ingredientId: true, quantity: true, ingredient: { select: { name: true, unit: true, quantityOnHand: true } } } },
