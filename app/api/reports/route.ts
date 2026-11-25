@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
 
   const orders = await prisma.order.findMany({
-    where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } },
+    where: { status: { in: ["COMPLETED", "REFUNDED"] }, completedAt: { gte: start, lt: end } },
     select: { id: true, orderNumber: true, totalMinor: true, taxMinor: true, discountMinor: true, currency: true, cashier: { select: { name: true } }, payments: { where: { status: { in: ["COMPLETED", "REFUNDED"] } }, select: { method: true, amountMinor: true } }, lines: { select: { productName: true, quantity: true, lineTotalMinor: true } } },
     orderBy: { completedAt: "desc" },
   });
@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
   const currencies = [...new Set([...orders.map((order) => order.currency), ...refundRows.map((refund) => refund.currency)])];
   const currencyBreakdown = currencies.map((currency) => {
     const currencyOrders = orders.filter((order) => order.currency === currency);
-    const currencyRefunds = refundRows.filter((refund) => refund.currency === currency);
+    const currencyRefunds = refundRows.filter((refund) => refund.currency === currency && refund.kind === "REFUND");
+    const currencyVoids = refundRows.filter((refund) => refund.currency === currency && refund.kind === "VOID");
     const gross = currencyOrders.reduce((sum, order) => sum + order.totalMinor, 0);
     const grossTax = currencyOrders.reduce((sum, order) => sum + order.taxMinor, 0);
     const refunded = currencyRefunds.reduce((sum, refund) => sum + refund.amountMinor, 0);
@@ -80,6 +81,8 @@ export async function GET(request: NextRequest) {
       currency,
       orderCount: currencyOrders.length,
       refundCount: currencyRefunds.length,
+      voidCount: currencyVoids.length,
+      voidTotalMinor: currencyVoids.reduce((sum, refund) => sum + refund.amountMinor, 0),
       grossTotalMinor: gross,
       refundTotalMinor: refunded,
       totalMinor: gross - refunded,
@@ -90,9 +93,12 @@ export async function GET(request: NextRequest) {
       topProducts: [...currencyProducts.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
     };
   });
+  const refundOnlyRows = refundRows.filter((refund) => refund.kind === "REFUND");
+  const voidRows = refundRows.filter((refund) => refund.kind === "VOID");
   const singleCurrency = currencies.length <= 1;
-  const refundTotalMinor = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
-  const taxRefundMinor = refundRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
+  const refundTotalMinor = refundOnlyRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
+  const voidTotalMinor = voidRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
+  const taxRefundMinor = refundOnlyRows.reduce((sum, refund) => sum + refund.taxRefundMinor, 0);
   const grossTotalMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
   const grossTaxMinor = orders.reduce((sum, order) => sum + order.taxMinor, 0);
   const totalMinor = grossTotalMinor - refundTotalMinor;
@@ -114,7 +120,7 @@ export async function GET(request: NextRequest) {
     if (refund.otherRefundMinor) tenders.set("OTHER", (tenders.get("OTHER") || 0) - refund.otherRefundMinor);
   }
   const report = {
-    period, start, end, orderCount: orders.length, refundCount: refundRows.length, refundTotalMinor: singleCurrency ? refundTotalMinor : null, currencies,
+    period, start, end, orderCount: orders.length, refundCount: refundOnlyRows.length, voidCount: voidRows.length, voidTotalMinor: singleCurrency ? voidTotalMinor : null, refundTotalMinor: singleCurrency ? refundTotalMinor : null, currencies,
     totalMinor: singleCurrency ? totalMinor : null, taxMinor: singleCurrency ? taxMinor : null, discountMinor: singleCurrency ? discountMinor : null,
     averageOrderMinor: singleCurrency ? (orders.length ? Math.round(grossTotalMinor / orders.length) : 0) : null,
     currencyBreakdown,
@@ -134,11 +140,11 @@ export async function GET(request: NextRequest) {
       ["Summary", "Start", report.start.toISOString(), "", ""],
       ["Summary", "End", report.end.toISOString(), "", ""],
       ["Summary", "Orders", report.orderCount, "", ""],
-      ["Summary", "Refund count", report.refundCount, "", ""],
+      ["Summary", "Refund count", report.refundCount, "", ""],\n      ["Summary", "Void count", report.voidCount, "", ""],
       ...report.currencyBreakdown.flatMap((item) => [
         ["Summary", `Net sales (${item.currency})`, item.totalMinor, "", item.currency],
         ["Summary", `Tax (${item.currency})`, item.taxMinor, "", item.currency],
-        ["Summary", `Refund total (${item.currency})`, item.refundTotalMinor, "", item.currency],
+        ["Summary", `Refund total (${item.currency})`, item.refundTotalMinor, "", item.currency],\n        ["Summary", `Voids (${item.currency})`, item.voidTotalMinor, "", item.currency],
         ["Summary", `Discounts (${item.currency})`, item.discountMinor, "", item.currency],
         ...item.tenders.map((tender) => ["Tender", `${tender.method} (${item.currency})`, "", tender.amountMinor, item.currency]),
         ...item.topProducts.map((product) => ["Product", `${product.name} (${item.currency})`, product.quantity, product.salesMinor, item.currency]),
