@@ -122,7 +122,7 @@ export default function Home() {
   // Tax stays at zero until the business jurisdiction and tax rules are configured.
   const tax = 0;
   const total = Math.max(0, subtotal - discount) + tax;
-  const tenderMatch = /^(?:\\d+)(?:\\.\\d{1,2})?$/.test(cashTender.trim());
+  const tenderMatch = /^(?:\d+)(?:\.\d{1,2})?$/.test(cashTender.trim());
   const cashReceivedMinor = tenderMatch ? Math.round(Number(cashTender) * 100) : 0;
   const tenderValid = Number.isSafeInteger(cashReceivedMinor) && cashReceivedMinor >= total && cashReceivedMinor <= 2_000_000_000;
   const changeDueMinor = tenderValid ? cashReceivedMinor - total : 0;
