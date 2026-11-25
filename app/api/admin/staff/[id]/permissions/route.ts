@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { PERMISSIONS, effectivePermissions, normalizePermissionOverrides } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isAllowedMutationOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   return NextResponse.json({ permissions: PERMISSIONS, overrides: normalizePermissionOverrides(target.permissionOverrides), effective: effectivePermissions(target.role, target.permissionOverrides), role: target.role }, { headers: { "Cache-Control": "no-store" } });
 }
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (!isAllowedMutationOrigin(request.headers.get("origin"), request.nextUrl.origin, request.headers.get("sec-fetch-site"))) {
+    return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+  }
   const actor = await getCurrentUser();
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER") return NextResponse.json({ error: "Only the owner can configure individual permissions." }, { status: 403 });
