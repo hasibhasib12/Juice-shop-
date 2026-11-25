@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         if (!approval) throw new Error("INVALID_DISCOUNT_APPROVAL");
         const approvingManager = await tx.user.findUnique({ where: { id: approval.managerId }, select: { active: true, role: true } });
         if (!approvingManager?.active || (approvingManager.role !== "OWNER" && approvingManager.role !== "MANAGER")) throw new Error("INVALID_DISCOUNT_APPROVAL");
-        if (approval.discountMinor * 10000 > subtotalMinor * maxDiscountPercentBps) throw new Error("DISCOUNT_LIMIT_EXCEEDED");
+        if (BigInt(approval.discountMinor) * 10000n > BigInt(subtotalMinor) * BigInt(maxDiscountPercentBps)) throw new Error("DISCOUNT_LIMIT_EXCEEDED");
         discountMinor = approval.discountMinor;
         discountApproval = approval;
         const consumed = await tx.discountApproval.updateMany({ where: { id: approval.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
