@@ -10,7 +10,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
   const users = await prisma.user.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, role: true, active: true, createdAt: true } });
-  return NextResponse.json({ users, currentRole: actor.role }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ users, currentRole: actor.role, currentUserId: actor.id }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
