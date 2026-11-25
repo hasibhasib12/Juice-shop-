@@ -3,6 +3,7 @@ import { isAllowedMutationOrigin } from "@/lib/request-security";
 import { timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { createSession, hashPassword } from "@/lib/auth";
+import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -14,6 +15,18 @@ export async function POST(request: NextRequest) {
   const setupSecret = process.env.POS_SETUP_KEY;
   if (!setupSecret || setupSecret.length < 32) {
     return NextResponse.json({ error: "Initial setup is not enabled." }, { status: 503 });
+  }
+
+  try {
+    const rate = await checkActionRateLimit("initial-setup", "global", 5, 900);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many initial setup attempts. Please wait before trying again." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds), "Cache-Control": "no-store" } },
+      );
+    }
+  } catch {
+    return NextResponse.json({ error: "Initial setup is temporarily unavailable." }, { status: 503 });
   }
 
   let parsed: unknown;
