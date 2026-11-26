@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period") || "day";
   const date = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period) || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) return NextResponse.json({ error: "Invalid report period or date." }, { status: 400 });
-  const setting = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
-  const timezone = typeof setting?.value === "string" ? setting.value : "Asia/Kabul";
+  const [setting, assignedBranch] = await Promise.all([
+    prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
+    branchId ? prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true } }) : Promise.resolve(null),
+  ]);
+  const timezone = assignedBranch?.timezone || (typeof setting?.value === "string" ? setting.value : "Asia/Kabul");
   let selected = date;
   if (!selected) {
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());

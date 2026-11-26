@@ -19,12 +19,14 @@ export async function GET(request: NextRequest) {
   if (!hasPermission(user.role, permission?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
   const date = request.nextUrl.searchParams.get("date");
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
-  const [tzSetting, currencySetting] = await Promise.all([
+  const branchId = user.role === "OWNER" ? undefined : user.branchId;
+  const [tzSetting, currencySetting, assignedBranch] = await Promise.all([
     prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
+    branchId ? prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true, currency: true } }) : Promise.resolve(null),
   ]);
-  const timezone = typeof tzSetting?.value === "string" ? tzSetting.value : "Asia/Kabul";
-  const defaultCurrency = typeof currencySetting?.value === "string" ? currencySetting.value : "AFN";
+  const timezone = assignedBranch?.timezone || (typeof tzSetting?.value === "string" ? tzSetting.value : "Asia/Kabul");
+  const defaultCurrency = assignedBranch?.currency || (typeof currencySetting?.value === "string" ? currencySetting.value : "AFN");
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const get = (key: string) => parts.find(p => p.type === key)?.value || "";
   const selected = date || get("year") + "-" + get("month") + "-" + get("day");
@@ -35,11 +37,11 @@ export async function GET(request: NextRequest) {
   const next = new Date(Date.UTC(year, month - 1, day + 1));
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
   const [staff, orders, refunds, shifts, movements] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
-    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end } }, select: { cashierId: true, currency: true, totalMinor: true, discountMinor: true } }),
-    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { processedById: true, currency: true, amountMinor: true } }),
-    prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end } }, select: { userId: true, closedAt: true, openingCashMinor: true, closingCashMinor: true } }),
-    prisma.cashMovement.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { userId: true, type: true, amountMinor: true } }),
+    prisma.user.findMany({ where: branchId ? { branchId } : undefined, select: { id: true, name: true, email: true, role: true }, orderBy: { name: "asc" } }),
+    prisma.order.findMany({ where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] }, completedAt: { gte: start, lt: end }, ...(branchId ? { cashier: { branchId } } : {}) }, select: { cashierId: true, currency: true, totalMinor: true, discountMinor: true } }),
+    prisma.refund.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { processedBy: { branchId } } : {}) }, select: { processedById: true, currency: true, amountMinor: true } }),
+    prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end }, ...(branchId ? { branchId } : {}) }, select: { userId: true, closedAt: true, openingCashMinor: true, closingCashMinor: true } }),
+    prisma.cashMovement.findMany({ where: { createdAt: { gte: start, lt: end }, ...(branchId ? { user: { branchId } } : {}) }, select: { userId: true, type: true, amountMinor: true } }),
   ]);
   const lines = ["JUICE SHOP - STAFF PERFORMANCE", "Business date: " + selected + " | Timezone: " + timezone, "Sales attributed to cashier; refunds attributed to processor.", " "];
   for (const member of staff) {
