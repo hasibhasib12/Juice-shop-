@@ -524,14 +524,17 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       "checkout must not consume an approval after its manager moves to another branch");
     assert.equal(await prisma.order.count({ where: { idempotencyKey: `api-it-stale-discount-${suffix}` } }), 0,
       "checkout must not complete using an approval from a different branch");
+    const approvalsBeforeCrossBranchAttempt = await prisma.discountApproval.count({
+      where: { cashierId, managerId: otherBranchManagerId },
+    });
     const crossBranchDiscountApproval = await cashierRequest("/api/discounts/authorize", {
       managerEmail: otherBranchManagerEmail, managerPassword: password,
       discountMinor: 100, reason: "Cross-branch approval test",
       items: [{ productId, quantity: 1 }],
     });
     await expectStatus(crossBranchDiscountApproval, 403);
-    assert.equal(await prisma.discountApproval.count({ where: { cashierId, managerId: otherBranchManagerId } }), 0,
-      "a manager from another branch must not approve this cashier's discount");
+    assert.equal(await prisma.discountApproval.count({ where: { cashierId, managerId: otherBranchManagerId } }), approvalsBeforeCrossBranchAttempt,
+      "a manager from another branch must not create an additional discount approval");
     const reportDateParts = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Kabul", year: "numeric", month: "2-digit", day: "2-digit",
     }).formatToParts(new Date());
