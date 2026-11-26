@@ -504,6 +504,19 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(otherBranchLogin, 200);
     otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const reportDateParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kabul", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date());
+    const reportDate = ["year", "month", "day"].map((part) => reportDateParts.find((item) => item.type === part)?.value).join("-");
+    const foreignShiftCsv = await fetch(`${baseUrl}/api/reports/shifts?date=${reportDate}`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignShiftCsv, 200);
+    assert.equal((await foreignShiftCsv.text()).includes(`${suffix}@api-integration.invalid`), false,
+      "shift CSV must not disclose cashiers from another branch");
+    const foreignShiftPdf = await fetch(`${baseUrl}/api/reports/shifts/pdf?date=${reportDate}`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignShiftPdf, 200);
+    const foreignShiftPdfText = Buffer.from(await foreignShiftPdf.arrayBuffer()).toString("ascii");
+    assert.equal(foreignShiftPdfText.includes(`${suffix}@api-integration.invalid`), false,
+      "shift PDF must not disclose cashiers from another branch");
     const crossBranchVariantRecipe = await fetch(`${baseUrl}/api/admin/products/${otherBranchProductId}/options`, {
       method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie },
       body: JSON.stringify({ variants: [{ name: "Unsafe cross-branch recipe", priceMinor: 1300, recipeItems: [{ ingredientId, quantity: 10 }] }], modifierGroups: [] }),
