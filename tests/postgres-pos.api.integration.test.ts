@@ -481,7 +481,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(otherBranchLogin, 200);
     otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
     const crossBranchVariantRecipe = await fetch(`${baseUrl}/api/admin/products/${otherBranchProductId}/options`, {
-      method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie, origin: baseUrl },
+      method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie },
       body: JSON.stringify({ variants: [{ name: "Unsafe cross-branch recipe", priceMinor: 1300, recipeItems: [{ ingredientId, quantity: 10 }] }], modifierGroups: [] }),
     });
     await expectStatus(crossBranchVariantRecipe, 400);
