@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
     const shift = await withSerializableRetry(() => prisma.$transaction(async (tx) => {
       const active = await tx.shift.findFirst({ where: { userId: user.id, closedAt: null } });
       if (active) throw new Error("SHIFT_ALREADY_OPEN");
-      const currencySetting = await tx.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } });
-      const currency = typeof currencySetting?.value === "string" ? currencySetting.value.toUpperCase() : "AFN";
+      const branch = await tx.branch.findUnique({ where: { id: user.branchId }, select: { currency: true } });
+      if (!branch) throw new Error("BRANCH_NOT_FOUND");
+      const currency = branch.currency.toUpperCase();
       const created = await tx.shift.create({
         data: { userId: user.id, branchId: user.branchId, openingCashMinor: openingCashMinor as number, openingNote: openingNote || null },
       });
