@@ -30,8 +30,12 @@ export async function GET(request: NextRequest) {
   const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const date = request.nextUrl.searchParams.get("date");
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
-  const setting = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
-  const timezone = typeof setting?.value === "string" ? setting.value : "Asia/Kabul";
+  const [setting, assignedBranch] = await Promise.all([
+    prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
+    branchId ? prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true } }) : Promise.resolve(null),
+  ]);
+  // Manager shift reports are scoped to the manager's branch and use that branch's local day.
+  const timezone = assignedBranch?.timezone || (typeof setting?.value === "string" ? setting.value : "Asia/Kabul");
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
   const selected = date || `${get("year")}-${get("month")}-${get("day")}`;
