@@ -33,8 +33,10 @@ export async function GET(request: NextRequest) {
     prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
     prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
   ]);
-  const timezone = typeof timezoneSetting?.value === "string" ? timezoneSetting.value : "Asia/Kabul";
-  const currency = typeof currencySetting?.value === "string" ? currencySetting.value : "AFN";
+  const assignedBranch = branchId ? await prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true, currency: true } }) : null;
+  // Branch-scoped staff reports use branch locale; owner-wide reports retain store defaults.
+  const timezone = assignedBranch?.timezone || (typeof timezoneSetting?.value === "string" ? timezoneSetting.value : "Asia/Kabul");
+  const currency = assignedBranch?.currency || (typeof currencySetting?.value === "string" ? currencySetting.value : "AFN");
   const current = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const get = (key: string) => current.find((part) => part.type === key)?.value || "";
   const selected = date || `${get("year")}-${get("month")}-${get("day")}`;
