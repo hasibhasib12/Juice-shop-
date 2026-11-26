@@ -504,6 +504,14 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(otherBranchLogin, 200);
     otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const crossBranchDiscountApproval = await cashierRequest("/api/discounts/authorize", {
+      managerEmail: otherBranchManagerEmail, managerPassword: password,
+      discountMinor: 100, reason: "Cross-branch approval test",
+      items: [{ productId, quantity: 1 }],
+    });
+    await expectStatus(crossBranchDiscountApproval, 403);
+    assert.equal(await prisma.discountApproval.count({ where: { cashierId, managerId: otherBranchManagerId } }), 0,
+      "a manager from another branch must not approve this cashier's discount");
     const reportDateParts = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Kabul", year: "numeric", month: "2-digit", day: "2-digit",
     }).formatToParts(new Date());

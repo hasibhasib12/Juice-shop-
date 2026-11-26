@@ -42,9 +42,12 @@ export async function POST(request: NextRequest) {
   });
   if (!validItems) return NextResponse.json({ error: "The current cart is invalid." }, { status: 400 });
 
-  const manager = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true, role: true, active: true, passwordHash: true } });
+  const manager = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true, role: true, active: true, branchId: true, passwordHash: true } });
   if (!manager?.active || (manager.role !== "MANAGER" && manager.role !== "OWNER") || !verifyPassword(body.managerPassword, manager.passwordHash)) {
     return NextResponse.json({ error: "Manager authorization failed. Check the manager credentials." }, { status: 403 });
+  }
+  if (!cashier.branchId || manager.branchId !== cashier.branchId) {
+    return NextResponse.json({ error: "The approving manager must belong to your assigned branch." }, { status: 403 });
   }
 
   const quantities = new Map<string, number>();
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
   if ([...quantities.values()].some((quantity) => quantity > 100)) return NextResponse.json({ error: "A product quantity cannot exceed 100." }, { status: 400 });
 
   const products = await prisma.product.findMany({
-    where: { id: { in: [...quantities.keys()] }, status: "ACTIVE", available: true, category: { active: true } },
+    where: { id: { in: [...quantities.keys()] }, branchId: cashier.branchId, status: "ACTIVE", available: true, category: { active: true } },
     select: { id: true, priceMinor: true, currency: true, variants: { where: { active: true }, select: { id: true, priceMinor: true } }, modifierGroups: { where: { active: true }, select: { id: true, minSelections: true, maxSelections: true, options: { where: { active: true }, select: { id: true, priceDeltaMinor: true } } } } },
   });
   if (products.length !== quantities.size) return NextResponse.json({ error: "One or more cart products are unavailable." }, { status: 409 });
