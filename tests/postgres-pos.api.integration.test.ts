@@ -838,7 +838,11 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     if (createdCategoryId) await prisma.category.deleteMany({ where: { id: createdCategoryId } });
     if (otherBranchCategoryId) await prisma.category.deleteMany({ where: { id: otherBranchCategoryId } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
-    await prisma.user.deleteMany({ where: { id: { in: [userId, cashierId, ...(otherBranchManagerId ? [otherBranchManagerId] : [])] } } });
+    const testUserIds = [userId, cashierId, ...(otherBranchManagerId ? [otherBranchManagerId] : [])];
+    await prisma.discountApproval.deleteMany({
+      where: { OR: [{ cashierId: { in: testUserIds } }, { managerId: { in: testUserIds } }] },
+    });
+    await prisma.user.deleteMany({ where: { id: { in: testUserIds } } });
     if (otherBranchId) await prisma.branch.deleteMany({ where: { id: otherBranchId } });
     await prisma.$disconnect();
   }
