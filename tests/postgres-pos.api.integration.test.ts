@@ -349,6 +349,15 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const checkoutItems = [{
       productId, variantId: (await prisma.productVariant.findFirstOrThrow({ where: { productId } })).id, quantity: 1,
     }];
+    const draftBranch = await prisma.branch.findUniqueOrThrow({ where: { code: "MAIN" }, select: { currency: true } });
+    const mismatchedDraftCurrency = draftBranch.currency === "USD" ? "AFN" : "USD";
+    await prisma.product.update({ where: { id: productId }, data: { currency: mismatchedDraftCurrency } });
+    const rejectedCurrencyDraft = await request("/api/orders/drafts", { items: checkoutItems });
+    await expectStatus(rejectedCurrencyDraft, 409);
+    assert.equal(await prisma.order.count({ where: { cashierId: userId, status: "DRAFT" } }), 0,
+      "drafts must reject products priced in a currency different from the assigned branch");
+    await prisma.product.update({ where: { id: productId }, data: { currency: draftBranch.currency } });
+
     const draftCreate = await request("/api/orders/drafts", {
       items: checkoutItems, customerName: "Draft Customer", notes: "Saved before payment",
     });

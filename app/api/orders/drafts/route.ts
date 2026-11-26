@@ -96,6 +96,9 @@ export async function POST(request: NextRequest) {
       });
       if (products.length !== quantities.size) throw new Error("PRODUCT_UNAVAILABLE");
       if (new Set(products.map((product) => product.currency)).size !== 1) throw new Error("MIXED_CURRENCIES");
+      const assignedBranch = await tx.branch.findUnique({ where: { id: user.branchId }, select: { currency: true } });
+      if (!assignedBranch) throw new Error("BRANCH_NOT_FOUND");
+      if (products[0].currency.toUpperCase() !== assignedBranch.currency.toUpperCase()) throw new Error("BRANCH_CURRENCY_MISMATCH");
       const lineMap = new Map<string, { productId: string; variantId?: string; modifierOptionIds: string[]; quantity: number }>();
       for (const item of body.items!) {
         const modifierOptionIds = [...(item.modifierOptionIds ?? [])].sort();
@@ -153,6 +156,8 @@ export async function POST(request: NextRequest) {
     if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Selected extras are invalid or do not meet the required choices." }, { status: 400 });
     if (message === "PRODUCT_UNAVAILABLE") return NextResponse.json({ error: "One or more products are no longer available." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All draft items must use the same currency." }, { status: 409 });
+    if (message === "BRANCH_CURRENCY_MISMATCH") return NextResponse.json({ error: "Product prices must use the assigned branch currency before saving a draft. Ask the owner to correct the product pricing." }, { status: 409 });
+    if (message === "BRANCH_NOT_FOUND") return NextResponse.json({ error: "Your assigned branch could not be found. Draft saving is unavailable." }, { status: 409 });
     if (message === "INVALID_TOTAL") return NextResponse.json({ error: "The draft total is invalid." }, { status: 422 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "Draft changed at the same time. Please reload and retry." }, { status: 409 });
