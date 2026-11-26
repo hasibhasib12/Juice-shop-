@@ -17,6 +17,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
+  if (user.role !== "OWNER" && !user.branchId) return NextResponse.json({ error: "Branch assignment required." }, { status: 403 });
 
   const [ingredients, branch] = await Promise.all([
     prisma.ingredient.findMany({ where: { branchId: user.branchId }, orderBy: { name: "asc" }, select: { name: true, unit: true, quantityOnHand: true, reorderLevel: true, averageCostMinor: true } }),
