@@ -22,7 +22,7 @@ export function checkoutFingerprint(
   const canonicalItems = [...quantities.values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   const canonicalTenders = [...tenders]
     .map(({ method, amountMinor }) => ({ method, amountMinor }))
-    .sort((a, b) => a.method.localeCompare(b.method));
+    .sort((a, b) => a.method.localeCompare(b.method) || a.amountMinor - b.amountMinor);
 
   return createHash("sha256").update(JSON.stringify({
     items: canonicalItems,
@@ -32,5 +32,5 @@ export function checkoutFingerprint(
     customerName: metadata?.customerName?.trim() || null,
     notes: metadata?.notes?.trim() || null,
     ...(metadata?.draftId ? { draftId: metadata.draftId } : {}),
-  })).digest("hex");
+  })).digest("hex);
 }
