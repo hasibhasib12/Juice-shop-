@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
+  if (!hasPermission(user.role, permissionState?.permissionOverrides, "MANAGE_TABLES")) return NextResponse.json({ error: "Table management permission required." }, { status: 403 });
   const canViewAllOrders = hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_ALL_ORDERS");
   const rate = await checkActionRateLimit("table-order-write", user.id, 60, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many table order changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
