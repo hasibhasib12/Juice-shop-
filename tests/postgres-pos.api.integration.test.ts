@@ -249,7 +249,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
         }],
       }),
     ]);
-    assert.deepEqual(invoiceRequests.map((response) => response.status).sort(), [201, 409]);
+    assert.deepEqual(invoiceRequests.map((response) => response.status).sort(), [201, 409], `Supplier invoice responses: ${JSON.stringify(await Promise.all(invoiceRequests.map(async (response) => ({ status: response.status, body: await response.clone().text() }))))}`);
     const invoiceResponse = invoiceRequests.find((response) => response.status === 201)!;
     const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
     assert.equal(invoiceJson.invoice.totalMinor, 1000);
