@@ -44,8 +44,23 @@ END $$;
 
 ALTER TABLE "DiningTable" ALTER COLUMN "branchId" SET NOT NULL;
 ALTER TABLE "DiningTable" ALTER COLUMN "branchId" SET DEFAULT 'main-branch';
-ALTER TABLE "DiningTable" DROP CONSTRAINT IF EXISTS "DiningTable_name_key";
+
+-- Older databases may have either a unique constraint or only a standalone
+-- index for the original global table-name uniqueness rule.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'DiningTable'
+      AND c.conname = 'DiningTable_name_key'
+  ) THEN
+    ALTER TABLE "DiningTable" DROP CONSTRAINT "DiningTable_name_key";
+  END IF;
+END $$;
 DROP INDEX IF EXISTS "DiningTable_name_key";
+
 ALTER TABLE "DiningTable"
   ADD CONSTRAINT "DiningTable_branchId_fkey"
   FOREIGN KEY ("branchId") REFERENCES "Branch"("id")
