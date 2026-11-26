@@ -32,5 +32,5 @@ export function checkoutFingerprint(
     customerName: metadata?.customerName?.trim() || null,
     notes: metadata?.notes?.trim() || null,
     ...(metadata?.draftId ? { draftId: metadata.draftId } : {}),
-  })).digest("hex);
+  })).digest("hex");
 }
