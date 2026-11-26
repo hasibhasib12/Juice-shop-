@@ -401,7 +401,12 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: false } } });
     const deniedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: createdTableId });
     await expectStatus(deniedForeignTableAssignment, 403);
-    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true } } });
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true, MANAGE_TABLES: false } } });
+    const deniedWithoutTablePermission = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: createdTableId });
+    await expectStatus(deniedWithoutTablePermission, 403);
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: draftId }, select: { tableId: true } })).tableId, null,
+      "VIEW_ALL_ORDERS alone must not grant table assignment access");
+    await prisma.user.update({ where: { id: cashierId }, data: { permissionOverrides: { VIEW_ALL_ORDERS: true, MANAGE_TABLES: true } } });
     const grantedForeignTableAssignment = await cashierRequest("/api/table-orders", { orderId: draftId, tableId: createdTableId });
     await expectStatus(grantedForeignTableAssignment, 200);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: draftId }, select: { tableId: true } })).tableId, createdTableId);
