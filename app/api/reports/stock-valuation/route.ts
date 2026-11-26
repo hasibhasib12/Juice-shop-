@@ -18,11 +18,11 @@ export async function GET() {
   const permissionState = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permissionState?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
 
-  const [ingredients, currencySetting] = await Promise.all([
+  const [ingredients, branch] = await Promise.all([
     prisma.ingredient.findMany({ where: { branchId: user.branchId }, orderBy: { name: "asc" }, select: { name: true, unit: true, quantityOnHand: true, reorderLevel: true, averageCostMinor: true } }),
-    prisma.posSetting.findUnique({ where: { key: "store.currency" }, select: { value: true } }),
+    prisma.branch.findUnique({ where: { id: user.branchId }, select: { currency: true } }),
   ]);
-  const currency = typeof currencySetting?.value === "string" ? currencySetting.value : "AFN";
+  const currency = branch?.currency?.toUpperCase() || "AFN";
   const values = ingredients.map((item) => item.quantityOnHand.mul(item.averageCostMinor).toDecimalPlaces(0).toFixed(0));
   const totalValue = values.reduce((sum, value) => sum + BigInt(value), 0n).toString();
   const rows: (string | number)[][] = [
