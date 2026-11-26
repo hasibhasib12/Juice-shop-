@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
   const permission = await prisma.user.findUnique({ where: { id: user.id }, select: { permissionOverrides: true } });
   if (!hasPermission(user.role, permission?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
+  if (user.role !== "OWNER" && !user.branchId) return NextResponse.json({ error: "Branch assignment required." }, { status: 403 });
   const branchId = user.role === "OWNER" ? undefined : user.branchId;
   const period = request.nextUrl.searchParams.get("period") || "day";
   const date = request.nextUrl.searchParams.get("date");
