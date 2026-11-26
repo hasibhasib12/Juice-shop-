@@ -504,6 +504,26 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     });
     await expectStatus(otherBranchLogin, 200);
     otherBranchCookie = otherBranchLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    // Create a valid approval, then move its manager to another branch before checkout.
+    await prisma.user.update({ where: { id: otherBranchManagerId }, data: { branchId: "main-branch" } });
+    const validThenStaleApproval = await cashierRequest("/api/discounts/authorize", {
+      managerEmail: otherBranchManagerEmail, managerPassword: password,
+      discountMinor: 100, reason: "Manager branch reassignment test",
+      items: checkoutItems,
+    });
+    await expectStatus(validThenStaleApproval, 201);
+    const staleApprovalJson = await validThenStaleApproval.json() as { approval: { id: string } };
+    await prisma.user.update({ where: { id: otherBranchManagerId }, data: { branchId: otherBranch.id } });
+    const staleApprovalCheckout = await request("/api/checkout", {
+      items: checkoutItems, paymentMethod: "CASH", cashReceivedMinor: 2000,
+      discountApprovalId: staleApprovalJson.approval.id,
+      idempotencyKey: `api-it-stale-discount-${suffix}`,
+    });
+    await expectStatus(staleApprovalCheckout, 409);
+    assert.equal(await prisma.discountApproval.findUniqueOrThrow({ where: { id: staleApprovalJson.approval.id }, select: { usedAt: true } }).then((row) => row.usedAt), null,
+      "checkout must not consume an approval after its manager moves to another branch");
+    assert.equal(await prisma.order.count({ where: { idempotencyKey: `api-it-stale-discount-${suffix}` } }), 0,
+      "checkout must not complete using an approval from a different branch");
     const crossBranchDiscountApproval = await cashierRequest("/api/discounts/authorize", {
       managerEmail: otherBranchManagerEmail, managerPassword: password,
       discountMinor: 100, reason: "Cross-branch approval test",

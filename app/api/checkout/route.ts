@@ -133,8 +133,13 @@ export async function POST(request: NextRequest) {
         if (typeof body.discountApprovalId !== "string" || body.discountApprovalId.length > 64) throw new Error("INVALID_DISCOUNT_APPROVAL");
         const approval = await tx.discountApproval.findFirst({ where: { id: body.discountApprovalId, cashierId: cashier.id, subtotalMinor, cartFingerprint: fingerprint(items), discountMinor: { gt: 0, lt: subtotalMinor }, expiresAt: { gt: new Date() }, usedAt: null }, select: { id: true, managerId: true, reason: true, discountMinor: true } });
         if (!approval) throw new Error("INVALID_DISCOUNT_APPROVAL");
-        const approvingManager = await tx.user.findUnique({ where: { id: approval.managerId }, select: { active: true, role: true } });
-        if (!approvingManager?.active || (approvingManager.role !== "OWNER" && approvingManager.role !== "MANAGER")) throw new Error("INVALID_DISCOUNT_APPROVAL");
+        const approvingManager = await tx.user.findUnique({ where: { id: approval.managerId }, select: { active: true, role: true, branchId: true } });
+        if (
+          !approvingManager?.active ||
+          (approvingManager.role !== "OWNER" && approvingManager.role !== "MANAGER") ||
+          !cashier.branchId ||
+          approvingManager.branchId !== cashier.branchId
+        ) throw new Error("INVALID_DISCOUNT_APPROVAL");
         if (BigInt(approval.discountMinor) * 10000n > BigInt(subtotalMinor) * BigInt(maxDiscountPercentBps)) throw new Error("DISCOUNT_LIMIT_EXCEEDED");
         discountMinor = approval.discountMinor;
         discountApproval = approval;
