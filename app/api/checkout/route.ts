@@ -90,8 +90,11 @@ export async function POST(request: NextRequest) {
         },
       });
       if (products.length !== quantities.size) throw new Error("PRODUCT_UNAVAILABLE");
-      const currencies = new Set(products.map((product) => product.currency));
+      const currencies = new Set(products.map((product) => product.currency.toUpperCase()));
       if (currencies.size !== 1) throw new Error("MIXED_CURRENCIES");
+      const assignedBranch = await tx.branch.findUnique({ where: { id: cashier.branchId }, select: { currency: true } });
+      if (!assignedBranch) throw new Error("BRANCH_NOT_FOUND");
+      if (products[0].currency.toUpperCase() !== assignedBranch.currency.toUpperCase()) throw new Error("BRANCH_CURRENCY_MISMATCH");
 
       const normalizedLines = new Map<string, { productId: string; variantId?: string; modifierOptionIds: string[]; quantity: number }>();
       for (const item of items) {
@@ -238,6 +241,8 @@ export async function POST(request: NextRequest) {
     if (message === "BRANCH_INVENTORY_MISMATCH") return NextResponse.json({ error: "A recipe ingredient is not assigned to this branch. Ask a manager to correct the recipe before selling this item." }, { status: 409 });
     if (message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Not enough ingredient stock to complete this order. No payment or order was recorded." }, { status: 409 });
     if (message === "MIXED_CURRENCIES") return NextResponse.json({ error: "All items in an order must use the same currency." }, { status: 409 });
+    if (message === "BRANCH_CURRENCY_MISMATCH") return NextResponse.json({ error: "Product prices must use the assigned branch currency before checkout. Ask the owner to correct the product pricing." }, { status: 409 });
+    if (message === "BRANCH_NOT_FOUND") return NextResponse.json({ error: "Your assigned branch could not be found. Checkout is unavailable." }, { status: 409 });
     if (message === "DRAFT_NOT_FOUND") return NextResponse.json({ error: "The saved draft no longer exists or has already been completed." }, { status: 409 });
     if (message === "DRAFT_FORBIDDEN") return NextResponse.json({ error: "You cannot complete this draft." }, { status: 403 });
     if (message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "This checkout key was already used by a different cashier or a different checkout request." }, { status: 409 });
