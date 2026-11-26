@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     subtotalMinor += ((variant?.priceMinor ?? product.priceMinor) + chosen.reduce((sum, option) => sum + option.priceDeltaMinor, 0)) * item.quantity;
   }
   if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0 || body.discountMinor! >= subtotalMinor) return NextResponse.json({ error: "Discount cannot exceed the current cart subtotal." }, { status: 400 });
-  const limitSetting = await prisma.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
+  const limitSetting = await prisma.branchSetting.findUnique({ where: { branchId_key: { branchId: cashier.branchId, key: "maxDiscountPercentBps" } }, select: { value: true } }) ?? await prisma.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
   const maxDiscountPercentBps = typeof limitSetting?.value === "number" && Number.isSafeInteger(limitSetting.value) && limitSetting.value >= 1 && limitSetting.value <= 10000 ? limitSetting.value : 10000;
   if (BigInt(body.discountMinor!) * 10000n > BigInt(subtotalMinor) * BigInt(maxDiscountPercentBps)) {
     return NextResponse.json({ error: `Discount exceeds the store limit of ${(maxDiscountPercentBps / 100).toFixed(2)}%.` }, { status: 400 });

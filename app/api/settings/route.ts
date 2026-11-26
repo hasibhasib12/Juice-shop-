@@ -31,16 +31,24 @@ const settingKeys = {
   maxDiscountPercentBps: "store.maxDiscountPercentBps",
 } as const;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getCurrentUser();
+  const requestedBranchId = request.nextUrl.searchParams.get("branchId");
+  if (requestedBranchId && (!user || (user.role !== "OWNER" && requestedBranchId !== user.branchId))) return NextResponse.json({ error: "Branch settings access denied." }, { status: 403 });
+  const branchId = requestedBranchId || user?.branchId || null;
   try {
     const rows = await prisma.posSetting.findMany({
       where: { key: { in: Object.values(settingKeys) } },
       select: { key: true, value: true },
     });
     const stored = new Map(rows.map((row) => [row.key, row.value]));
+    const branchRows = branchId ? await prisma.branchSetting.findMany({ where: { branchId, key: { in: ["taxRateBps", "maxDiscountPercentBps"] } }, select: { key: true, value: true } }) : [];
+    const branchStored = new Map(branchRows.map((row) => [row.key, row.value]));
     const settings = Object.fromEntries(
       Object.entries(settingKeys).map(([field, key]) => [
         field,
+        field === "taxRateBps" && branchStored.has("taxRateBps") ? branchStored.get("taxRateBps") :
+        field === "maxDiscountPercentBps" && branchStored.has("maxDiscountPercentBps") ? branchStored.get("maxDiscountPercentBps") :
         stored.has(key) ? stored.get(key) : defaults[field as keyof typeof defaults],
       ]),
     );
@@ -66,7 +74,7 @@ export async function PUT(request: NextRequest) {
   const rate = await checkActionRateLimit("store-settings-write", user.id, 10, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many settings changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
-  let body: { countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string; maxDiscountPercentBps?: number };
+  let body: { branchId?: string; countryCode?: string; countryName?: string; currency?: string; timezone?: string; locale?: string; taxRateBps?: number; taxLabel?: string; maxDiscountPercentBps?: number };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
@@ -75,6 +83,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  const targetBranchId = typeof body.branchId === "string" ? body.branchId : user.branchId;
+  if (!targetBranchId || (user.role !== "OWNER" && targetBranchId !== user.branchId)) return NextResponse.json({ error: "Branch settings access denied." }, { status: 403 });
+  const targetBranch = await prisma.branch.findFirst({ where: { id: targetBranchId, active: true }, select: { id: true } });
+  if (!targetBranch) return NextResponse.json({ error: "Active branch not found." }, { status: 404 });
   const settings = {
     countryCode: body.countryCode,
     countryName: body.countryName,
@@ -115,14 +127,22 @@ export async function PUT(request: NextRequest) {
       }
       for (const [field, value] of Object.entries(settings)) {
         if (typeof value !== "string" && typeof value !== "number") continue;
-        await tx.posSetting.upsert({
-          where: { key: `store.${field}` },
-          update: { value },
-          create: { key: `store.${field}`, value },
-        });
+        if (field === "taxRateBps" || field === "maxDiscountPercentBps") {
+          await tx.branchSetting.upsert({
+            where: { branchId_key: { branchId: targetBranchId, key: field } },
+            update: { value },
+            create: { branchId: targetBranchId, key: field, value },
+          });
+        } else {
+          await tx.posSetting.upsert({
+            where: { key: `store.${field}` },
+            update: { value },
+            create: { key: `store.${field}`, value },
+          });
+        }
       }
       await tx.auditEvent.create({
-        data: { userId: user.id, action: "STORE_SETTINGS_UPDATED", entityType: "PosSetting", details: settings },
+        data: { userId: user.id, action: "STORE_SETTINGS_UPDATED", entityType: "BranchSetting", entityId: targetBranchId, details: { branchId: targetBranchId, ...settings } },
       });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     return NextResponse.json({ settings }, { headers: { "Cache-Control": "no-store" } });

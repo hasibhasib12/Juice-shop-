@@ -122,10 +122,10 @@ export async function POST(request: NextRequest) {
       });
       const subtotalMinor = lines.reduce((sum, line) => sum + line.lineTotalMinor, 0);
       if (!Number.isSafeInteger(subtotalMinor) || subtotalMinor <= 0) throw new Error("INVALID_TOTAL");
-      const discountLimitSetting = await tx.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
+      const discountLimitSetting = await tx.branchSetting.findUnique({ where: { branchId_key: { branchId: cashier.branchId, key: "maxDiscountPercentBps" } }, select: { value: true } }) ?? await tx.posSetting.findUnique({ where: { key: "store.maxDiscountPercentBps" }, select: { value: true } });
       const maxDiscountPercentBps = typeof discountLimitSetting?.value === "number" && Number.isSafeInteger(discountLimitSetting.value) && discountLimitSetting.value >= 1 && discountLimitSetting.value <= 10000 ? discountLimitSetting.value : 10000;
       const currency = products[0].currency;
-      const taxSetting = await tx.posSetting.findUnique({ where: { key: "store.taxRateBps" }, select: { value: true } });
+      const taxSetting = await tx.branchSetting.findUnique({ where: { branchId_key: { branchId: cashier.branchId, key: "taxRateBps" } }, select: { value: true } }) ?? await tx.posSetting.findUnique({ where: { key: "store.taxRateBps" }, select: { value: true } });
       const taxRateBps = typeof taxSetting?.value === "number" && Number.isSafeInteger(taxSetting.value) && taxSetting.value >= 0 && taxSetting.value <= 10000 ? taxSetting.value : 0;
       let discountMinor = 0;
       let discountApproval: { id: string; managerId: string; reason: string } | null = null;

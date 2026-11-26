@@ -24,6 +24,20 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
   const purchaseLineId = `it-po-line-${suffix}`;
 
   try {
+    const branchA = await prisma.branch.findUniqueOrThrow({ where: { code: "MAIN" } });
+    const branchB = await prisma.branch.create({ data: { name: `Settings isolation ${suffix}`, code: `SI${suffix.slice(0, 8).toUpperCase()}`, currency: "EUR", timezone: "Europe/Berlin" } });
+    await prisma.branchSetting.createMany({ data: [
+      { branchId: branchA.id, key: `integration-${suffix}`, value: 700 },
+      { branchId: branchB.id, key: `integration-${suffix}`, value: 1900 },
+    ] });
+    const [settingA, settingB] = await Promise.all([
+      prisma.branchSetting.findUniqueOrThrow({ where: { branchId_key: { branchId: branchA.id, key: `integration-${suffix}` } } }),
+      prisma.branchSetting.findUniqueOrThrow({ where: { branchId_key: { branchId: branchB.id, key: `integration-${suffix}` } } }),
+    ]);
+    assert.equal(settingA.value, 700);
+    assert.equal(settingB.value, 1900);
+    await prisma.branchSetting.deleteMany({ where: { branchId: { in: [branchA.id, branchB.id] }, key: `integration-${suffix}` } });
+    await prisma.branch.delete({ where: { id: branchB.id } });
     await prisma.user.create({ data: {
       branch: { connect: { code: "MAIN" } },
       id: userId, name: "Integration cashier", email: `${suffix}@integration.invalid`,

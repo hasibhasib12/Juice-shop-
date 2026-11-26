@@ -69,6 +69,7 @@ model Branch {
   suppliers Supplier[]
   purchaseOrders PurchaseOrder[]
   diningTables DiningTable[]
+  settings BranchSetting[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -293,6 +294,18 @@ model LoginAttempt {
   updatedAt       DateTime @updatedAt
 
   @@index([windowStartedAt])
+}
+
+model BranchSetting {
+  id        String   @id @default(cuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, key])
+  @@index([branchId])
 }
 
 model PosSetting {
