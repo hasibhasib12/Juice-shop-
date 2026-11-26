@@ -25,8 +25,12 @@ export async function GET(request: NextRequest) {
   const dateParam = request.nextUrl.searchParams.get("date");
   if (!["day", "week", "month"].includes(period)) return NextResponse.json({ error: "Period must be day, week or month." }, { status: 400 });
   if (dateParam && !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
-  const timezoneRow = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
-  const timezone = typeof timezoneRow?.value === "string" ? timezoneRow.value : "Asia/Kabul";
+  const [timezoneRow, assignedBranch] = await Promise.all([
+    prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
+    branchId ? prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true } }) : Promise.resolve(null),
+  ]);
+  // Staff reports follow their assigned branch clock. Owner-wide reports retain the store-wide timezone.
+  const timezone = assignedBranch?.timezone || (typeof timezoneRow?.value === "string" ? timezoneRow.value : "Asia/Kabul");
   const currentParts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const part = (type: string) => currentParts.find((item) => item.type === type)?.value || "";
   const selected = dateParam || `${part("year")}-${part("month")}-${part("day")}`;
