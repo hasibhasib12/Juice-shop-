@@ -322,7 +322,9 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       where: { entityId: createdCashierShiftId, action: "SHIFT_OPENED", userId: cashierId },
       select: { details: true },
     });
-    assert.equal((shiftOpenedEvent.details as { currency?: string } | null)?.currency, settingsJson.settings.currency);
+    const mainBranchCurrency = await prisma.branch.findUniqueOrThrow({ where: { code: "MAIN" }, select: { currency: true } });
+    assert.equal((shiftOpenedEvent.details as { currency?: string } | null)?.currency, mainBranchCurrency.currency,
+      "cash shift currency must come from the assigned branch, not global store settings");
     const competingCashOuts = await Promise.all([
       cashierRequest("/api/shifts/movements", { type: "PAID_OUT", amountMinor: 80, reason: "Concurrent drawer payout A" }),
       cashierRequest("/api/shifts/movements", { type: "PAID_OUT", amountMinor: 80, reason: "Concurrent drawer payout B" }),
