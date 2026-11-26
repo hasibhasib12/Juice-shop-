@@ -178,12 +178,23 @@ test("POS catalogue API: persisted MANAGE_CATALOG permission gates product and c
     const createdCategory = await grantedCreateCategory.json() as { category: { id: string } };
     createdCategoryId = createdCategory.category.id;
 
+    const mismatchedCurrencyCreate = await request("/api/admin/products", "POST", {
+      name: `Wrong Currency Product ${suffix}`, categoryId: createdCategoryId, priceMinor: 250, currency: "USD",
+    });
+    await expectStatus(mismatchedCurrencyCreate, 409);
+    assert.match((await mismatchedCurrencyCreate.json() as { error: string }).error, /currency must match/i);
+
     const grantedCreateProduct = await request("/api/admin/products", "POST", {
       name: `Granted Product ${suffix}`, categoryId: createdCategoryId, priceMinor: 250, currency: "AFN",
     });
     await expectStatus(grantedCreateProduct, 201);
     const createdProduct = await grantedCreateProduct.json() as { product: { id: string } };
     const grantedProductId = createdProduct.product.id;
+
+    const mismatchedCurrencyUpdate = await request(`/api/admin/products/${grantedProductId}`, "PATCH", { currency: "USD" });
+    await expectStatus(mismatchedCurrencyUpdate, 409);
+    assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: grantedProductId } })).currency, "AFN",
+      "currency mismatch must not mutate the existing product");
 
     const grantedUpdateProduct = await request(`/api/admin/products/${grantedProductId}`, "PATCH", { name: `Updated Product ${suffix}` });
     await expectStatus(grantedUpdateProduct, 200);

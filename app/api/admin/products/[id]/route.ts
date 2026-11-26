@@ -76,6 +76,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   }
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "No valid changes supplied." }, { status: 400 });
   try {
+    const branch = await prisma.branch.findUnique({ where: { id: access.user!.branchId }, select: { currency: true } });
+    if (!branch) return NextResponse.json({ error: "Your assigned branch could not be found." }, { status: 409 });
+    if (typeof data.currency === "string" && data.currency.toUpperCase() !== branch.currency.toUpperCase()) {
+      return NextResponse.json({ error: `Product currency must match this branch's currency (${branch.currency}).` }, { status: 409 });
+    }
     const product = await prisma.$transaction(async (tx) => {
       const updated = await tx.product.update({ where: { id, branchId: access.user!.branchId }, data, include: { category: { select: { id: true, name: true } } } });
       await tx.auditEvent.create({ data: { userId: access.user!.id, action: "PRODUCT_UPDATED", entityType: "Product", entityId: id, details: data as object } });
