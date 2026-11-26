@@ -231,9 +231,17 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
 
     const request = (path: string, body: unknown) => fetch(`${baseUrl}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json", cookie, origin, "sec-fetch-site": "same-origin" },
+      headers: { "content-type": "application/json", cookie },
       body: JSON.stringify(body),
     });
+
+    const crossOriginInvoiceMutation = await fetch(`${baseUrl}/api/admin/supplier-invoices`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie, origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+      body: JSON.stringify({ action: "invoice" }),
+    });
+    await expectStatus(crossOriginInvoiceMutation, 403);
+    assert.match(await crossOriginInvoiceMutation.clone().text(), /Cross-origin request rejected/);
 
     const invoiceRequests = await Promise.all([
       request("/api/admin/supplier-invoices", {
