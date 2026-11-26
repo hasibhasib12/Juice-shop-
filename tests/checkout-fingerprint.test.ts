@@ -85,3 +85,17 @@ test("checkout fingerprint binds a saved draft when converting it into a sale", 
   assert.notEqual(draftCheckout, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice", draftId: "draft-2" }));
   assert.equal(draftCheckout, checkoutFingerprint(items, cash, 1300, undefined, { customerName: "Walk-in", notes: "No ice", draftId: "draft-1" }));
 });
+
+
+test("checkout fingerprint canonicalizes same-method tender ordering", () => {
+  const items = [{ productId: "juice-a", quantity: 1 }];
+  const first = checkoutFingerprint(items, [
+    { method: "CASH", amountMinor: 400 },
+    { method: "CASH", amountMinor: 600 },
+  ], 1000, undefined);
+  const reversed = checkoutFingerprint(items, [
+    { method: "CASH", amountMinor: 600 },
+    { method: "CASH", amountMinor: 400 },
+  ], 1000, undefined);
+  assert.equal(first, reversed);
+});
