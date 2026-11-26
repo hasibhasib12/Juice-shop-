@@ -152,7 +152,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
       ["/api/admin/supplier-invoices", "POST"],
     ] as const) {
       const deniedMutation = await fetch(`${baseUrl}${path}`, {
-        method, headers: { "content-type": "application/json", cookie: cashierCookie },
+        method, headers: { "content-type": "application/json", cookie: cashierCookie, origin, "sec-fetch-site": "same-origin" },
         body: JSON.stringify({}),
       });
       await expectStatus(deniedMutation, 403);
@@ -231,7 +231,7 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
 
     const request = (path: string, body: unknown) => fetch(`${baseUrl}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json", cookie },
+      headers: { "content-type": "application/json", cookie, origin, "sec-fetch-site": "same-origin" },
       body: JSON.stringify(body),
     });
 
