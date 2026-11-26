@@ -16,5 +16,5 @@ SELECT 'branch-setting-' || md5(b."id" || ':' || s."key"), b."id",
        replace(s."key", 'store.', ''), s."value", CURRENT_TIMESTAMP
 FROM "Branch" b
 CROSS JOIN "PosSetting" s
-WHERE s."key" IN ('store.taxRateBps', 'store.maxDiscountPercentBps')
+WHERE s."key" IN ('store.taxRateBps', 'store.taxLabel', 'store.maxDiscountPercentBps')
 ON CONFLICT ("branchId", "key") DO NOTHING;

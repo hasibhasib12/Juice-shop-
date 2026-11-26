@@ -42,13 +42,14 @@ export async function GET(request: NextRequest) {
       select: { key: true, value: true },
     });
     const stored = new Map(rows.map((row) => [row.key, row.value]));
-    const branchRows = branchId ? await prisma.branchSetting.findMany({ where: { branchId, key: { in: ["taxRateBps", "maxDiscountPercentBps"] } }, select: { key: true, value: true } }) : [];
+    const branchRows = branchId ? await prisma.branchSetting.findMany({ where: { branchId, key: { in: ["taxRateBps", "taxLabel", "maxDiscountPercentBps"] } }, select: { key: true, value: true } }) : [];
     const branchStored = new Map(branchRows.map((row) => [row.key, row.value]));
     const settings = Object.fromEntries(
       Object.entries(settingKeys).map(([field, key]) => [
         field,
         field === "taxRateBps" && branchStored.has("taxRateBps") ? branchStored.get("taxRateBps") :
         field === "maxDiscountPercentBps" && branchStored.has("maxDiscountPercentBps") ? branchStored.get("maxDiscountPercentBps") :
+        field === "taxLabel" && branchStored.has("taxLabel") ? branchStored.get("taxLabel") :
         stored.has(key) ? stored.get(key) : defaults[field as keyof typeof defaults],
       ]),
     );
@@ -127,7 +128,7 @@ export async function PUT(request: NextRequest) {
       }
       for (const [field, value] of Object.entries(settings)) {
         if (typeof value !== "string" && typeof value !== "number") continue;
-        if (field === "taxRateBps" || field === "maxDiscountPercentBps") {
+        if (field === "taxRateBps" || field === "taxLabel" || field === "maxDiscountPercentBps") {
           await tx.branchSetting.upsert({
             where: { branchId_key: { branchId: targetBranchId, key: field } },
             update: { value },
