@@ -254,30 +254,6 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const invoiceJson = await invoiceResponse.json() as { invoice: { id: string; totalMinor: number } };
     assert.equal(invoiceJson.invoice.totalMinor, 1000);
     const invoiceId = invoiceJson.invoice.id;
-    const foreignInvoiceRead = await fetch(`${baseUrl}/api/admin/supplier-invoices`, { headers: { cookie: otherBranchCookie } });
-    await expectStatus(foreignInvoiceRead, 200);
-    const foreignInvoiceReadJson = await foreignInvoiceRead.json() as { invoices: { id: string }[]; orders: { id: string }[] };
-    assert.equal(foreignInvoiceReadJson.invoices.some((item) => item.id === invoiceId), false,
-      "supplier invoice list must be restricted to the assigned branch");
-    assert.equal(foreignInvoiceReadJson.orders.some((item) => item.id === purchaseOrderId), false,
-      "invoice purchase-order list must be restricted to the assigned branch");
-    const foreignInvoicePayment = await fetch(`${baseUrl}/api/admin/supplier-invoices`, {
-      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
-      body: JSON.stringify({ action: "payment", invoiceId, amountMinor: 100, method: "CASH" }),
-    });
-    await expectStatus(foreignInvoicePayment, 404);
-    const foreignReceipt = await fetch(`${baseUrl}/api/orders/${orderId}/receipt/pdf`, { headers: { cookie: otherBranchCookie } });
-    await expectStatus(foreignReceipt, 404);
-    const foreignTables = await fetch(`${baseUrl}/api/tables`, { headers: { cookie: otherBranchCookie } });
-    await expectStatus(foreignTables, 200);
-    const foreignTablesJson = await foreignTables.json() as { tables: { id: string }[] };
-    assert.equal(foreignTablesJson.tables.some((item) => item.id === createdTableId), false,
-      "dining table list must be restricted to the assigned branch");
-    const foreignTableTransfer = await fetch(`${baseUrl}/api/table-orders`, {
-      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
-      body: JSON.stringify({ orderId, tableId: createdTableId }),
-    });
-    await expectStatus(foreignTableTransfer, 403);
     const concurrentSupplierPayments = await Promise.all([
       request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-a" }),
       request("/api/admin/supplier-invoices", { action: "payment", invoiceId, amountMinor: 600, method: "BANK_TRANSFER", reference: "integration-race-b" }),
@@ -511,6 +487,31 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     await expectStatus(crossBranchVariantRecipe, 400);
     assert.equal(await prisma.productVariant.count({ where: { productId: otherBranchProductId } }), 0,
       "variant recipes must not attach another branch's ingredients");
+
+    const foreignInvoiceRead = await fetch(`${baseUrl}/api/admin/supplier-invoices`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignInvoiceRead, 200);
+    const foreignInvoiceReadJson = await foreignInvoiceRead.json() as { invoices: { id: string }[]; orders: { id: string }[] };
+    assert.equal(foreignInvoiceReadJson.invoices.some((item) => item.id === invoiceId), false,
+      "supplier invoice list must be restricted to the assigned branch");
+    assert.equal(foreignInvoiceReadJson.orders.some((item) => item.id === purchaseOrderId), false,
+      "invoice purchase-order list must be restricted to the assigned branch");
+    const foreignInvoicePayment = await fetch(`${baseUrl}/api/admin/supplier-invoices`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ action: "payment", invoiceId, amountMinor: 100, method: "CASH" }),
+    });
+    await expectStatus(foreignInvoicePayment, 404);
+    const foreignReceipt = await fetch(`${baseUrl}/api/orders/${orderId}/receipt/pdf`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignReceipt, 404);
+    const foreignTables = await fetch(`${baseUrl}/api/tables`, { headers: { cookie: otherBranchCookie } });
+    await expectStatus(foreignTables, 200);
+    const foreignTablesJson = await foreignTables.json() as { tables: { id: string }[] };
+    assert.equal(foreignTablesJson.tables.some((item) => item.id === createdTableId), false,
+      "dining table list must be restricted to the assigned branch");
+    const foreignTableTransfer = await fetch(`${baseUrl}/api/table-orders`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: otherBranchCookie },
+      body: JSON.stringify({ orderId, tableId: createdTableId }),
+    });
+    await expectStatus(foreignTableTransfer, 403);
 
     const foreignInventory = await fetch(`${baseUrl}/api/admin/inventory`, { headers: { cookie: otherBranchCookie } });
     await expectStatus(foreignInventory, 200);
