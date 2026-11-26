@@ -548,6 +548,24 @@ test("POS HTTP API integration: login, checkout, refund and item return", { skip
     const foreignShiftPdfText = Buffer.from(await foreignShiftPdf.arrayBuffer()).toString("ascii");
     assert.equal(foreignShiftPdfText.includes(`${suffix}@api-integration.invalid`), false,
       "shift PDF must not disclose cashiers from another branch");
+
+    await prisma.user.update({ where: { id: cashierId }, data: { branchId: null, permissionOverrides: { VIEW_REPORTS: true } } });
+    try {
+      for (const reportPath of [
+        "/api/reports?period=day",
+        "/api/reports/pdf?period=day",
+        "/api/reports/staff",
+        "/api/reports/staff/pdf",
+        "/api/reports/shifts",
+        "/api/reports/shifts/pdf",
+        "/api/reports/stock-valuation",
+      ]) {
+        const unassignedReport = await fetch(`${baseUrl}${reportPath}`, { headers: { cookie: cashierCookie } });
+        await expectStatus(unassignedReport, 403);
+      }
+    } finally {
+      await prisma.user.update({ where: { id: cashierId }, data: { branchId: "main-branch", permissionOverrides: {} } });
+    }
     const crossBranchVariantRecipe = await fetch(`${baseUrl}/api/admin/products/${otherBranchProductId}/options`, {
       method: "PUT", headers: { "content-type": "application/json", cookie: otherBranchCookie },
       body: JSON.stringify({ variants: [{ name: "Unsafe cross-branch recipe", priceMinor: 1300, recipeItems: [{ ingredientId, quantity: 10 }] }], modifierGroups: [] }),
