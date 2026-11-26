@@ -20,8 +20,15 @@ export async function GET(request: NextRequest) {
   if (!hasPermission(user.role, permission?.permissionOverrides, "VIEW_REPORTS")) return NextResponse.json({ error: "Report access required." }, { status: 403 });
   const date = request.nextUrl.searchParams.get("date");
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Invalid report date." }, { status: 400 });
-  const setting = await prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } });
-  const timezone = typeof setting?.value === "string" ? setting.value : "Asia/Kabul";
+  const isOwner = user.role === "OWNER";
+  if (!isOwner && !user.branchId) return NextResponse.json({ error: "Branch assignment required." }, { status: 403 });
+  const branchId = isOwner ? undefined : user.branchId!;
+  const [setting, assignedBranch] = await Promise.all([
+    prisma.posSetting.findUnique({ where: { key: "store.timezone" }, select: { value: true } }),
+    branchId ? prisma.branch.findUnique({ where: { id: branchId }, select: { timezone: true } }) : Promise.resolve(null),
+  ]);
+  // Non-owner exports use the assigned branch's timezone and cannot include other branches.
+  const timezone = assignedBranch?.timezone || (typeof setting?.value === "string" ? setting.value : "Asia/Kabul");
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const get = (key: string) => parts.find(p => p.type === key)?.value || "";
   const selected = date || get("year") + "-" + get("month") + "-" + get("day");
@@ -31,7 +38,7 @@ export async function GET(request: NextRequest) {
   const start = localMidnightUtc(year, month - 1, day, timezone);
   const next = new Date(Date.UTC(year, month - 1, day + 1));
   const end = localMidnightUtc(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timezone);
-  const shifts = await prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end } }, include: {
+  const shifts = await prisma.shift.findMany({ where: { openedAt: { gte: start, lt: end }, ...(branchId ? { branchId } : {}) }, include: {
     user: { select: { name: true, email: true } },
     orders: { where: { status: { in: ["COMPLETED", "REFUNDED", "VOIDED"] } }, include: { payments: { where: { method: "CASH", status: { in: ["COMPLETED", "REFUNDED"] } }, select: { amountMinor: true } } } },
     cashMovements: { select: { type: true, amountMinor: true } },
