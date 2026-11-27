@@ -42,6 +42,7 @@ export default function Home() {
   const [catalogSource, setCatalogSource] = useState<"loading" | "database" | "unavailable">("loading");
   const [storeInfo, setStoreInfo] = useState({ countryName: "Afghanistan", timezone: "Asia/Kabul", currency: "AFN", taxRateBps: 0, taxLabel: "Tax" });
   const [staff, setStaff] = useState<{ id: string; name: string; email: string; role: string; branchId?: string; branch?: { id: string; name: string; code: string } } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -69,6 +70,7 @@ export default function Home() {
       const data = await response.json();
       if (!active) return;
       setStaff(data.user ?? null);
+      setAuthLoading(false);
       if (!data.user) return;
       try {
         const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
@@ -78,7 +80,7 @@ export default function Home() {
       } catch {
         if (active) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
       }
-    }).catch(() => { if (active) setStaff(null); });
+    }).catch(() => { if (active) { setStaff(null); setAuthLoading(false); } });
     return () => { active = false; };
   }, []);
 
@@ -160,6 +162,7 @@ export default function Home() {
   }, [configProduct, discountOpen, draftsOpen, loginOpen, notesOpen]);
 
   useEffect(() => {
+    if (authLoading || !staff) return;
     let active = true;
     fetch("/api/settings", { cache: "no-store" })
       .then((response) => response.json())
@@ -216,7 +219,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authLoading, staff]);
 
   const visibleProducts = useMemo(
     () =>
@@ -330,7 +333,10 @@ export default function Home() {
       }
       const name = staff?.name ?? "there";
       setStaff(null);
+      setLoginEmail("");
+      setLoginPassword("");
       setNotice(`Goodbye, ${name}! You have signed out.`);
+      window.location.replace("/");
     } catch {
       setNotice("Sign-out failed. Please check your connection and try again.");
     }
@@ -512,6 +518,32 @@ export default function Home() {
 
   function action(label: string) {
     setNotice(`${label} is not connected yet.`);
+  }
+
+  if (authLoading) {
+    return <main className="anar-auth-screen" aria-busy="true"><section className="anar-auth-card"><img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/><div className="anar-auth-loading"><span className="anar-auth-spinner"/>Checking secure session…</div></section></main>;
+  }
+
+  if (!staff) {
+    return (
+      <main className="anar-auth-screen">
+        <section className="anar-auth-card" aria-labelledby="anar-login-title">
+          <img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/>
+          <div className="anar-auth-eyebrow">STAFF ACCESS</div>
+          <h1 id="anar-login-title">Welcome back</h1>
+          <p className="anar-auth-description">Sign in with your staff account to open the point of sale.</p>
+          <form className="anar-login-form" onSubmit={signIn}>
+            <label htmlFor="anar-login-email">Email address</label>
+            <input id="anar-login-email" type="email" autoComplete="username" required maxLength={254} value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} placeholder="you@anar.co"/>
+            <label htmlFor="anar-login-password">Password</label>
+            <input id="anar-login-password" type="password" autoComplete="current-password" required maxLength={256} value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} placeholder="Enter your password"/>
+            {notice && <div className="anar-login-notice" role="alert">{notice}</div>}
+            <button type="submit" disabled={loginBusy}>{loginBusy ? "Signing in…" : "Sign in"}</button>
+          </form>
+          <div className="anar-auth-footer">ANAR & CO. · Staff point of sale</div>
+        </section>
+      </main>
+    );
   }
 
   return (
