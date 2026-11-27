@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest) {
       data: { kitchenStatus: input.status as "PREPARING" | "READY" | "SERVED" },
     });
     if (!updated.count) return NextResponse.json({ error: "This order changed on another screen. Refresh and try again." }, { status: 409 });
-    await prisma.auditEvent.create({ data: { userId: user.id, action: "KITCHEN_STATUS_UPDATED", entityType: "Order", entityId: order.id, details: { from: order.kitchenStatus, to: input.status } } });
+    await prisma.auditEvent.create({ data: { userId: user.id, action: "KITCHEN_STATUS_UPDATED", entityType: "Order", entityId: order.id, details: { from: order.kitchenStatus, to: String(input.status) } } });
     return NextResponse.json({ ok: true, status: input.status });
   } catch {
     return NextResponse.json({ error: "Kitchen status could not be updated." }, { status: 503 });
