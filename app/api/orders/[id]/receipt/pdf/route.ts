@@ -44,6 +44,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       "Fresh - Healthy - Happy",
       "RECEIPT #" + order.orderNumber,
       "Status: " + order.status,
+      "Service: " + (order.orderType === "DINE_IN" ? "Eat here" : "Takeaway"),
       "Date: " + (order.completedAt?.toISOString() ?? order.createdAt.toISOString()),
       "Cashier: " + order.cashier.name,
       ...(order.customerName ? ["Customer: " + order.customerName] : []),
