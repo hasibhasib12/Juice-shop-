@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (!rate.allowed) return NextResponse.json({ error: "Too many staff changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   const { id } = await context.params;
-  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER"; approvalStatus?: "APPROVED" | "REJECTED" };
+  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER" | "KITCHEN"; approvalStatus?: "APPROVED" | "REJECTED" };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (body.active !== undefined && typeof body.active !== "boolean") {
     return NextResponse.json({ error: "Active must be true or false." }, { status: 400 });
   }
-  if (body.role !== undefined && !["OWNER", "MANAGER", "CASHIER"].includes(body.role)) {
+  if (body.role !== undefined && !["OWNER", "MANAGER", "CASHIER", "KITCHEN"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid staff role." }, { status: 400 });
   }
   if (body.approvalStatus !== undefined && !["APPROVED", "REJECTED"].includes(body.approvalStatus)) return NextResponse.json({ error: "Invalid approval decision." }, { status: 400 });
@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       if (!target) throw new Error("STAFF_NOT_FOUND");
       if (body.active === true && target.approvalStatus !== "APPROVED" && body.approvalStatus !== "APPROVED") throw new Error("STAFF_APPROVAL_REQUIRED");
       // Managers may only activate/deactivate cashier accounts, never manager or owner accounts.
-      if (actor.role === "MANAGER" && (target.role !== "CASHIER" || target.branchId !== actor.branchId)) {
+      if (actor.role === "MANAGER" && (!["CASHIER", "KITCHEN"].includes(target.role) || target.branchId !== actor.branchId)) {
         throw new Error("STAFF_FORBIDDEN");
       }
       const updated = await tx.user.update({
@@ -90,7 +90,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return NextResponse.json({ error: "The platform owner must approve this staff request before the account can be enabled." }, { status: 403 });
     }
     if (error instanceof Error && error.message === "STAFF_FORBIDDEN") {
-      return NextResponse.json({ error: "Managers may only update cashier accounts in their own branch." }, { status: 403 });
+      return NextResponse.json({ error: "Managers may only update cashier and kitchen accounts in their own branch." }, { status: 403 });
     }
     return NextResponse.json({ error: "Staff account could not be updated." }, { status: 503 });
   }
