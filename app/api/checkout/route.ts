@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const rate = await checkActionRateLimit("checkout", cashier.id, 60, 60);
   if (!rate.allowed) return NextResponse.json({ error: "Too many checkout requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string; orderType?: "TAKEAWAY" | "DINE_IN" };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string; orderType?: "TAKEAWAY" | "DINE_IN" | "DELIVERY"; customerPhone?: string; deliveryAddress?: string; deliveryFeeMinor?: number };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -37,8 +37,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  if (body.orderType !== undefined && body.orderType !== "TAKEAWAY" && body.orderType !== "DINE_IN") return NextResponse.json({ error: "Choose takeaway or eat here." }, { status: 400 });
+  if (body.orderType !== undefined && body.orderType !== "TAKEAWAY" && body.orderType !== "DINE_IN" && body.orderType !== "DELIVERY") return NextResponse.json({ error: "Choose takeaway, eat here or delivery." }, { status: 400 });
   if (body.customerName !== undefined && (typeof body.customerName !== "string" || body.customerName.trim().length > 120)) return NextResponse.json({ error: "Customer name must be 120 characters or fewer." }, { status: 400 });
+  if (body.customerPhone !== undefined && (typeof body.customerPhone !== "string" || body.customerPhone.trim().length > 40)) return NextResponse.json({ error: "Customer phone must be 40 characters or fewer." }, { status: 400 });
+  if (body.deliveryAddress !== undefined && (typeof body.deliveryAddress !== "string" || body.deliveryAddress.trim().length > 500)) return NextResponse.json({ error: "Delivery address must be 500 characters or fewer." }, { status: 400 });
+  if (body.deliveryFeeMinor !== undefined && (!Number.isSafeInteger(body.deliveryFeeMinor) || body.deliveryFeeMinor < 0 || body.deliveryFeeMinor > 100000000)) return NextResponse.json({ error: "Invalid delivery fee." }, { status: 400 });
+  if (body.orderType === "DELIVERY" && (!body.customerName?.trim() || !body.customerPhone?.trim() || !body.deliveryAddress?.trim())) return NextResponse.json({ error: "Delivery orders require the customer name, phone and delivery address." }, { status: 400 });
   if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 1000)) return NextResponse.json({ error: "Order notes must be 1,000 characters or fewer." }, { status: 400 });
   if (body.draftId !== undefined && (typeof body.draftId !== "string" || body.draftId.length > 64)) return NextResponse.json({ error: "Invalid draft ID." }, { status: 400 });
 
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
-  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId, { customerName: body.customerName, notes: body.notes, draftId: body.draftId, orderType: body.orderType ?? "TAKEAWAY" });
+  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId, { customerName: body.customerName, notes: body.notes, draftId: body.draftId, orderType: body.orderType ?? "TAKEAWAY", customerPhone: body.customerPhone, deliveryAddress: body.deliveryAddress, deliveryFeeMinor: body.deliveryFeeMinor });
 
   const quantities = new Map<string, number>();
   for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
@@ -183,6 +187,10 @@ export async function POST(request: NextRequest) {
         status: "COMPLETED" as const, cashierId: cashier.id, shiftId: activeShift.id,
         customerName: body.customerName?.trim() || null, notes: body.notes?.trim() || null,
         orderType: body.orderType ?? "TAKEAWAY",
+        customerPhone: body.orderType === "DELIVERY" ? body.customerPhone!.trim() : null,
+        deliveryAddress: body.orderType === "DELIVERY" ? body.deliveryAddress!.trim() : null,
+        deliveryFeeMinor: body.orderType === "DELIVERY" ? (body.deliveryFeeMinor ?? 0) : 0,
+        deliveryStatus: body.orderType === "DELIVERY" ? "PENDING" as const : null,
         subtotalMinor, discountMinor, taxMinor, totalMinor, currency,
         idempotencyKey: key, requestFingerprint, completedAt: new Date(),
       };
