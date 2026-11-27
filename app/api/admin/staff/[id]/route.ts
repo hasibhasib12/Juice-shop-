@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (body.active !== undefined && typeof body.active !== "boolean") {
     return NextResponse.json({ error: "Active must be true or false." }, { status: 400 });
   }
-  if (body.role !== undefined && !["OWNER", "MANAGER", "CASHIER", "KITCHEN"].includes(body.role)) {
+  if (body.role !== undefined && !["OWNER", "MANAGER", "CASHIER", "KITCHEN", "DRIVER"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid staff role." }, { status: 400 });
   }
   if (body.approvalStatus !== undefined && !["APPROVED", "REJECTED"].includes(body.approvalStatus)) return NextResponse.json({ error: "Invalid approval decision." }, { status: 400 });
@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       if (!target) throw new Error("STAFF_NOT_FOUND");
       if (body.active === true && target.approvalStatus !== "APPROVED" && body.approvalStatus !== "APPROVED") throw new Error("STAFF_APPROVAL_REQUIRED");
       // Managers may only activate/deactivate cashier accounts, never manager or owner accounts.
-      if (actor.role === "MANAGER" && (!["CASHIER", "KITCHEN"].includes(target.role) || target.branchId !== actor.branchId)) {
+      if (actor.role === "MANAGER" && (!["CASHIER", "KITCHEN", "DRIVER"].includes(target.role) || target.branchId !== actor.branchId)) {
         throw new Error("STAFF_FORBIDDEN");
       }
       const updated = await tx.user.update({
