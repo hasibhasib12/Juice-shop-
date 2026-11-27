@@ -23,7 +23,10 @@ export default function DispatchPage() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);\n  const [driverOnDuty, setDriverOnDuty] = useState(false);\n  const [tracking, setTracking] = useState(false);\n  const watchId = useRef<number | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [driverOnDuty, setDriverOnDuty] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const watchId = useRef<number | null>(null);
   const isManager = role === "OWNER" || role === "MANAGER";
 
   const load = useCallback(async () => {
@@ -31,7 +34,9 @@ export default function DispatchPage() {
       const response = await fetch("/api/dispatch/orders", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not load dispatch queue.");
-      setOrders(data.orders); setDrivers(data.drivers); setRole(data.currentRole); setBranch(data.branch); setUpdatedAt(new Date());\n      if (data.currentRole === "DRIVER") { setDriverOnDuty(Boolean(data.driverSelf?.driverOnDuty)); setTracking(Boolean(data.driverSelf?.driverOnDuty)); }\n      setNotice("");
+      setOrders(data.orders); setDrivers(data.drivers); setRole(data.currentRole); setBranch(data.branch); setUpdatedAt(new Date());
+      if (data.currentRole === "DRIVER") { setDriverOnDuty(Boolean(data.driverSelf?.driverOnDuty)); setTracking(Boolean(data.driverSelf?.driverOnDuty)); }
+      setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Dispatch is unavailable."); }
     finally { setLoading(false); }
   }, []);
