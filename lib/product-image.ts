@@ -11,6 +11,7 @@ export const MAX_PRODUCT_IMAGE_MULTIPART_OVERHEAD_BYTES = 64 * 1024;
 
 export function isImageUploadRequestSizeAllowed(contentLength: string | null, maxFileBytes: number): boolean {
   if (contentLength === null) return true;
+  if (!/^\\d+$/.test(contentLength)) return false;
   const parsed = Number(contentLength);
   return Number.isSafeInteger(parsed)
     && parsed >= 0

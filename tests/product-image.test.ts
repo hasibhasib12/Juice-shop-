@@ -16,6 +16,11 @@ test("allows image requests up to the file limit plus multipart overhead", () =>
 
 test("rejects malformed and negative image request lengths", () => {
   assert.equal(isProductImageRequestSizeAllowed("not-a-number"), false);
+  assert.equal(isProductImageRequestSizeAllowed(""), false);
+  assert.equal(isProductImageRequestSizeAllowed("   "), false);
+  assert.equal(isProductImageRequestSizeAllowed("1e3"), false);
+  assert.equal(isProductImageRequestSizeAllowed("+100"), false);
+  assert.equal(isProductImageRequestSizeAllowed("1.5"), false);
   assert.equal(isProductImageRequestSizeAllowed("-1"), false);
   assert.equal(isProductImageRequestSizeAllowed(null), true);
 });
