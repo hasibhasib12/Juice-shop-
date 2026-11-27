@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const rate = await checkActionRateLimit("checkout", cashier.id, 60, 60);
   if (!rate.allowed) return NextResponse.json({ error: "Too many checkout requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
-  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string };
+  let body: { items?: CheckoutItem[]; paymentMethod?: string; cashReceivedMinor?: number; paymentTenders?: PaymentTender[]; idempotencyKey?: string; discountApprovalId?: string; customerName?: string; notes?: string; draftId?: string; orderType?: "TAKEAWAY" | "DINE_IN" };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  if (body.orderType !== undefined && body.orderType !== "TAKEAWAY" && body.orderType !== "DINE_IN") return NextResponse.json({ error: "Choose takeaway or eat here." }, { status: 400 });
   if (body.customerName !== undefined && (typeof body.customerName !== "string" || body.customerName.trim().length > 120)) return NextResponse.json({ error: "Customer name must be 120 characters or fewer." }, { status: 400 });
   if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 1000)) return NextResponse.json({ error: "Order notes must be 1,000 characters or fewer." }, { status: 400 });
   if (body.draftId !== undefined && (typeof body.draftId !== "string" || body.draftId.length > 64)) return NextResponse.json({ error: "Invalid draft ID." }, { status: 400 });
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one or two valid payment tenders. Card payments require a configured provider." }, { status: 400 });
   }
 
-  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId, { customerName: body.customerName, notes: body.notes, draftId: body.draftId });
+  const requestFingerprint = checkoutFingerprint(items, tenders, body.cashReceivedMinor, body.discountApprovalId, { customerName: body.customerName, notes: body.notes, draftId: body.draftId, orderType: body.orderType ?? "TAKEAWAY" });
 
   const quantities = new Map<string, number>();
   for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
       const orderFields = {
         status: "COMPLETED" as const, cashierId: cashier.id, shiftId: activeShift.id,
         customerName: body.customerName?.trim() || null, notes: body.notes?.trim() || null,
+        orderType: body.orderType ?? "TAKEAWAY",
         subtotalMinor, discountMinor, taxMinor, totalMinor, currency,
         idempotencyKey: key, requestFingerprint, completedAt: new Date(),
       };
@@ -231,6 +233,7 @@ export async function POST(request: NextRequest) {
         lines: result.lines,
         payments: result.payments,
         completedAt: result.completedAt,
+        orderType: result.orderType,
       },
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
