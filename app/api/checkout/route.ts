@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   }
   const cashier = await getCurrentUser();
   if (!cashier) return NextResponse.json({ error: "Please sign in before taking payment." }, { status: 401 });
+  if (cashier.role === "DRIVER" || cashier.role === "KITCHEN") return NextResponse.json({ error: "This staff account cannot take POS payments." }, { status: 403 });
   const rate = await checkActionRateLimit("checkout", cashier.id, 60, 60);
   if (!rate.allowed) return NextResponse.json({ error: "Too many checkout requests. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
