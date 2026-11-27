@@ -23,6 +23,7 @@ export default function KitchenPortal() {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const soundEnabledRef = useRef(false);
   const previousOrderIds = useRef<Set<string> | null>(null);
+  const lastAlertAt = useRef<Map<string, number>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
   const playAlert = useCallback(() => {
     const context = audioContextRef.current;
@@ -61,7 +62,26 @@ export default function KitchenPortal() {
       const incoming = data.orders as KitchenOrder[];
       const ids = new Set(incoming.map((order) => order.id));
       const previous = previousOrderIds.current;
-      if (previous && [...ids].some((id) => !previous.has(id)) && soundEnabledRef.current) playAlert();
+      const now = Date.now();
+      if (soundEnabledRef.current) {
+        for (const order of incoming) {
+          if (order.kitchenStatus !== "QUEUED") {
+            lastAlertAt.current.delete(order.id);
+            continue;
+          }
+          const isNew = previous !== null && !previous.has(order.id);
+          const lastPlayed = lastAlertAt.current.get(order.id) ?? 0;
+          // Alert immediately for a new queued order, then repeat every 20 seconds
+          // until a team member starts preparing it.
+          if (isNew || now - lastPlayed >= 20000) {
+            playAlert();
+            lastAlertAt.current.set(order.id, now);
+          }
+        }
+      }
+      for (const id of lastAlertAt.current.keys()) {
+        if (!ids.has(id)) lastAlertAt.current.delete(id);
+      }
       previousOrderIds.current = ids;
       setOrders(incoming); setUpdatedAt(new Date()); setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Kitchen orders unavailable."); }
