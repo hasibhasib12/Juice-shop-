@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { checkoutFingerprint } from "@/lib/checkout-fingerprint";
 import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
@@ -281,6 +281,19 @@ export async function POST(request: NextRequest) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "Checkout conflicted with another update. Please retry." }, { status: 409 });
     }
-    return NextResponse.json({ error: "Checkout could not be completed." }, { status: 503 });
+    const reference = request.headers.get("x-vercel-id") || randomUUID();
+    const errorName = error instanceof Error ? error.name : "UnknownError";
+    const safeMessage = (error instanceof Error ? error.message : "Unknown checkout failure")
+      .replace(/postgres(?:ql)?:\/\/[^\s"'\x60]+/gi, "[redacted database URL]")
+      .slice(0, 500);
+    const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError
+      ? error.code
+      : error instanceof Prisma.PrismaClientInitializationError
+        ? error.errorCode ?? null
+        : null;
+    console.error("POS_CHECKOUT_FAILURE", { reference, errorName, prismaCode, message: safeMessage });
+    return NextResponse.json({
+      error: "Checkout could not be completed. Reference: " + reference,
+    }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }
