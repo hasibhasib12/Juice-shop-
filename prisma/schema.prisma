@@ -12,6 +12,7 @@ enum UserRole {
   MANAGER
   CASHIER
   KITCHEN
+  DRIVER
 }
 
 enum StaffApprovalStatus {
@@ -42,6 +43,16 @@ enum KitchenStatus {
 enum OrderType {
   TAKEAWAY
   DINE_IN
+  DELIVERY
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  FAILED
+  CANCELLED
 }
 
 enum PaymentMethod {
@@ -105,6 +116,7 @@ model User {
   sessionVersion Int        @default(0)
   permissionOverrides Json  @default("{}")
   orders       Order[]
+  driverOrders Order[] @relation("OrderDriver")
   shifts       Shift[]
   auditEvents  AuditEvent[]
   refundsProcessed Refund[]
@@ -202,6 +214,14 @@ model Order {
   tableId        String?
   table          DiningTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
   customerName   String?
+  customerPhone  String?
+  deliveryAddress String?
+  deliveryFeeMinor Int @default(0)
+  deliveryStatus DeliveryStatus?
+  driverId       String?
+  driver         User? @relation("OrderDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  dispatchedAt   DateTime?
+  deliveredAt    DateTime?
   notes          String?
   subtotalMinor  Int
   discountMinor  Int           @default(0)
@@ -219,6 +239,8 @@ model Order {
 
   @@index([status, createdAt])
   @@index([tableId, status])
+  @@index([driverId, deliveryStatus, createdAt])
+  @@index([deliveryStatus, createdAt])
 }
 
 model OrderLine {
