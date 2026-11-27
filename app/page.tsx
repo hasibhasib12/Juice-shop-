@@ -9,7 +9,7 @@ type ModifierGroup = { id: string; name: string; required: boolean; minSelection
 type Product = { id: string; name: string; sku?: string | null; category: string; priceMinor: number; currency: string; image: string; variants: ProductVariant[]; modifierGroups: ModifierGroup[] };
 type SelectedModifier = { optionId: string; groupName: string; name: string; priceDeltaMinor: number };
 type CartLine = { key: string; product: Product; quantity: number; variantId?: string; variantName?: string; modifierOptionIds: string[]; selectedModifiers: SelectedModifier[]; unitPriceMinor: number };
-type SavedDraft = { id: string; orderNumber: number; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
+type SavedDraft = { id: string; orderNumber: number; orderType?: "TAKEAWAY" | "DINE_IN"; customerName: string | null; notes: string | null; totalMinor: number; currency: string; lines: { productId: string; productName: string; quantity: number; variantName?: string | null; selectedModifiers?: { optionId?: string; groupName?: string; name?: string; priceDeltaMinor?: number }[] | null }[] };
 const PENDING_CHECKOUT_STORAGE_KEY = "juice-shop.pending-checkout.v1";
 
 const money = (amountMinor: number, currency = "AFN") =>
