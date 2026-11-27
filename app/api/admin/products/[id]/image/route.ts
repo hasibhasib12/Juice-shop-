@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
-import { detectProductImageType } from "@/lib/product-image";
+import { detectProductImageType, isProductImageRequestSizeAllowed, MAX_PRODUCT_IMAGE_BYTES } from "@/lib/product-image";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
@@ -28,13 +28,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
   const rate = await checkActionRateLimit("product-image-upload", actor.id, 20, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many image uploads. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  const contentLength = request.headers.get("content-length");
+  if (contentLength !== null) {
+    if (!isProductImageRequestSizeAllowed(contentLength)) {
+      return NextResponse.json({ error: "Image upload request is too large. Maximum image size is 5 MB." }, { status: 413 });
+    }
+  }
   const { id } = await context.params;
   const product = await prisma.product.findFirst({ where: { id, branchId: actor.branchId }, select: { id: true, name: true } });
   if (!product) return NextResponse.json({ error: "Product not found." }, { status: 404 });
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Choose an image file." }, { status: 400 }); }
   const file = form.get("image");
-  if (!(file instanceof File) || file.size < 1 || file.size > 5 * 1024 * 1024) return NextResponse.json({ error: "Choose an image between 1 byte and 5 MB." }, { status: 400 });
+  if (!(file instanceof File) || file.size < 1 || file.size > MAX_PRODUCT_IMAGE_BYTES) return NextResponse.json({ error: "Choose an image between 1 byte and 5 MB." }, { status: 400 });
   const bytes = Buffer.from(await file.arrayBuffer());
   const imageType = detectProductImageType(bytes);
   if (!imageType || file.type !== imageType.mime) return NextResponse.json({ error: "Only valid JPEG, PNG and WebP image files are accepted." }, { status: 400 });
