@@ -47,18 +47,10 @@ ALTER TABLE "DiningTable" ALTER COLUMN "branchId" SET DEFAULT 'main-branch';
 
 -- Older databases may have either a unique constraint or only a standalone
 -- index for the original global table-name uniqueness rule.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_constraint c
-    JOIN pg_class t ON t.oid = c.conrelid
-    WHERE t.relname = 'DiningTable'
-      AND c.conname = 'DiningTable_name_key'
-  ) THEN
-    ALTER TABLE "DiningTable" DROP CONSTRAINT "DiningTable_name_key";
-  END IF;
-END $$;
+-- The original uniqueness may be represented either as a table constraint
+-- (which owns its index) or as a standalone unique index, depending on the
+-- database's migration history. IF EXISTS makes both cases safe and retryable.
+ALTER TABLE "DiningTable" DROP CONSTRAINT IF EXISTS "DiningTable_name_key";
 DROP INDEX IF EXISTS "DiningTable_name_key";
 
 ALTER TABLE "DiningTable"
