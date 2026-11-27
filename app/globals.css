@@ -412,23 +412,26 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
   .tile-photo img { min-height: 0; }
 }
 
-/* Dedicated signed-out screen: never expose the POS menu before authentication. */
-.anar-auth-screen{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:36px 18px;background:radial-gradient(ellipse at 50% 0%,#70213a 0%,#3d0b1d 48%,#210711 100%);color:#f8f0e5}
-.anar-auth-card{width:min(100%,430px);padding:36px 38px 30px;border:1px solid rgba(255,239,211,.34);border-radius:26px;background:linear-gradient(145deg,rgba(255,255,255,.17),rgba(255,255,255,.055));backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);box-shadow:0 28px 90px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.2);display:flex;flex-direction:column;align-items:stretch}
-.anar-auth-logo{display:block;width:min(100%,460px);max-width:460px;height:150px;object-fit:contain;align-self:center;margin:0 auto 4px;border-radius:8px}
+
+/* ANAR & CO. dedicated login portal */
+.anar-auth-screen{min-height:100vh;min-height:100dvh;display:grid;place-items:center;overflow:auto;padding:48px 20px;background:radial-gradient(ellipse at 50% 5%,rgba(139,53,78,.55),transparent 42%),radial-gradient(ellipse at 12% 88%,rgba(184,130,69,.12),transparent 34%),linear-gradient(145deg,#210711,#3d0b1d 48%,#1c0710);color:#f8f0e5;position:relative;isolation:isolate}
+.anar-auth-shell{width:min(100%,460px);display:flex;flex-direction:column;align-items:center;gap:24px}
+.anar-auth-logo{display:block;width:100%;max-width:460px;height:150px;object-fit:contain;align-self:center;margin:0 auto 2px;border-radius:10px}
+.anar-auth-card{width:100%;padding:38px 38px 30px;border:1px solid rgba(245,220,180,.25);border-radius:26px;background:linear-gradient(145deg,rgba(255,245,235,.16),rgba(255,255,255,.055));box-shadow:0 28px 90px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.18);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);display:flex;flex-direction:column;align-items:stretch;position:relative}
+.anar-auth-card:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 42%)}
+.anar-auth-loading-card{min-height:100px;justify-content:center}
 .anar-auth-eyebrow{text-align:center;color:#e3bd78;font-size:10px;font-weight:800;letter-spacing:.24em;margin-bottom:12px}
 .anar-auth-card h1{margin:0;text-align:center;color:#fff8ee;font-family:Georgia,'Times New Roman',serif;font-size:34px;font-weight:500;letter-spacing:-.035em}
 .anar-auth-description{margin:12px 0 28px;text-align:center;color:#d8c3c8;font-size:13px;line-height:1.6}
 .anar-login-form{display:flex;flex-direction:column;gap:9px}
 .anar-login-form label{margin-top:7px;color:#f0dfe2;font-size:12px;font-weight:700}
-.anar-login-form input{width:100%;height:49px;padding:0 14px;border:1px solid rgba(230,204,176,.25);border-radius:11px;background:#fffaf5;color:#32101d;font-size:14px;outline:none}
+.anar-login-form input{width:100%;height:49px;padding:0 14px;border:1px solid rgba(230,204,176,.25);border-radius:11px;background:rgba(255,250,245,.96);color:#32101d;font-size:14px;outline:none}
 .anar-login-form input:focus{border-color:#dfb96f;box-shadow:0 0 0 3px rgba(223,185,111,.18)}
-.anar-login-form button{height:51px;margin-top:16px;border:1px solid #f0d18f;border-radius:11px;background:linear-gradient(135deg,#f2d99e,#d7ad62);color:#381020;font-size:14px;font-weight:800;cursor:pointer;transition:filter .15s ease,transform .15s ease}
-.anar-login-form button:hover:not(:disabled){filter:brightness(1.06);transform:translateY(-1px)}
+.anar-login-form button{height:51px;margin-top:16px;border:1px solid #f0d18f;border-radius:11px;background:linear-gradient(135deg,#f2d99e,#d7ad62);color:#381020;font-size:14px;font-weight:800;cursor:pointer}
 .anar-login-form button:disabled{opacity:.65;cursor:wait}
 .anar-login-notice{padding:11px 12px;border:1px solid rgba(248,166,150,.35);border-radius:10px;background:rgba(115,27,40,.55);color:#ffe3dc;font-size:12px;line-height:1.5;margin-top:8px}
 .anar-auth-footer{margin-top:28px;padding-top:18px;border-top:1px solid rgba(230,204,176,.15);text-align:center;color:#bda2aa;font-size:10px;letter-spacing:.08em}
 .anar-auth-loading{display:flex;align-items:center;justify-content:center;gap:10px;color:#e8d6d7;font-size:12px}
 .anar-auth-spinner{width:15px;height:15px;border:2px solid rgba(238,210,161,.25);border-top-color:#e8c16d;border-radius:50%;animation:anar-spin .8s linear infinite}
 @keyframes anar-spin{to{transform:rotate(360deg)}}
-@media(max-width:480px){.anar-auth-screen{gap:14px;padding:24px 16px}.anar-auth-card{padding:30px 24px 25px;border-radius:19px}.anar-auth-logo{height:118px;margin-bottom:0}.anar-auth-card h1{font-size:30px}}
+@media(max-width:480px){.anar-auth-screen{padding:28px 16px}.anar-auth-shell{gap:15px}.anar-auth-logo{height:118px}.anar-auth-card{padding:30px 24px 25px;border-radius:19px}.anar-auth-card h1{font-size:30px}}

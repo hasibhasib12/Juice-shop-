@@ -515,15 +515,16 @@ export default function Home() {
   }
 
   if (authLoading) {
-    return <main className="anar-auth-screen" aria-busy="true"><section className="anar-auth-card"><img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/><div className="anar-auth-loading"><span className="anar-auth-spinner"/>Checking secure session…</div></section></main>;
+    return <main className="anar-auth-screen" aria-busy="true"><div className="anar-auth-shell"><img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/><section className="anar-auth-card anar-auth-loading-card"><div className="anar-auth-loading"><span className="anar-auth-spinner"/>Checking secure session…</div></section></div></main>;
   }
 
   if (!staff) {
     return (
       <main className="anar-auth-screen">
-        <section className="anar-auth-card" aria-labelledby="anar-login-title">
+        <div className="anar-auth-shell">
           <img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/>
-          <div className="anar-auth-eyebrow">STAFF ACCESS</div>
+          <section className="anar-auth-card" aria-labelledby="anar-login-title">
+          <div className="anar-auth-eyebrow">SECURE STAFF PORTAL</div>
           <h1 id="anar-login-title">Welcome back</h1>
           <p className="anar-auth-description">Sign in with your staff account to open the point of sale.</p>
           <form className="anar-login-form" onSubmit={signIn}>
@@ -535,7 +536,8 @@ export default function Home() {
             <button type="submit" disabled={loginBusy}>{loginBusy ? "Signing in…" : "Sign in"}</button>
           </form>
           <div className="anar-auth-footer">ANAR & CO. · Staff point of sale</div>
-        </section>
+          </section>
+        </div>
       </main>
     );
   }
