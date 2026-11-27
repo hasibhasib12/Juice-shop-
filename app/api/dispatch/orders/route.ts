@@ -34,9 +34,19 @@ export async function GET() {
     const drivers = user.role === "DRIVER" ? [] : await prisma.user.findMany({
       where: { branchId: user.branchId, role: "DRIVER", active: true, approvalStatus: "APPROVED" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, phone: true },
+      select: {
+        id: true, name: true, phone: true, driverOnDuty: true,
+        driverLocation: { select: { latitude: true, longitude: true, accuracyMeters: true, capturedAt: true, updatedAt: true } },
+      },
     });
-    return NextResponse.json({ orders, drivers, currentRole: user.role, branch: user.branch }, { headers: { "Cache-Control": "no-store" } });
+    const driverSelf = user.role === "DRIVER" ? await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        driverOnDuty: true,
+        driverLocation: { select: { latitude: true, longitude: true, accuracyMeters: true, capturedAt: true, updatedAt: true } },
+      },
+    }) : null;
+    return NextResponse.json({ orders, drivers, driverSelf, currentRole: user.role, branch: user.branch }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Dispatch data is temporarily unavailable." }, { status: 503 });
   }
