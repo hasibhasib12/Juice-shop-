@@ -29,15 +29,15 @@ export async function POST(request: NextRequest) {
   let parsed: unknown;
   try { parsed = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  const body = parsed as { name?: string; email?: string; password?: string; role?: "MANAGER" | "CASHIER" | "KITCHEN"; branchId?: string; phone?: string; photoUrl?: string; employeeCode?: string };
+  const body = parsed as { name?: string; email?: string; password?: string; role?: "MANAGER" | "CASHIER" | "KITCHEN" | "DRIVER"; branchId?: string; phone?: string; photoUrl?: string; employeeCode?: string };
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!name || name.length > 80 || !email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof body.password !== "string" || body.password.length < 12 || body.password.length > 200) {
     return NextResponse.json({ error: "Provide a name, valid email and password of at least 12 characters." }, { status: 400 });
   }
-  if (body.role !== undefined && body.role !== "MANAGER" && body.role !== "CASHIER" && body.role !== "KITCHEN") return NextResponse.json({ error: "Choose a valid staff role." }, { status: 400 });
+  if (body.role !== undefined && body.role !== "MANAGER" && body.role !== "CASHIER" && body.role !== "KITCHEN" && body.role !== "DRIVER") return NextResponse.json({ error: "Choose a valid staff role." }, { status: 400 });
   if (body.role === "MANAGER" && actor.role !== "OWNER") return NextResponse.json({ error: "Only the owner can create manager accounts." }, { status: 403 });
-  const role = body.role === "MANAGER" ? "MANAGER" : body.role === "KITCHEN" ? "KITCHEN" : "CASHIER";
+  const role = body.role === "MANAGER" ? "MANAGER" : body.role === "KITCHEN" ? "KITCHEN" : body.role === "DRIVER" ? "DRIVER" : "CASHIER";
   const branchId = typeof body.branchId === "string" ? body.branchId : "";
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
   const employeeCode = typeof body.employeeCode === "string" ? body.employeeCode.trim().toUpperCase() : "";
