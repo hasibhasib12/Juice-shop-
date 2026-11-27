@@ -515,14 +515,14 @@ export default function Home() {
   }
 
   if (authLoading) {
-    return <main className="anar-auth-screen" aria-busy="true"><div className="anar-auth-shell"><img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/><section className="anar-auth-card anar-auth-loading-card"><div className="anar-auth-loading"><span className="anar-auth-spinner"/>Checking secure session…</div></section></div></main>;
+    return <main className="anar-auth-screen" aria-busy="true"><div className="anar-auth-shell"><img className="anar-auth-logo" src="/1572434B-4E2C-4244-8EC4-E36B59E7E9D7.png" alt="ANAR & CO."/><section className="anar-auth-card anar-auth-loading-card"><div className="anar-auth-loading"><span className="anar-auth-spinner"/>Checking secure session…</div></section></div></main>;
   }
 
   if (!staff) {
     return (
       <main className="anar-auth-screen">
         <div className="anar-auth-shell">
-          <img className="anar-auth-logo" src="/juice-shop-logo.svg" alt="ANAR & CO."/>
+          <img className="anar-auth-logo" src="/1572434B-4E2C-4244-8EC4-E36B59E7E9D7.png" alt="ANAR & CO."/>
           <section className="anar-auth-card" aria-labelledby="anar-login-title">
           <div className="anar-auth-eyebrow">SECURE STAFF PORTAL</div>
           <h1 id="anar-login-title">Welcome back</h1>
@@ -546,7 +546,7 @@ export default function Home() {
     <main className="pos-screen">
       <header className="pos-header">
         <a className="brand-lockup" href="#" aria-label="ANAR & CO. home">
-          <img src="/juice-shop-logo.svg" alt="ANAR & CO." />
+          <img src="/1572434B-4E2C-4244-8EC4-E36B59E7E9D7.png" alt="ANAR & CO." />
           <span>Fresh · Healthy · Happy</span>
         </a>
         <label className="top-search">
