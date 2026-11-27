@@ -71,7 +71,7 @@ export default function Storefront() {
       <div className="store-topline"><span>FRESHLY MADE · ALWAYS DELICIOUS</span><span>Made fresh. Served with love.</span></div>
       <header className="store-header">
         <a className="store-brand" href="/shop" aria-label="ANAR & CO. home">
-          <img src="/juice-shop-logo.svg" alt="ANAR & CO." />
+          <img src="/ANAR-CO-logo-transparent-high-resolution.png" alt="ANAR & CO." />
         </a>
         <nav className="store-nav" aria-label="Main navigation">
           <a href="#menu">Our menu</a><a href="#story">Our promise</a><a href="#footer">Contact</a>
@@ -138,7 +138,7 @@ export default function Storefront() {
         <a href="#menu">Find your fresh favourite <span>↗</span></a>
       </section>
       <footer className="store-footer" id="footer">
-        <div className="store-footer-brand"><img src="/juice-shop-logo.svg" alt="ANAR & CO." /></div>
+        <div className="store-footer-brand"><img src="/ANAR-CO-logo-transparent-high-resolution.png" alt="ANAR & CO." /></div>
         <p>Good things are better when shared.</p><span>© {new Date().getFullYear()} ANAR & CO.</span>
       </footer>
 
