@@ -345,3 +345,69 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .store-cart-backdrop{display:block;padding:0}.store-cart-drawer{position:absolute;right:0;top:0;bottom:0;width:min(440px,100%);padding:28px;background:#fffaf4;display:flex;flex-direction:column;box-shadow:-20px 0 70px #0003}.store-cart-heading{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid #eadcdd}.store-cart-heading h2{margin:7px 0 0;color:#45172b;font-size:25px;letter-spacing:-.05em}.store-cart-heading h2 small{font-size:13px;color:#a34a66}.store-cart-heading>button{width:36px;height:36px;border:1px solid #e5d4d9;border-radius:50%;background:transparent;color:#641b37;font-size:24px}.store-cart-lines{flex:1;overflow:auto}.store-cart-line{display:flex;gap:13px;padding:17px 0;border-bottom:1px solid #eadcdd}.store-cart-thumb{width:76px;height:76px;flex:0 0 76px;border-radius:8px;background:#f1dfe4;overflow:hidden;display:grid;place-items:center;color:#a34a66;font-size:25px}.store-cart-thumb img{width:100%;height:100%;object-fit:cover}.store-cart-line-info{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:5px}.store-cart-line-info>b{font-size:12px;color:#45172b}.store-cart-line-info>small{font-size:9px;color:#907780}.store-cart-line-info>strong{font-size:11px;color:#641b37}.store-qty{display:flex;align-items:center;gap:11px;margin-top:4px}.store-qty button{width:24px;height:24px;border:1px solid #e1cbd3;border-radius:50%;background:#fff;color:#641b37}.store-qty span{font-size:10px;font-weight:900}.store-cart-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#907780;text-align:center}.store-cart-empty span{font-size:40px;color:#a34a66}.store-cart-empty b{font-size:12px;color:#45172b}.store-cart-empty small{font-size:10px}.store-cart-total{display:flex;justify-content:space-between;padding:18px 0;border-top:1px solid #eadcdd;color:#6d4b58;font-size:12px}.store-cart-total b{color:#641b37;font-size:15px}.store-cart-hint{font-size:9px;line-height:1.6;color:#9a838b}.store-continue{height:46px;border:0;border-radius:24px;background:#641b37;color:#fff;font-size:11px;font-weight:900}
 @media(max-width:760px){.store-nav{gap:16px}.store-hero{padding:55px 25px 58px;grid-template-columns:1fr;min-height:0}.store-hero-art{height:310px;margin-top:15px}.store-art-circle{width:260px}.store-art-orbit{width:310px;height:230px}.store-art-glass{transform:scale(.82) rotate(-8deg)}.store-hero h1{font-size:68px}.store-benefits{padding:22px 15px;gap:8px}.store-benefits>div{gap:7px}.store-benefits>div>span{font-size:20px}.store-benefits small{font-size:8px}.store-menu-section{padding:60px 22px}.store-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px 14px}.store-product-image{height:190px}.store-section-heading h2{font-size:42px}.store-section-heading>p{max-width:180px;font-size:9px}.store-menu-tools{align-items:flex-start;flex-direction:column}.store-search{width:100%}.store-callout{padding:48px 24px;gap:22px}.store-callout>a{white-space:nowrap;font-size:9px;padding:12px}.store-footer{flex-wrap:wrap;gap:15px}.store-footer>p{order:3;width:100%;margin:0}.store-product-modal{max-width:420px;grid-template-columns:1fr}.store-modal-image{height:210px;min-height:0}.store-modal-content{padding:24px}.store-modal-add{margin-top:20px}}
 @media(max-width:480px){.store-topline{font-size:7px;letter-spacing:.1em}.store-topline span:last-child{display:none}.store-header{height:76px;padding:0 14px}.store-brand{width:110px}.store-brand img{width:108px;height:47px}.store-brand span{font-size:6px}.store-nav{gap:10px}.store-nav a{font-size:9px}.store-cart-button{height:37px;padding:0 10px;font-size:9px;gap:5px}.store-cart-button>span{display:none}.store-hero{padding:46px 22px 54px}.store-hero h1{font-size:61px}.store-hero-copy>p{font-size:12px}.store-hero-art{height:260px}.store-art-circle{width:220px}.store-art-orbit{width:270px;height:200px}.store-art-orange{width:75px;height:75px}.store-art-lime{width:50px;height:50px}.store-art-caption{font-size:10px}.store-benefits{grid-template-columns:1fr;padding:12px 25px}.store-benefits>div{justify-content:flex-start;padding:11px 0;border-right:0;border-bottom:1px solid #eadcdd}.store-benefits>div:last-child{border:0}.store-benefits>div>span{width:27px;text-align:center}.store-menu-section{padding:52px 16px 65px}.store-section-heading{align-items:flex-start;flex-direction:column;gap:10px}.store-section-heading h2{font-size:39px}.store-section-heading>p br{display:none}.store-product-grid{gap:23px 10px}.store-product-image{height:155px}.store-product-card h3{font-size:15px}.store-product-card>p{font-size:9px}.store-product-bottom{align-items:flex-start;flex-direction:column;gap:10px}.store-product-bottom button{padding:0}.store-callout{align-items:flex-start;flex-direction:column}.store-footer{padding:22px 18px}.store-footer>span{font-size:8px}.store-cart-drawer{padding:20px}.store-cart-thumb{width:62px;height:62px;flex-basis:62px}}
+
+
+/* POS workspace: keep the menu independently scrollable and the order visible */
+@media (min-width: 851px) {
+  .pos-screen {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .pos-header { flex: 0 0 112px; }
+  .pos-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .menu-area {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #87405a transparent;
+    padding-right: 3px;
+  }
+  .order-card {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+  }
+  .order-items {
+    flex: 1 1 auto;
+    min-height: 72px;
+    max-height: none;
+    overscroll-behavior: contain;
+  }
+  .product-grid {
+    grid-auto-rows: minmax(150px, 178px);
+  }
+  .tile-photo img { min-height: 0; }
+  .tile-bottom { min-height: 56px; padding: 7px 9px; }
+}
+@media (max-width: 1150px) and (min-width: 851px) {
+  .product-grid { grid-auto-rows: minmax(145px, 170px); }
+}
+@media (max-width: 850px) {
+  .pos-screen {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .pos-layout { min-height: 0; overflow: visible; }
+  .menu-area { overflow: visible; }
+  .order-card {
+    position: static;
+    height: auto;
+    max-height: none;
+    min-height: 450px;
+  }
+  .order-items { flex: 0 1 auto; max-height: 240px; }
+  .product-grid { grid-auto-rows: 165px; }
+  .tile-photo img { min-height: 0; }
+}
