@@ -11,6 +11,7 @@ enum UserRole {
   OWNER
   MANAGER
   CASHIER
+  KITCHEN
 }
 
 enum StaffApprovalStatus {
@@ -29,6 +30,13 @@ enum OrderStatus {
   COMPLETED
   VOIDED
   REFUNDED
+}
+
+enum KitchenStatus {
+  QUEUED
+  PREPARING
+  READY
+  SERVED
 }
 
 enum PaymentMethod {
@@ -180,6 +188,7 @@ model Order {
   id             String        @id @default(cuid())
   orderNumber    Int           @unique @default(autoincrement())
   status         OrderStatus   @default(DRAFT)
+  kitchenStatus  KitchenStatus @default(QUEUED)
   cashierId      String
   cashier        User          @relation(fields: [cashierId], references: [id])
   shiftId        String?
