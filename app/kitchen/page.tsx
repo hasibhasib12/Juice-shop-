@@ -109,7 +109,7 @@ export default function KitchenPortal() {
     {notice && <p className="kitchen-notice">{notice}</p>}
     {loading ? <p className="kitchen-empty">Loading live orders…</p> : !orders.length ? <section className="kitchen-empty"><strong>All caught up</strong><p>New paid orders will appear here automatically.</p></section> : <section className="kitchen-grid">{orders.map(order => <article className={"kitchen-ticket kitchen-" + order.kitchenStatus.toLowerCase()} key={order.id}>
       <header><div><span>ORDER</span><h2>#{order.orderNumber}</h2></div><span className="kitchen-status">{order.kitchenStatus}</span></header>
-      <p className="kitchen-ticket-meta">{order.orderType === "DINE_IN" ? "EAT HERE" : "TAKEAWAY"}{order.table?.name ? ` · ${order.table.name}` : ""} · {new Date(order.createdAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</p>
+      <p className="kitchen-ticket-meta"><strong className="kitchen-order-type">{order.orderType === "DINE_IN" ? "EAT HERE" : "TAKEAWAY"}</strong>{order.table?.name ? `${order.table.name} · ` : ""}{new Date(order.createdAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</p>
       {order.customerName && <p className="kitchen-customer">{order.customerName}</p>}
       <ul>{order.lines.map(line => <li key={line.id}><strong>{line.quantity}×</strong><div>{line.productName}{line.variantName && <small>{line.variantName}</small>}{Array.isArray(line.selectedModifiers) && line.selectedModifiers.length > 0 && <small>{(line.selectedModifiers as {name?:string}[]).map(x=>x.name).filter(Boolean).join(", ")}</small>}</div></li>)}</ul>
       {order.notes && <p className="kitchen-order-notes">Note: {order.notes}</p>}
