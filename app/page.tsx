@@ -66,21 +66,15 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
-      const data = await response.json();
-      if (!active) return;
-      setStaff(data.user ?? null);
-      setAuthLoading(false);
-      if (!data.user) return;
-      try {
-        const shiftResponse = await fetch("/api/shifts", { cache: "no-store" });
-        const shiftData = await shiftResponse.json();
-        if (active && data.user.role === "CASHIER" && shiftResponse.ok && !shiftData.shift && window.location.pathname === "/") window.location.assign("/shift?welcome=1");
-        else if (active && !shiftResponse.ok) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
-      } catch {
-        if (active) setNotice("Welcome back. We could not verify your cash shift; open Cash Shift before making sales.");
-      }
-    }).catch(() => { if (active) { setStaff(null); setAuthLoading(false); } });
+    // A fresh visit to the POS always starts at staff login, even if a previous
+    // browser session cookie is still valid. The sign-in form establishes a new session.
+    fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!active) return;
+        setStaff(null);
+        setAuthLoading(false);
+      });
     return () => { active = false; };
   }, []);
 
