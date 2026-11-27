@@ -18,7 +18,7 @@ export async function GET() {
       orderBy: [{ createdAt: "asc" }],
       take: 100,
       select: {
-        id: true, orderNumber: true, kitchenStatus: true, createdAt: true, customerName: true, notes: true,
+        id: true, orderNumber: true, kitchenStatus: true, orderType: true, createdAt: true, customerName: true, notes: true,
         table: { select: { name: true } },
         lines: { select: { id: true, productName: true, quantity: true, variantName: true, selectedModifiers: true } },
       },
