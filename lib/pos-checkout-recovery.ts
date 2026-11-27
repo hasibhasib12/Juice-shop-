@@ -1,6 +1,7 @@
 export type CheckoutPayload = {
   items: { productId: string; quantity: number; variantId?: string; modifierOptionIds: string[] }[];
   paymentMethod: "CASH";
+  orderType: "TAKEAWAY" | "DINE_IN";
   cashReceivedMinor: number;
   paymentTenders: { method: "CASH" | "OTHER"; amountMinor: number }[];
   idempotencyKey: string;
@@ -35,6 +36,7 @@ export function parsePendingCheckout(raw: string): PendingCheckout | null {
 
   const payload = value.payload;
   if (payload.paymentMethod !== "CASH" ||
+      (payload.orderType !== undefined && payload.orderType !== "TAKEAWAY" && payload.orderType !== "DINE_IN") ||
       typeof payload.idempotencyKey !== "string" || payload.idempotencyKey.length < 12 ||
       !Number.isSafeInteger(payload.cashReceivedMinor) || (payload.cashReceivedMinor as number) < 0 ||
       typeof payload.customerName !== "string" || typeof payload.notes !== "string" ||
@@ -54,5 +56,6 @@ export function parsePendingCheckout(raw: string): PendingCheckout | null {
     Number.isSafeInteger(tender.amountMinor) && (tender.amountMinor as number) > 0);
   if (!validItems || !validTenders) return null;
 
+  if (payload.orderType === undefined) payload.orderType = "TAKEAWAY";
   return value as unknown as PendingCheckout;
 }
