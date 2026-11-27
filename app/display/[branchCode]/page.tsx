@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 type DisplayOrder = { orderNumber: number; status: "QUEUED" | "PREPARING" | "READY"; createdAt: string };
@@ -14,19 +14,57 @@ export default function CustomerOrderDisplay() {
   const [connected, setConnected] = useState(false);
   const [clock, setClock] = useState(new Date());
 
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabledRef = useRef(false);
+  const previousReadyNumbers = useRef<Set<number> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const playReadyChime = useCallback(() => {
+    const context = audioContextRef.current;
+    if (!context || context.state !== "running") return;
+    const now = context.currentTime;
+    [587.33, 739.99, 880].forEach((frequency, index) => {
+      const start = now + index * 0.13;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine"; oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.34);
+      oscillator.connect(gain); gain.connect(context.destination);
+      oscillator.start(start); oscillator.stop(start + 0.35);
+    });
+  }, []);
+  async function toggleSound() {
+    if (soundEnabledRef.current) { soundEnabledRef.current = false; setSoundEnabled(false); return; }
+    try {
+      const Ctx = window.AudioContext;
+      if (!Ctx) return;
+      const context = audioContextRef.current ?? new Ctx();
+      audioContextRef.current = context;
+      await context.resume();
+      soundEnabledRef.current = true; setSoundEnabled(true); playReadyChime();
+    } catch { setError("Sound could not be enabled. Check your browser audio settings."); }
+  }
+
+
   const refresh = useCallback(async () => {
     try {
       const response = await fetch(`/api/display/${encodeURIComponent(branchCode)}/orders`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not load order display.");
-      setPayload(data);
+      const nextPayload = data as DisplayPayload;
+      const readyNumbers = new Set(nextPayload.orders.filter((order) => order.status === "READY").map((order) => order.orderNumber));
+      const previous = previousReadyNumbers.current;
+      if (previous && [...readyNumbers].some((number) => !previous.has(number)) && soundEnabledRef.current) playReadyChime();
+      previousReadyNumbers.current = readyNumbers;
+      setPayload(nextPayload);
       setError("");
       setConnected(true);
     } catch (err) {
       setConnected(false);
       setError(err instanceof Error ? err.message : "Connection unavailable.");
     }
-  }, [branchCode]);
+  }, [branchCode, playReadyChime]);
 
   useEffect(() => {
     void refresh();
@@ -52,6 +90,7 @@ export default function CustomerOrderDisplay() {
         <div className="customer-display-clock">
           <span className={connected ? "display-live-dot" : "display-live-dot is-offline"}/>
           <span>{connected ? "LIVE UPDATES" : "RECONNECTING"}</span>
+          <button className="screen-sound-toggle" aria-pressed={soundEnabled} onClick={() => void toggleSound()}>{soundEnabled ? "Sound on" : "Enable sound"}</button>
           <strong>{clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong>
         </div>
       </header>
