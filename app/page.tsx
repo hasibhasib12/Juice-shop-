@@ -288,6 +288,7 @@ export default function Home() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Sign-in failed.");
+      if (data.user.role === "KITCHEN") { window.location.assign("/kitchen"); return; }
       setStaff(data.user);
       setLoginPassword("");
       setLoginOpen(false);
