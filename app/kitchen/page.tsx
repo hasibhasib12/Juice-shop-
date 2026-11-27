@@ -66,7 +66,7 @@ export default function KitchenPortal() {
       setOrders(incoming); setUpdatedAt(new Date()); setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Kitchen orders unavailable."); }
     finally { setLoading(false); }
-  }, []);
+  }, [playAlert]);
   useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 10000); return () => window.clearInterval(timer); }, [load]);
   async function advance(order: KitchenOrder) {
     const action = next[order.kitchenStatus]; if (!action) return;
