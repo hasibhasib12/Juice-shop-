@@ -25,7 +25,7 @@ export default function Home() {
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [orderType, setOrderType] = useState<"TAKEAWAY" | "DINE_IN">("TAKEAWAY");
+  const [orderType, setOrderType] = useState<"TAKEAWAY" | "DINE_IN" | "DELIVERY">("TAKEAWAY");
   const [configProduct, setConfigProduct] = useState<Product | null>(null);
   const [configVariantId, setConfigVariantId] = useState("");
   const [configOptionIds, setConfigOptionIds] = useState<string[]>([]);
@@ -59,6 +59,8 @@ export default function Home() {
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<SavedDraft[]>([]);
@@ -491,6 +493,7 @@ export default function Home() {
       paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
       idempotencyKey: requestKey,
       customerName,
+      ...(orderType === "DELIVERY" ? { customerPhone, deliveryAddress, deliveryFeeMinor: 0 } : {}),
       notes: orderNotes,
       ...(draftId ? { draftId } : {}),
       ...(discountApprovalId ? { discountApprovalId } : {}),
@@ -605,7 +608,7 @@ export default function Home() {
 
         <aside className="order-card">
           <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" disabled={checkoutBusy || checkoutUncertain} onClick={() => setCart([])}>×</button></div>
-          <div className="order-type-selector" role="group" aria-label="Order type"><button type="button" aria-pressed={orderType === "TAKEAWAY"} className={orderType === "TAKEAWAY" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("TAKEAWAY")}>Takeaway</button><button type="button" aria-pressed={orderType === "DINE_IN"} className={orderType === "DINE_IN" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("DINE_IN")}>Eat here</button></div>
+          <div className="order-type-selector" role="group" aria-label="Order type"><button type="button" aria-pressed={orderType === "TAKEAWAY"} className={orderType === "TAKEAWAY" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("TAKEAWAY")}>Takeaway</button><button type="button" aria-pressed={orderType === "DINE_IN"} className={orderType === "DINE_IN" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("DINE_IN")}>Eat here</button><button type="button" aria-pressed={orderType === "DELIVERY"} className={orderType === "DELIVERY" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("DELIVERY")}>Delivery</button></div>{orderType === "DELIVERY" && <div className="delivery-customer-fields"><label>Customer name<input value={customerName} onChange={event => setCustomerName(event.target.value)} maxLength={120} placeholder="Full name" /></label><label>Phone number<input value={customerPhone} onChange={event => setCustomerPhone(event.target.value)} maxLength={40} placeholder="Contact number" /></label><label>Delivery address<textarea value={deliveryAddress} onChange={event => setDeliveryAddress(event.target.value)} maxLength={500} placeholder="Street, building, area and directions" rows={3} /></label><small>Delivery details will appear in the Dispatch portal.</small></div>}
           <div className="order-quick-actions" aria-label="Order tools">
             <button type="button" disabled={checkoutBusy} onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
