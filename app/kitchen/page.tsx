@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type KitchenOrder = {
   id: string; orderNumber: number; kitchenStatus: "QUEUED" | "PREPARING" | "READY";
@@ -19,12 +19,51 @@ export default function KitchenPortal() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabledRef = useRef(false);
+  const previousOrderIds = useRef<Set<string> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const playAlert = useCallback(() => {
+    const context = audioContextRef.current;
+    if (!context || context.state !== "running") return;
+    const now = context.currentTime;
+    [740, 988].forEach((frequency, index) => {
+      const start = now + index * 0.16;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+      oscillator.connect(gain); gain.connect(context.destination);
+      oscillator.start(start); oscillator.stop(start + 0.15);
+    });
+  }, []);
+  async function toggleSound() {
+    if (soundEnabledRef.current) { soundEnabledRef.current = false; setSoundEnabled(false); return; }
+    try {
+      const Ctx = window.AudioContext;
+      if (!Ctx) return;
+      const context = audioContextRef.current ?? new Ctx();
+      audioContextRef.current = context;
+      await context.resume();
+      soundEnabledRef.current = true; setSoundEnabled(true); playAlert();
+    } catch { setNotice("Sound could not be enabled. Check your browser audio settings."); }
+  }
+
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/kitchen/orders", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not load kitchen orders.");
-      setOrders(data.orders); setUpdatedAt(new Date()); setNotice("");
+      const incoming = data.orders as KitchenOrder[];
+      const ids = new Set(incoming.map((order) => order.id));
+      const previous = previousOrderIds.current;
+      if (previous && [...ids].some((id) => !previous.has(id)) && soundEnabledRef.current) playAlert();
+      previousOrderIds.current = ids;
+      setOrders(incoming); setUpdatedAt(new Date()); setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Kitchen orders unavailable."); }
     finally { setLoading(false); }
   }, []);
@@ -45,7 +84,7 @@ export default function KitchenPortal() {
   const preparing = orders.filter(o => o.kitchenStatus === "PREPARING").length;
   const ready = orders.filter(o => o.kitchenStatus === "READY").length;
   return <main className="kitchen-screen">
-    <header className="kitchen-header"><div className="kitchen-brand"><img src="/ANAR-CO-logo-transparent-high-resolution.png" alt="ANAR & CO."/><div><span>ANAR & CO. · OPERATIONS</span><h1>Kitchen display</h1><p>Live preparation queue</p></div></div><div className="kitchen-head-actions"><span>{updatedAt ? "Updated " + updatedAt.toLocaleTimeString() : "Connecting…"}</span><button onClick={() => void load()}>Refresh</button><button onClick={() => void signOut()}>Sign out</button></div></header>
+    <header className="kitchen-header"><div className="kitchen-brand"><img src="/ANAR-CO-logo-transparent-high-resolution.png" alt="ANAR & CO."/><div><span>ANAR & CO. · OPERATIONS</span><h1>Kitchen display</h1><p>Live preparation queue</p></div></div><div className="kitchen-head-actions"><span>{updatedAt ? "Updated " + updatedAt.toLocaleTimeString() : "Connecting…"}</span><button className="screen-sound-toggle" aria-pressed={soundEnabled} onClick={() => void toggleSound()}>{soundEnabled ? "Sound on" : "Enable sound"}</button><button onClick={() => void load()}>Refresh</button><button onClick={() => void signOut()}>Sign out</button></div></header>
     <section className="kitchen-stats"><article><span>NEW</span><strong>{queued}</strong></article><article><span>PREPARING</span><strong>{preparing}</strong></article><article><span>READY</span><strong>{ready}</strong></article></section>
     {notice && <p className="kitchen-notice">{notice}</p>}
     {loading ? <p className="kitchen-empty">Loading live orders…</p> : !orders.length ? <section className="kitchen-empty"><strong>All caught up</strong><p>New paid orders will appear here automatically.</p></section> : <section className="kitchen-grid">{orders.map(order => <article className={"kitchen-ticket kitchen-" + order.kitchenStatus.toLowerCase()} key={order.id}>
