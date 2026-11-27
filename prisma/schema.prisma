@@ -39,6 +39,11 @@ enum KitchenStatus {
   SERVED
 }
 
+enum OrderType {
+  TAKEAWAY
+  DINE_IN
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -189,6 +194,7 @@ model Order {
   orderNumber    Int           @unique @default(autoincrement())
   status         OrderStatus   @default(DRAFT)
   kitchenStatus  KitchenStatus @default(QUEUED)
+  orderType      OrderType     @default(TAKEAWAY)
   cashierId      String
   cashier        User          @relation(fields: [cashierId], references: [id])
   shiftId        String?
