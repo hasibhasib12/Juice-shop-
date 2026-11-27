@@ -9,11 +9,12 @@ export const PERMISSIONS = [
 ] as const;
 export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
 export type PermissionOverrides = Partial<Record<PermissionKey, boolean>>;
-export type Role = "OWNER" | "MANAGER" | "CASHIER";
+export type Role = "OWNER" | "MANAGER" | "CASHIER" | "KITCHEN";
 const DEFAULTS: Record<Role, Record<PermissionKey, boolean>> = {
   OWNER: { VIEW_REPORTS: true, VIEW_ALL_ORDERS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true, MANAGE_CATALOG: true },
   MANAGER: { VIEW_REPORTS: true, VIEW_ALL_ORDERS: true, MANAGE_INVENTORY: true, MANAGE_PURCHASING: true, PROCESS_REFUNDS: true, MANAGE_TABLES: true, MANAGE_CATALOG: true },
   CASHIER: { VIEW_REPORTS: false, VIEW_ALL_ORDERS: false, MANAGE_INVENTORY: false, MANAGE_PURCHASING: false, PROCESS_REFUNDS: false, MANAGE_TABLES: false, MANAGE_CATALOG: false },
+  KITCHEN: { VIEW_REPORTS: false, VIEW_ALL_ORDERS: false, MANAGE_INVENTORY: false, MANAGE_PURCHASING: false, PROCESS_REFUNDS: false, MANAGE_TABLES: false, MANAGE_CATALOG: false },
 };
 export function normalizePermissionOverrides(value: unknown): PermissionOverrides {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
