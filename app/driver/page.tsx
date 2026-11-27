@@ -94,7 +94,7 @@ export default function DriverPortal() {
 
   return <main className="driver-app">
     <header className="topbar">
-      <div className="brand"><img src="/1572434B-4E2C-4244-8EC4-E36B59E7E9D7.png" alt="ANAR & CO."/><div><span>ANAR & CO. · DRIVER</span><h1>My deliveries</h1><p>{branch?.name || "Your branch"}{branch?.code ? " · "+branch.code : ""}</p></div></div>
+      <div className="brand"><img src="/1572434B-4E2C-4244-8EC4-E36B59E7E9D7.png" alt="ANAR & CO."/><div><span>ANAR & CO. · DRIVER PORTAL</span><h1>My deliveries</h1><p>{branch?.name || "Your branch"}{branch?.code ? " · "+branch.code : ""}</p></div></div>
       <button className="signout" onClick={()=>void signOut()}>Sign out</button>
     </header>
 
