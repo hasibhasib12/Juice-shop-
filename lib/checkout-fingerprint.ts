@@ -8,7 +8,7 @@ export function checkoutFingerprint(
   tenders: CheckoutFingerprintTender[],
   cashReceivedMinor: number | undefined,
   discountApprovalId: string | undefined,
-  metadata?: { customerName?: string; notes?: string; draftId?: string; orderType?: "TAKEAWAY" | "DINE_IN" },
+  metadata?: { customerName?: string; notes?: string; draftId?: string; orderType?: "TAKEAWAY" | "DINE_IN" | "DELIVERY"; customerPhone?: string; deliveryAddress?: string; deliveryFeeMinor?: number },
 ) {
   const quantities = new Map<string, { productId: string; variantId: string | null; modifierOptionIds: string[]; quantity: number }>();
   for (const item of items) {
@@ -32,6 +32,9 @@ export function checkoutFingerprint(
     customerName: metadata?.customerName?.trim() || null,
     notes: metadata?.notes?.trim() || null,
     orderType: metadata?.orderType ?? "TAKEAWAY",
+    customerPhone: metadata?.customerPhone?.trim() || null,
+    deliveryAddress: metadata?.deliveryAddress?.trim() || null,
+    deliveryFeeMinor: metadata?.deliveryFeeMinor ?? 0,
     ...(metadata?.draftId ? { draftId: metadata.draftId } : {}),
   })).digest("hex");
 }
