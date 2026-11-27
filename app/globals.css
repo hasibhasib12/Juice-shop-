@@ -492,3 +492,5 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .kitchen-head-actions .screen-sound-toggle{margin-left:8px}
 .customer-display-clock .screen-sound-toggle{margin:0 8px}
 @media(max-width:640px){.kitchen-head-actions .screen-sound-toggle{margin-left:0}.customer-display-clock .screen-sound-toggle{margin:4px 0}}
+
+.order-type-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px;padding:5px;border:1px solid #eaded7;border-radius:12px;background:#f8f3ef}.order-type-selector button{min-height:42px;border:1px solid transparent;border-radius:9px;background:transparent;color:#69564e;font:700 13px Manrope,sans-serif;cursor:pointer}.order-type-selector button.selected{border-color:#7d344d;background:#5a1b32;color:#fff;box-shadow:0 3px 10px #4a17251c}.order-type-selector button:disabled{opacity:.55;cursor:not-allowed}.kitchen-order-type{display:inline-flex;align-items:center;margin-right:7px;padding:5px 9px;border-radius:7px;background:#f4e8d8;color:#754b24;font-size:10px;font-weight:900;letter-spacing:.08em}
