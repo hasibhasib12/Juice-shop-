@@ -416,7 +416,7 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 /* ANAR & CO. dedicated login portal */
 .anar-auth-screen{min-height:100vh;min-height:100dvh;display:grid;place-items:center;overflow:auto;padding:48px 20px;background:radial-gradient(ellipse at 50% 5%,rgba(139,53,78,.55),transparent 42%),radial-gradient(ellipse at 12% 88%,rgba(184,130,69,.12),transparent 34%),linear-gradient(145deg,#210711,#3d0b1d 48%,#1c0710);color:#f8f0e5;position:relative;isolation:isolate}
 .anar-auth-shell{width:min(100%,390px);display:flex;flex-direction:column;align-items:center;gap:14px}
-.anar-auth-logo{display:block;width:min(100%,300px);max-width:300px;height:112px;object-fit:contain;object-position:center;align-self:center;margin:0 auto 0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.anar-auth-logo{display:block;width:min(100%,340px);max-width:340px;height:auto;max-height:124px;object-fit:contain;object-position:center;align-self:center;margin:0 auto 0;border:0;border-radius:0;background:transparent;box-shadow:none}
 .anar-auth-card{width:100%;padding:26px 28px 21px;border:1px solid rgba(245,220,180,.23);border-radius:21px;background:linear-gradient(145deg,rgba(255,245,235,.14),rgba(255,255,255,.045));box-shadow:0 20px 60px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.14);backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%);display:flex;flex-direction:column;align-items:stretch;position:relative}
 .anar-auth-card:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 42%)}
 .anar-auth-loading-card{min-height:100px;justify-content:center}
@@ -434,4 +434,4 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .anar-auth-loading{display:flex;align-items:center;justify-content:center;gap:10px;color:#e8d6d7;font-size:12px}
 .anar-auth-spinner{width:15px;height:15px;border:2px solid rgba(238,210,161,.25);border-top-color:#e8c16d;border-radius:50%;animation:anar-spin .8s linear infinite}
 @keyframes anar-spin{to{transform:rotate(360deg)}}
-@media(max-width:480px){.anar-auth-screen{padding:22px 16px}.anar-auth-shell{width:min(100%,360px);gap:12px}.anar-auth-logo{width:min(100%,260px);height:94px}.anar-auth-card{padding:23px 21px 19px;border-radius:18px}.anar-auth-card h1{font-size:27px}}
+@media(max-width:480px){.anar-auth-screen{padding:22px 16px}.anar-auth-shell{width:min(100%,360px);gap:12px}.anar-auth-logo{width:min(100%,300px);max-width:300px;height:auto;max-height:112px}.anar-auth-card{padding:23px 21px 19px;border-radius:18px}.anar-auth-card h1{font-size:27px}}
