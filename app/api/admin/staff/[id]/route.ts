@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (!rate.allowed) return NextResponse.json({ error: "Too many staff changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
   const { id } = await context.params;
-  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER" | "KITCHEN"; approvalStatus?: "APPROVED" | "REJECTED" };
+  let body: { active?: boolean; role?: "OWNER" | "MANAGER" | "CASHIER" | "KITCHEN" | "DRIVER"; approvalStatus?: "APPROVED" | "REJECTED" };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
