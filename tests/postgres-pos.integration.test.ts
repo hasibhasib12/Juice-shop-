@@ -22,22 +22,31 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
   const supplierId = `it-supplier-${suffix}`;
   const purchaseOrderId = `it-po-${suffix}`;
   const purchaseLineId = `it-po-line-${suffix}`;
+  const settingsBranchIds: string[] = [];
 
   try {
-    const branchA = await prisma.branch.findUniqueOrThrow({ where: { code: "MAIN" } });
-    const branchB = await prisma.branch.create({ data: { name: `Settings isolation ${suffix}`, code: `SI${suffix.slice(0, 8).toUpperCase()}`, currency: "EUR", timezone: "Europe/Berlin" } });
+    const settingsBranchA = await prisma.branch.create({ data: { name: `Settings isolation A ${suffix}`, code: `SIA${suffix.slice(0, 7).toUpperCase()}`, currency: "AFN", timezone: "Asia/Kabul" } });
+    settingsBranchIds.push(settingsBranchA.id);
+    const settingsBranchB = await prisma.branch.create({ data: { name: `Settings isolation B ${suffix}`, code: `SIB${suffix.slice(0, 7).toUpperCase()}`, currency: "EUR", timezone: "Europe/Berlin" } });
+    settingsBranchIds.push(settingsBranchB.id);
     await prisma.branchSetting.createMany({ data: [
-      { branchId: branchA.id, key: `integration-${suffix}`, value: 700 },
-      { branchId: branchB.id, key: `integration-${suffix}`, value: 1900 },
+      { branchId: settingsBranchA.id, key: "taxRateBps", value: 500 },
+      { branchId: settingsBranchA.id, key: "taxLabel", value: "VAT-A" },
+      { branchId: settingsBranchA.id, key: "maxDiscountPercentBps", value: 1500 },
+      { branchId: settingsBranchB.id, key: "taxRateBps", value: 1900 },
+      { branchId: settingsBranchB.id, key: "taxLabel", value: "Sales tax B" },
+      { branchId: settingsBranchB.id, key: "maxDiscountPercentBps", value: 3000 },
     ] });
-    const [settingA, settingB] = await Promise.all([
-      prisma.branchSetting.findUniqueOrThrow({ where: { branchId_key: { branchId: branchA.id, key: `integration-${suffix}` } } }),
-      prisma.branchSetting.findUniqueOrThrow({ where: { branchId_key: { branchId: branchB.id, key: `integration-${suffix}` } } }),
+    const [settingsA, settingsB] = await Promise.all([
+      prisma.branchSetting.findMany({ where: { branchId: settingsBranchA.id }, orderBy: { key: "asc" } }),
+      prisma.branchSetting.findMany({ where: { branchId: settingsBranchB.id }, orderBy: { key: "asc" } }),
     ]);
-    assert.equal(settingA.value, 700);
-    assert.equal(settingB.value, 1900);
-    await prisma.branchSetting.deleteMany({ where: { branchId: { in: [branchA.id, branchB.id] }, key: `integration-${suffix}` } });
-    await prisma.branch.delete({ where: { id: branchB.id } });
+    assert.deepEqual(Object.fromEntries(settingsA.map((row) => [row.key, row.value])), {
+      taxLabel: "VAT-A", taxRateBps: 500, maxDiscountPercentBps: 1500,
+    });
+    assert.deepEqual(Object.fromEntries(settingsB.map((row) => [row.key, row.value])), {
+      taxLabel: "Sales tax B", taxRateBps: 1900, maxDiscountPercentBps: 3000,
+    });
     await prisma.user.create({ data: {
       branch: { connect: { code: "MAIN" } },
       id: userId, name: "Integration cashier", email: `${suffix}@integration.invalid`,
@@ -243,6 +252,7 @@ test("PostgreSQL POS concurrency invariants", { skip: !enabled }, async () => {
       where: { entityType: "PurchaseOrder", entityId: purchaseOrderId, action: "PURCHASE_ORDER_RECEIVED" },
     }), 1);
   } finally {
+    if (settingsBranchIds.length) await prisma.branch.deleteMany({ where: { id: { in: settingsBranchIds } } });
     await prisma.auditEvent.deleteMany({ where: { entityId: purchaseOrderId } });
     await prisma.stockMovement.deleteMany({ where: { ingredientId: purchaseIngredientId } });
     await prisma.purchaseOrder.deleteMany({ where: { id: purchaseOrderId } });
