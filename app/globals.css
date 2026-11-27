@@ -484,3 +484,11 @@ button,input{font-family:'Manrope','DM Sans',sans-serif}
 .display-error button{padding:12px 22px;border:0;border-radius:10px;background:#20c51d;color:white;font-weight:800}
 @media(max-width:760px){.customer-display{padding:16px;gap:18px}.customer-display-header{align-items:flex-start}.customer-display-brand{gap:10px}.customer-display-brand img{width:105px;height:55px}.customer-display-brand>div{padding-left:10px}.customer-display-brand span{font-size:8px;letter-spacing:.1em}.customer-display-clock{gap:6px;font-size:8px;flex-wrap:wrap;justify-content:flex-end}.customer-display-clock strong{width:100%;text-align:right;font-size:22px}.customer-display-columns{grid-template-columns:1fr;min-height:0}.customer-display-column{min-height:270px}.customer-display-column>header{min-height:76px}.display-order-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}.display-order-number{min-height:105px}.customer-display-footer{font-size:9px}}
 @media(max-width:420px){.customer-display-brand img{width:82px}.customer-display-brand h1{font-size:17px}.customer-display-brand span{font-size:7px}.customer-display-welcome h2{font-size:27px}.customer-display-column>header h2{font-size:16px}.customer-display-column>header p{font-size:10px}}
+
+/* Audio controls for kitchen and customer order screens */
+.screen-sound-toggle{border:1px solid #b77a91;border-radius:999px;background:#5a1933;color:#fff;padding:9px 14px;font:700 12px Manrope,sans-serif;white-space:nowrap}
+.screen-sound-toggle[aria-pressed="true"]{background:#1d8b3b;border-color:#62d68a}
+.screen-sound-toggle:focus-visible{outline:3px solid #f5c1d3;outline-offset:2px}
+.kitchen-head-actions .screen-sound-toggle{margin-left:8px}
+.customer-display-clock .screen-sound-toggle{margin:0 8px}
+@media(max-width:640px){.kitchen-head-actions .screen-sound-toggle{margin-left:0}.customer-display-clock .screen-sound-toggle{margin:4px 0}}
