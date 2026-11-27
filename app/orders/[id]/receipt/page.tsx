@@ -36,7 +36,7 @@ export default function ReceiptPage() {
     <main className="receipt-screen">
       <div className="receipt-toolbar"><Link href="/">← Back to POS</Link><div className="receipt-actions"><a href={`/api/orders/${order.id}/receipt/pdf`}>Download PDF</a><button onClick={() => window.print()}>Print receipt</button></div></div>
       <article className="receipt-paper">
-        <div className="receipt-brand"><img src="/juice-shop-logo.svg" alt="ANAR & CO."/></div>
+        <div className="receipt-brand"><img src="/ANAR-CO-logo-transparent-high-resolution.png" alt="ANAR & CO."/></div>
         <div className="receipt-rule"/>
         <div className="receipt-meta"><span>Receipt <b>#{order.orderNumber}</b></span><span>Status: <b>{order.status}</b></span><span>{order.completedAt ? new Date(order.completedAt).toLocaleString() : "Pending"}</span><span>Cashier: {order.cashier.name}</span>{order.customerName && <span>Customer: {order.customerName}</span>}</div>{order.notes && <div className="receipt-refund-note"><b>Order notes</b><p>{order.notes}</p></div>}
         <div className="receipt-rule"/>
