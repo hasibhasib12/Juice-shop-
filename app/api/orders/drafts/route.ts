@@ -23,7 +23,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {
-        id: true, orderNumber: true, customerName: true, notes: true, subtotalMinor: true,
+        id: true, orderNumber: true, orderType: true, customerName: true, notes: true, subtotalMinor: true,
         taxMinor: true, totalMinor: true, currency: true, createdAt: true,
         cashier: { select: { id: true, name: true } },
         lines: { select: { id: true, productId: true, productName: true, quantity: true, unitPriceMinor: true, lineTotalMinor: true, variantName: true, selectedModifiers: true } },
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   const rate = await checkActionRateLimit("order-draft-write", user.id, 60, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many draft changes. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
 
-  let body: { id?: string; items?: DraftItem[]; customerName?: string; notes?: string };
+  let body: { id?: string; items?: DraftItem[]; customerName?: string; notes?: string; orderType?: "TAKEAWAY" | "DINE_IN" };
   try {
     const parsed: unknown = await request.json();
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
+  if (body.orderType !== undefined && body.orderType !== "TAKEAWAY" && body.orderType !== "DINE_IN") return NextResponse.json({ error: "Choose takeaway or eat here." }, { status: 400 });
   if (body.id !== undefined && (typeof body.id !== "string" || body.id.length > 64)) {
     return NextResponse.json({ error: "Invalid draft ID." }, { status: 400 });
   }
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
       const data = {
         customerName: body.customerName?.trim() || null,
         notes: body.notes?.trim() || null,
+        orderType: body.orderType ?? "TAKEAWAY",
         subtotalMinor, discountMinor: 0, taxMinor, totalMinor, currency: products[0].currency,
       };
       const saved = body.id
