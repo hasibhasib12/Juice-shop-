@@ -1,7 +1,10 @@
 export type CheckoutPayload = {
   items: { productId: string; quantity: number; variantId?: string; modifierOptionIds: string[] }[];
   paymentMethod: "CASH";
-  orderType: "TAKEAWAY" | "DINE_IN";
+  orderType: "TAKEAWAY" | "DINE_IN" | "DELIVERY";
+  customerPhone?: string;
+  deliveryAddress?: string;
+  deliveryFeeMinor?: number;
   cashReceivedMinor: number;
   paymentTenders: { method: "CASH" | "OTHER"; amountMinor: number }[];
   idempotencyKey: string;
@@ -36,7 +39,7 @@ export function parsePendingCheckout(raw: string): PendingCheckout | null {
 
   const payload = value.payload;
   if (payload.paymentMethod !== "CASH" ||
-      (payload.orderType !== undefined && payload.orderType !== "TAKEAWAY" && payload.orderType !== "DINE_IN") ||
+      (payload.orderType !== undefined && payload.orderType !== "TAKEAWAY" && payload.orderType !== "DINE_IN" && payload.orderType !== "DELIVERY") ||
       typeof payload.idempotencyKey !== "string" || payload.idempotencyKey.length < 12 ||
       !Number.isSafeInteger(payload.cashReceivedMinor) || (payload.cashReceivedMinor as number) < 0 ||
       typeof payload.customerName !== "string" || typeof payload.notes !== "string" ||
@@ -44,6 +47,8 @@ export function parsePendingCheckout(raw: string): PendingCheckout | null {
       (payload.discountApprovalId !== undefined && typeof payload.discountApprovalId !== "string") ||
       !Array.isArray(payload.items) || payload.items.length === 0 ||
       !Array.isArray(payload.paymentTenders) || payload.paymentTenders.length === 0) return null;
+
+  if ((payload.customerPhone !== undefined && typeof payload.customerPhone !== "string") || (payload.deliveryAddress !== undefined && typeof payload.deliveryAddress !== "string") || (payload.deliveryFeeMinor !== undefined && (!Number.isSafeInteger(payload.deliveryFeeMinor) || (payload.deliveryFeeMinor as number) < 0))) return null;
 
   const validItems = payload.items.every((item) => isRecord(item) &&
     typeof item.productId === "string" && item.productId.length > 0 &&
