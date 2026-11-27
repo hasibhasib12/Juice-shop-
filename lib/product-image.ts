@@ -9,10 +9,14 @@ export function detectProductImageType(bytes: Uint8Array): ProductImageType | nu
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_PRODUCT_IMAGE_MULTIPART_OVERHEAD_BYTES = 64 * 1024;
 
-export function isProductImageRequestSizeAllowed(contentLength: string | null): boolean {
+export function isImageUploadRequestSizeAllowed(contentLength: string | null, maxFileBytes: number): boolean {
   if (contentLength === null) return true;
   const parsed = Number(contentLength);
   return Number.isSafeInteger(parsed)
     && parsed >= 0
-    && parsed <= MAX_PRODUCT_IMAGE_BYTES + MAX_PRODUCT_IMAGE_MULTIPART_OVERHEAD_BYTES;
+    && parsed <= maxFileBytes + MAX_PRODUCT_IMAGE_MULTIPART_OVERHEAD_BYTES;
+}
+
+export function isProductImageRequestSizeAllowed(contentLength: string | null): boolean {
+  return isImageUploadRequestSizeAllowed(contentLength, MAX_PRODUCT_IMAGE_BYTES);
 }

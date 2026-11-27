@@ -4,7 +4,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getCurrentUser } from "@/lib/auth";
 import { checkActionRateLimit } from "@/lib/action-rate-limit";
 import { isAllowedMutationOrigin } from "@/lib/request-security";
-import { detectProductImageType } from "@/lib/product-image";
+import { detectProductImageType, isImageUploadRequestSizeAllowed } from "@/lib/product-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +18,10 @@ export async function POST(request: NextRequest) {
   if (actor.role !== "OWNER" && actor.role !== "MANAGER") return NextResponse.json({ error: "Manager or owner access required." }, { status: 403 });
   const rate = await checkActionRateLimit("staff-photo-upload", actor.id, 20, 900);
   if (!rate.allowed) return NextResponse.json({ error: "Too many photo uploads. Please wait before trying again." }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  const contentLength = request.headers.get("content-length");
+  if (!isImageUploadRequestSizeAllowed(contentLength, 3 * 1024 * 1024)) {
+    return NextResponse.json({ error: "Staff photo upload request is too large. Maximum image size is 3 MB." }, { status: 413 });
+  }
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Choose a valid image file." }, { status: 400 }); }
   const file = form.get("photo");
