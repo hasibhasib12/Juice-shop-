@@ -152,8 +152,9 @@ export async function POST(request: NextRequest) {
         if (consumed.count !== 1) throw new Error("INVALID_DISCOUNT_APPROVAL");
       }
       const taxableSubtotalMinor = subtotalMinor - discountMinor;
-      const taxMinor = new Prisma.Decimal(taxableSubtotalMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
-      const totalMinor = taxableSubtotalMinor + taxMinor;
+      const deliveryFeeMinor = body.orderType === "DELIVERY" ? (body.deliveryFeeMinor ?? 0) : 0;
+      const taxMinor = new Prisma.Decimal(taxableSubtotalMinor + deliveryFeeMinor).mul(taxRateBps).div(10000).toDecimalPlaces(0).toNumber();
+      const totalMinor = taxableSubtotalMinor + deliveryFeeMinor + taxMinor;
       if (!Number.isSafeInteger(taxMinor) || !Number.isSafeInteger(totalMinor) || totalMinor <= 0) throw new Error("INVALID_TOTAL");
       const normalizedTenders = tenders.map((tender) => ({ ...tender, amountMinor: tender.amountMinor || totalMinor }));
       const tenderTotal = normalizedTenders.reduce((sum, tender) => sum + tender.amountMinor, 0);
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
         orderType: body.orderType ?? "TAKEAWAY",
         customerPhone: body.orderType === "DELIVERY" ? body.customerPhone!.trim() : null,
         deliveryAddress: body.orderType === "DELIVERY" ? body.deliveryAddress!.trim() : null,
-        deliveryFeeMinor: body.orderType === "DELIVERY" ? (body.deliveryFeeMinor ?? 0) : 0,
+        deliveryFeeMinor,
         deliveryStatus: body.orderType === "DELIVERY" ? "PENDING" as const : null,
         subtotalMinor, discountMinor, taxMinor, totalMinor, currency,
         idempotencyKey: key, requestFingerprint, completedAt: new Date(),
