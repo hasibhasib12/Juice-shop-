@@ -70,9 +70,8 @@ export default function Storefront() {
     <main className="storefront">
       <div className="store-topline"><span>FRESHLY MADE · ALWAYS DELICIOUS</span><span>Made fresh. Served with love.</span></div>
       <header className="store-header">
-        <a className="store-brand" href="/shop" aria-label="Juice Shop home">
-          <img src="/juice-shop-logo.svg" alt="Juice Shop" />
-          <span>FRESHNESS IN EVERY SIP</span>
+        <a className="store-brand" href="/shop" aria-label="ANAR & CO. home">
+          <img src="/juice-shop-logo.svg" alt="ANAR & CO." />
         </a>
         <nav className="store-nav" aria-label="Main navigation">
           <a href="#menu">Our menu</a><a href="#story">Our promise</a><a href="#footer">Contact</a>
@@ -139,8 +138,8 @@ export default function Storefront() {
         <a href="#menu">Find your fresh favourite <span>↗</span></a>
       </section>
       <footer className="store-footer" id="footer">
-        <div className="store-footer-brand"><img src="/juice-shop-logo.svg" alt="" /><span>FRESHNESS IN EVERY SIP</span></div>
-        <p>Good things are better when shared.</p><span>© {new Date().getFullYear()} Juice Shop</span>
+        <div className="store-footer-brand"><img src="/juice-shop-logo.svg" alt="ANAR & CO." /></div>
+        <p>Good things are better when shared.</p><span>© {new Date().getFullYear()} ANAR & CO.</span>
       </footer>
 
       {selected && <div className="store-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>

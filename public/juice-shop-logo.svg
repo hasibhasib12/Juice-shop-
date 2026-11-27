@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120"><g transform="translate(8 8)" stroke-linecap="round" stroke-linejoin="round"><path d="M25 35h54l-7 61H34Z" fill="none" stroke="#ffbd22" stroke-width="6"/><path d="M22 35h60M31 48h45M40 61h28" stroke="#ffbd22" stroke-width="5"/><path d="M47 27c-2-12 8-20 20-20-1 12-7 20-20 20Z" fill="#5acb27" stroke="#5acb27" stroke-width="2"/><path d="M50 28 67 12" stroke="#5acb27" stroke-width="3"/><path d="M42 77c8-10 17-10 25 0-7 11-17 11-25 0Z" fill="none" stroke="#65d52b" stroke-width="4"/><path d="M55 71v14" stroke="#65d52b" stroke-width="3"/></g><text x="103" y="61" font-family="Georgia,serif" font-size="49" font-style="italic" font-weight="700" fill="#fff">Juice</text><text x="103" y="103" font-family="Georgia,serif" font-size="49" font-style="italic" font-weight="700" fill="#5bd329">Shop</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
+<title id="title">ANAR &amp; CO.</title><desc id="desc">Gold pomegranate emblem and ANAR &amp; CO. wordmark on a deep burgundy background. No tagline.</desc>
+<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0bd"/><stop offset=".48" stop-color="#d7a84f"/><stop offset="1" stop-color="#f7d98a"/></linearGradient></defs>
+<rect width="720" height="180" rx="13" fill="#4b0b21"/>
+<g transform="translate(23 12)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round">
+<path d="M66 6 51 23 27 18 40 42 27 65Q13 91 36 132Q57 158 88 150Q119 158 140 132Q163 91 149 65L136 42 149 18 125 23 110 6 88 33Z" stroke-width="5"/>
+<path d="M88 40 48 70Q32 95 51 124Q67 144 88 139Q109 144 125 124Q144 95 128 70Z" stroke-width="4"/>
+<path d="M88 57 88 77M65 76 74 92M111 76 102 92M55 101 75 109M121 101 101 109M88 93 88 118" stroke-width="7"/>
+</g>
+<text x="190" y="113" font-family="Georgia,'Times New Roman',serif" font-size="83" letter-spacing="4" fill="url(#gold)">ANAR &amp; CO.</text>
+</svg>

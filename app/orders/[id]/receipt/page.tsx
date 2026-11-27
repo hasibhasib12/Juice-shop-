@@ -36,7 +36,7 @@ export default function ReceiptPage() {
     <main className="receipt-screen">
       <div className="receipt-toolbar"><Link href="/">← Back to POS</Link><div className="receipt-actions"><a href={`/api/orders/${order.id}/receipt/pdf`}>Download PDF</a><button onClick={() => window.print()}>Print receipt</button></div></div>
       <article className="receipt-paper">
-        <div className="receipt-brand"><img src="/juice-shop-logo.svg" alt="Juice Shop"/><h1>JUICE SHOP</h1><p>Fresh · Healthy · Happy</p></div>
+        <div className="receipt-brand"><img src="/juice-shop-logo.svg" alt="ANAR & CO."/></div>
         <div className="receipt-rule"/>
         <div className="receipt-meta"><span>Receipt <b>#{order.orderNumber}</b></span><span>Status: <b>{order.status}</b></span><span>{order.completedAt ? new Date(order.completedAt).toLocaleString() : "Pending"}</span><span>Cashier: {order.cashier.name}</span>{order.customerName && <span>Customer: {order.customerName}</span>}</div>{order.notes && <div className="receipt-refund-note"><b>Order notes</b><p>{order.notes}</p></div>}
         <div className="receipt-rule"/>
@@ -45,7 +45,7 @@ export default function ReceiptPage() {
         <div className="receipt-total"><span>Subtotal</span><b>{money(order.subtotalMinor, order.currency)}</b><span>Discount</span><b>− {money(order.discountMinor, order.currency)}</b><span>Tax</span><b>{money(order.taxMinor, order.currency)}</b><strong>Total</strong><strong>{money(order.totalMinor, order.currency)}</strong></div>
         <div className="receipt-rule"/>
         <div className="receipt-payments"><b>Payment</b>{order.payments.map((payment, index) => <span key={index}>{payment.method === "OTHER" ? "Other (manual)" : payment.method} · {payment.status} <strong>{money(payment.amountMinor, payment.currency || order.currency)}</strong></span>)}{order.payments.some((payment) => payment.cashReceivedMinor != null) && <><span>Cash received <strong>{money(order.payments.reduce((sum, payment) => sum + (payment.cashReceivedMinor ?? 0), 0), order.currency)}</strong></span><span>Change due <strong>{money(order.payments.reduce((sum, payment) => sum + (payment.changeDueMinor ?? 0), 0), order.currency)}</strong></span></>}</div>
-        {order.refunds.length > 0 && <div className="receipt-refund-note"><b>Refund history</b>{order.refunds.map((refund) => <div key={refund.id}>{refund.kind} · {money(refund.amountMinor, order.currency)} · {new Date(refund.createdAt).toLocaleString()}<br/>Reason: {refund.reason}</div>)}<strong>Total refunded: {money(order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0), order.currency)}</strong></div>}<p className="receipt-thanks">Thank you for choosing Juice Shop!</p>
+        {order.refunds.length > 0 && <div className="receipt-refund-note"><b>Refund history</b>{order.refunds.map((refund) => <div key={refund.id}>{refund.kind} · {money(refund.amountMinor, order.currency)} · {new Date(refund.createdAt).toLocaleString()}<br/>Reason: {refund.reason}</div>)}<strong>Total refunded: {money(order.refunds.reduce((sum, refund) => sum + refund.amountMinor, 0), order.currency)}</strong></div>}<p className="receipt-thanks">Thank you for choosing ANAR & CO.!</p>
         <small className="receipt-footer">Please keep this receipt for your records.</small>
       </article>
     </main>

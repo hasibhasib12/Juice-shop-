@@ -517,8 +517,8 @@ export default function Home() {
   return (
     <main className="pos-screen">
       <header className="pos-header">
-        <a className="brand-lockup" href="#" aria-label="Juice Shop home">
-          <img src="/juice-shop-logo.svg" alt="Juice Shop" />
+        <a className="brand-lockup" href="#" aria-label="ANAR & CO. home">
+          <img src="/juice-shop-logo.svg" alt="ANAR & CO." />
           <span>Fresh · Healthy · Happy</span>
         </a>
         <label className="top-search">
@@ -702,7 +702,7 @@ export default function Home() {
         <div className="login-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLoginOpen(false); }}>
           <form className="login-panel" role="dialog" aria-modal="true" aria-label="Staff sign in" onSubmit={signIn}>
             <button className="login-close" type="button" aria-label="Close sign-in" onClick={() => setLoginOpen(false)}>×</button>
-            <span className="login-kicker">JUICE SHOP · STAFF ACCESS</span>
+            <span className="login-kicker">ANAR & CO. · STAFF ACCESS</span>
             <h2>Welcome back</h2>
             <p>Sign in with your staff account to process cash sales.</p>
             <label>Email address<input type="email" autoComplete="username" required value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} /></label>
