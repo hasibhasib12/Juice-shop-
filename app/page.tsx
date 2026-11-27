@@ -25,6 +25,7 @@ export default function Home() {
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [orderType, setOrderType] = useState<"TAKEAWAY" | "DINE_IN">("TAKEAWAY");
   const [configProduct, setConfigProduct] = useState<Product | null>(null);
   const [configVariantId, setConfigVariantId] = useState("");
   const [configOptionIds, setConfigOptionIds] = useState<string[]>([]);
@@ -388,7 +389,7 @@ export default function Home() {
     if (cart.some((line) => line.product.id.startsWith("demo-"))) { setNotice("Drafts require the live database catalogue."); return; }
     setDraftBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/orders/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(draftId ? { id: draftId } : {}), items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })), customerName, notes: orderNotes }) });
+      const response = await fetch("/api/orders/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(draftId ? { id: draftId } : {}), orderType, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })), customerName, notes: orderNotes }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save draft.");
       setDraftId(data.draft.id);
@@ -421,7 +422,7 @@ export default function Home() {
       const unitPriceMinor = (variant?.priceMinor ?? product.priceMinor) + selectedModifiers.reduce((sum, option) => sum + option.priceDeltaMinor, 0);
       lines.push({ key: JSON.stringify([product.id, variant?.id ?? null, [...optionIds].sort()]), product, quantity: line.quantity, ...(variant ? { variantId: variant.id, variantName: variant.name } : {}), modifierOptionIds: optionIds, selectedModifiers, unitPriceMinor });
     }
-    setCart(lines); setDraftId(draft.id); setCustomerName(draft.customerName || ""); setOrderNotes(draft.notes || "");
+    setCart(lines); setOrderType(draft.orderType ?? "TAKEAWAY"); setDraftId(draft.id); setCustomerName(draft.customerName || ""); setOrderNotes(draft.notes || "");
     setDiscount(0); setDiscountApprovalId(null); setCheckoutKey(""); setDraftsOpen(false);
     setNotice(`Draft #${draft.orderNumber} resumed. Prices are refreshed at checkout.`);
   }
@@ -485,6 +486,7 @@ export default function Home() {
     const payload: CheckoutPayload = {
       items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}), modifierOptionIds: line.modifierOptionIds })),
       paymentMethod: "CASH",
+      orderType,
       cashReceivedMinor,
       paymentTenders: splitPayment ? [{ method: "CASH", amountMinor: cashReceivedMinor }, { method: "OTHER", amountMinor: total - cashReceivedMinor }] : [{ method: "CASH", amountMinor: total }],
       idempotencyKey: requestKey,
@@ -603,6 +605,7 @@ export default function Home() {
 
         <aside className="order-card">
           <div className="order-title"><h2><span>🛒</span> Current Order ({itemCount})</h2><button type="button" aria-label="Clear order" disabled={checkoutBusy || checkoutUncertain} onClick={() => setCart([])}>×</button></div>
+          <div className="order-type-selector" role="group" aria-label="Order type"><button type="button" aria-pressed={orderType === "TAKEAWAY"} className={orderType === "TAKEAWAY" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("TAKEAWAY")}>Takeaway</button><button type="button" aria-pressed={orderType === "DINE_IN"} className={orderType === "DINE_IN" ? "selected" : ""} disabled={checkoutBusy || checkoutUncertain} onClick={() => setOrderType("DINE_IN")}>Eat here</button></div>
           <div className="order-quick-actions" aria-label="Order tools">
             <button type="button" disabled={checkoutBusy} onClick={() => { window.location.href = "/shift"; }}><span>◷</span>Cash shift</button>
             <button type="button" disabled={checkoutBusy || checkoutUncertain} onClick={() => { window.location.href = "/orders"; }}><span>▤</span>Orders</button>
@@ -652,7 +655,7 @@ export default function Home() {
           </div>
           {pendingCheckout && <button type="button" className="place-order" onClick={() => void resumePendingCheckout()} disabled={checkoutBusy || !staff || pendingCheckout.cashierId !== staff.id}>{checkoutBusy ? "Checking saved checkout…" : "Resume saved checkout"}</button>}
           <div className="payment-actions">
-            <button type="button" className="clear-order" disabled={checkoutBusy || checkoutUncertain} onClick={() => { setCart([]); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
+            <button type="button" className="clear-order" disabled={checkoutBusy || checkoutUncertain} onClick={() => { setCart([]); setOrderType("TAKEAWAY"); setDiscount(0); setDiscountApprovalId(null); setNotice(""); }}>♜ <span>Clear</span></button>
             <button type="button" className="pay-button" onClick={() => void completeCheckout()} disabled={cart.length === 0 || checkoutBusy || !tenderValid}>▣ <span>{checkoutBusy ? "Processing…" : checkoutUncertain ? "Retry Checkout" : splitPayment ? "Pay Split" : "Pay Cash"}</span></button>
           </div>
           <button type="button" className="place-order" onClick={() => void saveDraft()} disabled={cart.length === 0 || !staff || draftBusy || checkoutBusy || checkoutUncertain}><span>▤</span>{draftBusy ? "Saving…" : draftId ? "Update draft" : "Save draft"}</button>
